@@ -332,7 +332,7 @@ export default function App() {
             {view === 'correct' && <CorrectExamView user={user} exams={exams} setView={setView} />}
             {view === 'guides' && <GuidesView exams={exams} />}
             {view === 'reports' && <ReportsView exams={exams} results={results} />}
-            {view === 'schedule' && <ScheduleView exams={exams} />}
+            {view === 'schedule' && <ScheduleView exams={exams} isAdmin={isAdmin} user={user} />}
             {view === 'print' && selectedPrintExam && <ExamPrintView exam={selectedPrintExam} onBack={() => setView('dashboard')} />}
             {view === 'admin' && isAdmin && <AdminView user={user} />}
           </AnimatePresence>
@@ -1374,27 +1374,97 @@ function ReportsView({ exams, results }: { exams: Exam[], results: Result[] }) {
   );
 }
 
-function ScheduleView({ exams }: { exams: Exam[] }) {
+function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolean, user: User }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState<Partial<Exam>>({});
+  const [isAdding, setIsAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const schoolInfo = getSchoolInfo();
+
   const sortedExams = [...exams].sort((a, b) => {
     if (!a.examDate) return 1;
     if (!b.examDate) return -1;
     return new Date(a.examDate).getTime() - new Date(b.examDate).getTime();
   });
 
+  const groupedExams = sortedExams.reduce((acc, exam) => {
+    const key = exam.examDate ? exam.examDate : 'A definir';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(exam);
+    return acc;
+  }, {} as Record<string, Exam[]>);
+
+  const handleEditClick = (exam: Exam) => {
+    setEditingId(exam.id);
+    setFormData({ ...exam });
+  };
+
+  const handleSave = async () => {
+    if (!formData.subject || !formData.classYear) return;
+    setSaving(true);
+    try {
+      if (editingId && editingId !== 'new') {
+        await supabase.from('exams').update({
+          subject: formData.subject,
+          classYear: formData.classYear,
+          examDate: formData.examDate,
+          examType: formData.examType,
+          content: formData.content
+        }).eq('id', editingId);
+      } else {
+        await supabase.from('exams').insert({
+          title: `Agendamento: ${formData.subject}`,
+          subject: formData.subject,
+          examType: formData.examType || 'PII',
+          examDate: formData.examDate,
+          classYear: formData.classYear,
+          content: formData.content,
+          questions: [],
+          answerKey: { _metadata: { isExternal: true, examType: formData.examType } },
+          studyGuide: '',
+          professorId: user.id
+        });
+      }
+      setEditingId(null);
+      setIsAdding(false);
+    } catch (err: any) {
+      alert("Erro ao salvar: " + err.message);
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Tem certeza que deseja apagar esse agendamento?')) {
+      await supabase.from('exams').delete().eq('id', id);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-primary">Cronograma de Provas</h2>
-        <button 
-          onClick={() => exportToPDF('schedule-table', 'Cronograma-Provas')}
-          className="bg-accent text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-accent/90 shadow-sm"
-        >
-          <Download className="w-4 h-4" />
-          Imprimir Cronograma
-        </button>
+        <div className="flex gap-3">
+          {(isAdmin || true) && (
+            <button 
+              onClick={() => { setIsAdding(true); setFormData({}); setEditingId('new'); }}
+              className="bg-primary text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-primary/90 shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Adicionar Agendamento
+            </button>
+          )}
+          <button 
+            onClick={() => exportToPDF('schedule-container', 'Cronograma-Provas')}
+            className="bg-accent text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-accent/90 shadow-sm"
+          >
+            <Download className="w-4 h-4" />
+            Imprimir Cronograma
+          </button>
+        </div>
       </div>
 
-      <div id="schedule-table" className="bg-white rounded-lg border border-border overflow-hidden p-8">
+      <div id="schedule-container" className="bg-white rounded-lg border border-border overflow-hidden p-8 mb-8">
         <div className="text-center mb-8 border-b border-border pb-6">
           <div className="w-fit h-14 rounded-lg flex items-center justify-center mx-auto mb-4 bg-white px-4 border border-slate-100 gap-4">
             <img src="https://colegioprogressosantista.com.br/wp-content/uploads/2025/11/logo-vinho-1024x1022.webp" alt="Logo CPS" className="w-10 h-10 object-contain" onError={(e) => {
@@ -1407,46 +1477,125 @@ function ScheduleView({ exams }: { exams: Exam[] }) {
           <p className="text-sm text-slate-500 font-bold uppercase tracking-widest mt-1">Cronograma de Avaliações Semestrais</p>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-slate-50">
-                <th className="text-left px-6 py-4 border border-border text-xs font-bold text-slate-500 uppercase">Data</th>
-                <th className="text-left px-6 py-4 border border-border text-xs font-bold text-slate-500 uppercase">Horário</th>
-                <th className="text-left px-6 py-4 border border-border text-xs font-bold text-slate-500 uppercase">Turma</th>
-                <th className="text-left px-6 py-4 border border-border text-xs font-bold text-slate-500 uppercase">Disciplina</th>
-                <th className="text-left px-6 py-4 border border-border text-xs font-bold text-slate-500 uppercase">Tipo</th>
-                <th className="text-left px-6 py-4 border border-border text-xs font-bold text-slate-500 uppercase">Conteúdo Sugerido</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedExams.map((exam, idx) => (
-                <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 border border-border font-bold text-primary text-sm">
-                    {exam.examDate ? new Date(exam.examDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'A definir'}
-                  </td>
-                  <td className="px-6 py-4 border border-border text-slate-600 text-sm">{exam.examTime || '--:--'}</td>
-                  <td className="px-6 py-4 border border-border font-bold text-slate-800 text-sm whitespace-nowrap">{exam.classYear || '--'}</td>
-                  <td className="px-6 py-4 border border-border font-bold text-slate-800 text-sm">{exam.subject}</td>
-                  <td className="px-6 py-4 border border-border text-slate-600 text-sm">
-                    <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-bold uppercase">{exam.examType}</span>
-                  </td>
-                  <td className="px-6 py-4 border border-border text-slate-500 text-sm max-w-[400px] break-words">
-                    {exam.content || '--'}
-                  </td>
-                </tr>
-              ))}
-              {exams.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-slate-400 italic">Nenhuma prova cadastrada no sistema.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        {isAdding && (
+          <div className="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+            <h3 className="font-bold text-primary mb-4">Novo Agendamento</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data</label>
+                <input type="date" value={formData.examDate || ''} onChange={e => setFormData({...formData, examDate: e.target.value})} className="w-full border border-border rounded-md px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Turma</label>
+                <select value={formData.classYear || ''} onChange={e => setFormData({...formData, classYear: e.target.value})} className="w-full border border-border rounded-md px-3 py-2 text-sm">
+                  <option value="">Selecione...</option>
+                  {schoolInfo.classes.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Disciplina</label>
+                <select value={formData.subject || ''} onChange={e => setFormData({...formData, subject: e.target.value})} className="w-full border border-border rounded-md px-3 py-2 text-sm">
+                  <option value="">Selecione...</option>
+                  {schoolInfo.subjects.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo</label>
+                <select value={formData.examType || 'PII'} onChange={e => setFormData({...formData, examType: e.target.value as any})} className="w-full border border-border rounded-md px-3 py-2 text-sm">
+                  <option value="PII">PII</option>
+                  <option value="PIII">PIII</option>
+                  <option value="Simulado">Simulado</option>
+                </select>
+              </div>
+            </div>
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Conteúdo para Estudo</label>
+              <textarea value={formData.content || ''} onChange={e => setFormData({...formData, content: e.target.value})} placeholder="Páginas, capítulos e assuntos..." className="w-full border border-border rounded-md px-3 py-2 text-sm h-20" />
+            </div>
+            <div className="flex gap-2">
+              <button disabled={saving} onClick={handleSave} className="bg-green-600 text-white px-4 py-2 rounded-md font-bold text-sm">Salvar</button>
+              <button onClick={() => { setIsAdding(false); setEditingId(null); }} className="bg-white border border-slate-300 px-4 py-2 rounded-md font-bold text-sm text-slate-600">Cancelar</button>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-6">
+          {Object.entries(groupedExams).length === 0 && !isAdding && (
+            <div className="text-center text-slate-400 italic py-10">Nenhuma data agendada.</div>
+          )}
+          {Object.entries(groupedExams).map(([date, dateExams]) => (
+            <div key={date} className="break-inside-avoid shadow-sm rounded-lg border border-slate-200 overflow-hidden">
+              <div className="bg-slate-100 px-4 py-3 border-b border-slate-200">
+                <h3 className="font-bold text-primary text-lg">
+                  {date === 'A definir' ? 'Sem data definida' : new Date(date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </h3>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {dateExams.map(exam => (
+                  <div key={exam.id} className="p-4 bg-white hover:bg-slate-50 transition-colors">
+                    {editingId === exam.id ? (
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data</label>
+                            <input type="date" value={formData.examDate || ''} onChange={e => setFormData({...formData, examDate: e.target.value})} className="w-full border border-border rounded-md px-3 py-2 text-sm" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Turma</label>
+                            <select value={formData.classYear || ''} onChange={e => setFormData({...formData, classYear: e.target.value})} className="w-full border border-border rounded-md px-3 py-2 text-sm">
+                              {schoolInfo.classes.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Disciplina</label>
+                            <select value={formData.subject || ''} onChange={e => setFormData({...formData, subject: e.target.value})} className="w-full border border-border rounded-md px-3 py-2 text-sm">
+                              {schoolInfo.subjects.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo</label>
+                            <select value={formData.examType || 'PII'} onChange={e => setFormData({...formData, examType: e.target.value as any})} className="w-full border border-border rounded-md px-3 py-2 text-sm">
+                              <option value="PII">PII</option>
+                              <option value="PIII">PIII</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="mb-4">
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Conteúdo</label>
+                          <textarea value={formData.content || ''} onChange={e => setFormData({...formData, content: e.target.value})} className="w-full border border-border rounded-md px-3 py-2 text-sm h-20" />
+                        </div>
+                        <div className="flex gap-2">
+                          <button disabled={saving} onClick={handleSave} className="bg-green-600 text-white px-4 py-2 rounded-md font-bold text-sm">Salvar</button>
+                          <button onClick={() => setEditingId(null)} className="bg-white border border-slate-300 px-4 py-2 rounded-md font-bold text-sm text-slate-600">Cancelar</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold text-primary">{exam.subject}</span>
+                            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold uppercase">{exam.examType}</span>
+                            <span className="text-sm font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">{exam.classYear}</span>
+                          </div>
+                          <div className="text-sm text-slate-600 whitespace-pre-wrap"><strong className="text-slate-500">Conteúdo:</strong> {exam.content || 'Nenhum conteúdo específico providenciado.'}</div>
+                        </div>
+                        {isAdmin && (
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => handleEditClick(exam)} className="text-xs font-bold text-slate-500 hover:text-primary px-3 py-1.5 bg-slate-100 rounded-md">Editar</button>
+                            <button onClick={() => handleDelete(exam.id)} className="text-xs font-bold text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="mt-8 pt-6 border-t border-dashed border-border flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
-          <span>Emitido em: {new Date().toLocaleDateString()}</span>
+          <span>Emitido em: {new Date().toLocaleDateString('pt-BR')}</span>
           <span>EduGrade Pro • Colégio Progresso Santista</span>
         </div>
       </div>
