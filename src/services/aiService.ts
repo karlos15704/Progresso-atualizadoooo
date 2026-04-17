@@ -1,6 +1,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let aiInstance: GoogleGenAI | null = null;
+
+function getAI() {
+  if (!aiInstance) {
+    aiInstance = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  }
+  return aiInstance;
+}
 
 export interface CorrectionResult {
   studentName: string;
@@ -15,6 +22,7 @@ export async function correctExamFromImage(
   examTitle: string,
   answerKey: Record<string, string>
 ): Promise<CorrectionResult> {
+  const ai = getAI();
   const prompt = `
     Você é um assistente de correção de provas. 
     Analise a imagem do gabarito da prova "${examTitle}".
@@ -67,6 +75,7 @@ export async function correctExamFromImage(
 }
 
 export async function generateStudyGuide(content: string): Promise<string> {
+  const ai = getAI();
   const prompt = `
     Com base nos seguintes conteúdos: "${content}", crie um guia de estudos estruturado para os alunos.
     Inclua tópicos principais, explicações breves e dicas de estudo.
