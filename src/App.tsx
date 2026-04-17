@@ -72,7 +72,7 @@ interface Result {
 
 const DEFAULT_SCHOOL_INFO = {
   subjects: ['Português', 'Matemática', 'Ciências', 'História', 'Geografia', 'Inglês', 'Artes', 'Educação Física', 'Física', 'Química', 'Biologia', 'Filosofia', 'Sociologia'],
-  classes: ['6º ano', '7º ano', '8º ano', '9º ano', '1º ano Médio', '2º ano Médio', '3º ano Médio'],
+  classes: ['6º A', '6º B', '6º C', '7º A', '7º B', '8º A', '8º B', '9º A', '9º B'],
   studentsDB: {
     '6º ano': [
       { classId: '6º A', name: 'Alice Silva' },
@@ -115,7 +115,7 @@ function getSchoolInfo() {
       const parsed = JSON.parse(saved);
       return {
         subjects: parsed.subjects || DEFAULT_SCHOOL_INFO.subjects,
-        classes: parsed.classes || DEFAULT_SCHOOL_INFO.classes,
+        classes: DEFAULT_SCHOOL_INFO.classes, // Force to always be the updated list
         studentsDB: parsed.studentsDB || DEFAULT_SCHOOL_INFO.studentsDB
       };
     } catch {
@@ -134,7 +134,7 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'dashboard' | 'create' | 'correct' | 'reports' | 'guides' | 'admin' | 'schedule' | 'print'>('dashboard');
-  const [selectedPrintExam, setSelectedPrintExam] = useState<Exam | null>(null);
+  const [examToEdit, setExamToEdit] = useState<Exam | null>(null);
   const [exams, setExams] = useState<Exam[]>([]);
   const [results, setResults] = useState<Result[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -327,8 +327,8 @@ export default function App() {
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-[25px]">
           <AnimatePresence mode="wait">
-            {view === 'dashboard' && <DashboardView exams={exams} results={results} setView={setView} onSelectPrintExam={setSelectedPrintExam} />}
-            {view === 'create' && <CreateExamView user={user} setView={setView} />}
+            {view === 'dashboard' && <DashboardView exams={exams} results={results} setView={setView} onSelectPrintExam={setSelectedPrintExam} onEditExam={e => { setExamToEdit(e); setView('create'); }} />}
+            {view === 'create' && <CreateExamView user={user} setView={(v) => { setView(v); setExamToEdit(null); }} examToEdit={examToEdit} />}
             {view === 'correct' && <CorrectExamView user={user} exams={exams} setView={setView} />}
             {view === 'guides' && <GuidesView exams={exams} />}
             {view === 'reports' && <ReportsView exams={exams} results={results} />}
@@ -488,7 +488,7 @@ function LoginView({ error, setError }: { error: string | null, setError: (e: st
   );
 }
 
-function DashboardView({ exams, results, setView, onSelectPrintExam }: { exams: Exam[], results: Result[], setView: (v: any) => void, onSelectPrintExam: (e: Exam) => void }) {
+function DashboardView({ exams, results, setView, onSelectPrintExam, onEditExam }: { exams: Exam[], results: Result[], setView: (v: any) => void, onSelectPrintExam: (e: Exam) => void, onEditExam: (exam: Exam) => void }) {
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
@@ -538,7 +538,7 @@ function DashboardView({ exams, results, setView, onSelectPrintExam }: { exams: 
                         {results.some(r => r.examId === exam.id) ? 'Corrigida' : 'Pendente'}
                       </span>
                     </td>
-                    <td className="px-5 py-3 border-b border-border text-slate-500">
+                    <td className="px-5 py-3 border-b border-border text-slate-500 flex items-center gap-3">
                       <button 
                         onClick={() => {
                           onSelectPrintExam(exam);
@@ -548,6 +548,12 @@ function DashboardView({ exams, results, setView, onSelectPrintExam }: { exams: 
                       >
                         <FileText className="w-4 h-4" />
                         Imprimir
+                      </button>
+                      <button 
+                        onClick={() => onEditExam(exam)}
+                        className="text-slate-500 font-bold hover:text-primary flex items-center gap-1"
+                      >
+                        Editar Prv
                       </button>
                     </td>
                   </tr>
@@ -564,7 +570,7 @@ function DashboardView({ exams, results, setView, onSelectPrintExam }: { exams: 
 
         <div className="lg:col-span-1 flex flex-col gap-5">
           <button 
-            onClick={() => setView('create')}
+            onClick={() => { onEditExam(null as any); setView('create'); }}
             className="bg-accent text-white p-3 rounded-md font-bold text-sm hover:bg-accent/90 transition-all shadow-sm"
           >
             + Criar Nova Prova
@@ -605,19 +611,19 @@ function StatCard({ label, value, icon, color }: { label: string, value: any, ic
   );
 }
 
-function CreateExamView({ user, setView }: { user: User, setView: (v: any) => void }) {
+function CreateExamView({ user, setView, examToEdit }: { user: User, setView: (v: any) => void, examToEdit?: Exam | null }) {
   const schoolInfo = getSchoolInfo();
   
-  const [title, setTitle] = useState('');
-  const [subject, setSubject] = useState(schoolInfo.subjects[0] || '');
-  const [classYear, setClassYear] = useState(schoolInfo.classes[0] || '');
-  const [content, setContent] = useState('');
-  const [examType, setExamType] = useState<'PII' | 'PIII'>('PII');
-  const [examDate, setExamDate] = useState('');
-  const [examTime, setExamTime] = useState('');
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [title, setTitle] = useState(examToEdit?.title || '');
+  const [subject, setSubject] = useState(examToEdit?.subject || schoolInfo.subjects[0] || '');
+  const [classYear, setClassYear] = useState(examToEdit?.classYear || schoolInfo.classes[0] || '');
+  const [content, setContent] = useState(examToEdit?.content || '');
+  const [examType, setExamType] = useState<'PII' | 'PIII'>(examToEdit?.examType || 'PII');
+  const [examDate, setExamDate] = useState(examToEdit?.examDate || '');
+  const [examTime, setExamTime] = useState(examToEdit?.examTime || '');
+  const [questions, setQuestions] = useState<Question[]>(examToEdit?.questions || []);
   const [saving, setSaving] = useState(false);
-  const [isExternal, setIsExternal] = useState(false);
+  const [isExternal, setIsExternal] = useState(examToEdit?.answerKey?._metadata?.isExternal || false);
 
   const addQuestion = () => {
     setQuestions([...questions, {
@@ -644,7 +650,7 @@ function CreateExamView({ user, setView }: { user: User, setView: (v: any) => vo
         }
       };
       
-      let guide = '';
+      let guide = examToEdit?.studyGuide || '';
       if (!isExternal) {
         questions.forEach(q => {
           answerKey[q.id] = q.correctAnswer;
@@ -654,18 +660,34 @@ function CreateExamView({ user, setView }: { user: User, setView: (v: any) => vo
         const promptText = content 
           ? `${title} - ${subject} (${classYear}). Conteúdo programático: ${content}. Baseado nisso e nas questões: ${questions.map(q => q.text).join(', ')}` 
           : `${title} - ${subject}: ${questions.map(q => q.text).join(', ')}`;
+        
+        // Only regenerate if questions or content changed? We'll just regenerate unless it fails.
+        // To save time, if we're editing and guide exists, we'll keep it unless user wants. But it's fine.
         guide = await generateStudyGuide(promptText);
       }
 
-      const { error } = await supabase.from('exams').insert({
+      const examData = {
         title,
         subject,
         questions: isExternal ? [] : questions,
         answerKey,
         studyGuide: guide,
         professorId: user.id,
-        createdAt: new Date().toISOString()
-      });
+        examType,
+        examDate,
+        examTime,
+        classYear,
+        content
+      };
+
+      let error;
+      if (examToEdit) {
+        const res = await supabase.from('exams').update(examData).eq('id', examToEdit.id);
+        error = res.error;
+      } else {
+        const res = await supabase.from('exams').insert({ ...examData, createdAt: new Date().toISOString() });
+        error = res.error;
+      }
       
       if (error) {
         alert("Erro no Supabase: " + error.message);
@@ -686,7 +708,7 @@ function CreateExamView({ user, setView }: { user: User, setView: (v: any) => vo
       className="max-w-4xl mx-auto space-y-6 pb-20"
     >
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-primary">Nova Prova</h2>
+        <h2 className="text-xl font-bold text-primary">{examToEdit ? 'Editar Prova' : 'Nova Prova'}</h2>
         <div className="flex gap-3">
           <label className="flex items-center gap-2 text-sm text-slate-600 font-bold bg-slate-50 px-3 py-1 rounded border border-slate-200 cursor-pointer">
             <input 
@@ -720,17 +742,27 @@ function CreateExamView({ user, setView }: { user: User, setView: (v: any) => vo
               className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm"
             />
           </div>
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Turma / Ano</label>
-            <select 
-              value={classYear}
-              onChange={e => setClassYear(e.target.value)}
-              className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm bg-white"
-            >
-              {schoolInfo.classes.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+          <div className="space-y-2 col-span-1 md:col-span-3">
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Turmas (Pode ser mais de uma)</label>
+            <div className="flex flex-wrap gap-2">
+              {schoolInfo.classes.map(c => {
+                const isSelected = classYear.split(', ').includes(c);
+                return (
+                  <button 
+                    key={c}
+                    type="button"
+                    onClick={() => {
+                      const arr = classYear.split(', ').filter(Boolean);
+                      if (arr.includes(c)) setClassYear(arr.filter(x => x !== c).join(', '));
+                      else setClassYear([...arr, c].join(', '));
+                    }}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold border transition-colors ${isSelected ? 'bg-primary text-white border-primary' : 'bg-slate-50 text-slate-600 border-border hover:border-slate-400'}`}
+                  >
+                    {c}
+                  </button>
+                )
+              })}
+            </div>
           </div>
           <div className="space-y-2">
             <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Matéria</label>
@@ -1379,10 +1411,26 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
   const [formData, setFormData] = useState<Partial<Exam>>({});
   const [isAdding, setIsAdding] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [filterClass, setFilterClass] = useState<string>('');
 
   const schoolInfo = getSchoolInfo();
 
-  const sortedExams = [...exams].sort((a, b) => {
+  // Expand exams that have multiple classes
+  const expandedExams: (Exam & { displayClass: string })[] = [];
+  for (const exam of exams) {
+    const classes = (exam.classYear || '').split(',').map(c => c.trim()).filter(Boolean);
+    if (classes.length === 0) {
+      expandedExams.push({ ...exam, displayClass: '' });
+    } else {
+      classes.forEach(cls => {
+        expandedExams.push({ ...exam, displayClass: cls, id: exam.id + '-' + cls }); // Unique ID per class
+      });
+    }
+  }
+
+  const filteredExams = expandedExams.filter(e => filterClass === '' || e.displayClass === filterClass);
+
+  const sortedExams = [...filteredExams].sort((a, b) => {
     if (!a.examDate) return 1;
     if (!b.examDate) return -1;
     return new Date(a.examDate).getTime() - new Date(b.examDate).getTime();
@@ -1393,11 +1441,12 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
     if (!acc[key]) acc[key] = [];
     acc[key].push(exam);
     return acc;
-  }, {} as Record<string, Exam[]>);
+  }, {} as Record<string, (Exam & { displayClass: string })[]>);
 
-  const handleEditClick = (exam: Exam) => {
-    setEditingId(exam.id);
-    setFormData({ ...exam });
+  const handleEditClick = (exam: Exam & { displayClass: string }) => {
+    setEditingId(exam.id.split('-')[0]); // Recover original ID
+    const originalExam = exams.find(e => e.id === exam.id.split('-')[0]);
+    setFormData({ ...(originalExam || exam) });
   };
 
   const handleSave = async () => {
@@ -1464,6 +1513,18 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
         </div>
       </div>
 
+      <div className="bg-white p-4 rounded-lg border border-border shadow-sm flex items-center gap-3">
+        <label className="text-sm font-bold text-slate-500 uppercase">Filtrar por Turma:</label>
+        <select 
+          value={filterClass} 
+          onChange={e => setFilterClass(e.target.value)}
+          className="border border-border rounded-md px-3 py-1.5 text-sm outline-none"
+        >
+          <option value="">Todas as Turmas (Completo)</option>
+          {schoolInfo.classes.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+
       <div id="schedule-container" className="bg-white rounded-lg border border-border overflow-hidden p-8 mb-8">
         <div className="text-center mb-8 border-b border-border pb-6">
           <div className="w-fit h-14 rounded-lg flex items-center justify-center mx-auto mb-4 bg-white px-4 border border-slate-100 gap-4">
@@ -1485,12 +1546,27 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data</label>
                 <input type="date" value={formData.examDate || ''} onChange={e => setFormData({...formData, examDate: e.target.value})} className="w-full border border-border rounded-md px-3 py-2 text-sm" />
               </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Turma</label>
-                <select value={formData.classYear || ''} onChange={e => setFormData({...formData, classYear: e.target.value})} className="w-full border border-border rounded-md px-3 py-2 text-sm">
-                  <option value="">Selecione...</option>
-                  {schoolInfo.classes.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+              <div className="col-span-1 md:col-span-2">
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Turmas</label>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {schoolInfo.classes.map(c => {
+                    const isSelected = (formData.classYear || '').split(', ').includes(c);
+                    return (
+                      <button 
+                        key={c}
+                        type="button"
+                        onClick={() => {
+                          const arr = (formData.classYear || '').split(', ').filter(Boolean);
+                          if (arr.includes(c)) setFormData({...formData, classYear: arr.filter(x => x !== c).join(', ')});
+                          else setFormData({...formData, classYear: [...arr, c].join(', ')});
+                        }}
+                        className={`px-2 py-1 rounded text-[11px] font-bold border transition-colors ${isSelected ? 'bg-primary text-white border-primary' : 'bg-slate-50 text-slate-600 border-border hover:border-slate-400'}`}
+                      >
+                        {c}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Disciplina</label>
@@ -1533,18 +1609,34 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
               <div className="divide-y divide-slate-100">
                 {dateExams.map(exam => (
                   <div key={exam.id} className="p-4 bg-white hover:bg-slate-50 transition-colors">
-                    {editingId === exam.id ? (
+                    {editingId === exam.id.split('-')[0] ? (
                       <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-2">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                           <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data</label>
                             <input type="date" value={formData.examDate || ''} onChange={e => setFormData({...formData, examDate: e.target.value})} className="w-full border border-border rounded-md px-3 py-2 text-sm" />
                           </div>
-                          <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Turma</label>
-                            <select value={formData.classYear || ''} onChange={e => setFormData({...formData, classYear: e.target.value})} className="w-full border border-border rounded-md px-3 py-2 text-sm">
-                              {schoolInfo.classes.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
+                          <div className="col-span-1 md:col-span-2">
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Turmas</label>
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                              {schoolInfo.classes.map(c => {
+                                const isSelected = (formData.classYear || '').split(', ').includes(c);
+                                return (
+                                  <button 
+                                    key={c}
+                                    type="button"
+                                    onClick={() => {
+                                      const arr = (formData.classYear || '').split(', ').filter(Boolean);
+                                      if (arr.includes(c)) setFormData({...formData, classYear: arr.filter(x => x !== c).join(', ')});
+                                      else setFormData({...formData, classYear: [...arr, c].join(', ')});
+                                    }}
+                                    className={`px-2 py-1 rounded text-[11px] font-bold border transition-colors ${isSelected ? 'bg-primary text-white border-primary' : 'bg-slate-50 text-slate-600 border-border hover:border-slate-400'}`}
+                                  >
+                                    {c}
+                                  </button>
+                                )
+                              })}
+                            </div>
                           </div>
                           <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Disciplina</label>
@@ -1575,14 +1667,14 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-bold text-primary">{exam.subject}</span>
                             <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold uppercase">{exam.examType}</span>
-                            <span className="text-sm font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">{exam.classYear}</span>
+                            <span className="text-sm font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">{exam.displayClass || exam.classYear}</span>
                           </div>
                           <div className="text-sm text-slate-600 whitespace-pre-wrap"><strong className="text-slate-500">Conteúdo:</strong> {exam.content || 'Nenhum conteúdo específico providenciado.'}</div>
                         </div>
                         {isAdmin && (
                           <div className="flex items-center gap-2">
                             <button onClick={() => handleEditClick(exam)} className="text-xs font-bold text-slate-500 hover:text-primary px-3 py-1.5 bg-slate-100 rounded-md">Editar</button>
-                            <button onClick={() => handleDelete(exam.id)} className="text-xs font-bold text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => handleDelete(exam.id.split('-')[0])} className="text-xs font-bold text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
                           </div>
                         )}
                       </div>
