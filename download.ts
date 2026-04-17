@@ -1,22 +1,26 @@
-import fs from "fs";
+import fs from 'fs';
+import https from 'https';
 
-async function download() {
-  const cpsUrl = "https://colegioprogressosantista.com.br/wp-content/uploads/2025/11/logo-vinho-1024x1022.webp";
-  const cocUrl = "https://colegioprogressosantista.com.br/wp-content/uploads/2025/11/Logo-COC-novo-1024x473.png";
-
-  if (!fs.existsSync("public")) {
-    fs.mkdirSync("public");
-  }
-
-  const resCps = await fetch(cpsUrl);
-  const bufCps = await resCps.arrayBuffer();
-  fs.writeFileSync("public/cps_logo.webp", Buffer.from(bufCps));
-
-  const resCoc = await fetch(cocUrl);
-  const bufCoc = await resCoc.arrayBuffer();
-  fs.writeFileSync("public/coc_logo.png", Buffer.from(bufCoc));
-
-  console.log("Downloaded successfully");
+function downloadFile(url: string, dest: string) {
+    return new Promise<void>((resolve, reject) => {
+        const file = fs.createWriteStream(dest);
+        https.get(url, (response) => {
+            response.pipe(file);
+            file.on('finish', () => {
+                file.close();
+                resolve();
+            });
+        }).on('error', (err) => {
+            fs.unlink(dest, () => {});
+            reject(err);
+        });
+    });
 }
 
-download();
+async function main() {
+    await downloadFile('https://colegioprogressosantista.com.br/wp-content/uploads/2025/11/logo-vinho-1024x1022.webp', 'public/logo-vinho.webp');
+    await downloadFile('https://colegioprogressosantista.com.br/wp-content/uploads/2025/11/Logo-COC-novo-1024x473.png', 'public/logo-coc.png');
+    console.log('Downloaded images to public');
+}
+
+main();

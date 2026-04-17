@@ -75,17 +75,22 @@ export async function correctExamFromImage(
 }
 
 export async function generateStudyGuide(content: string): Promise<string> {
-  const ai = getAI();
-  const prompt = `
-    Com base nos seguintes conteúdos: "${content}", crie um guia de estudos estruturado para os alunos.
-    Inclua tópicos principais, explicações breves e dicas de estudo.
-    Formate em Markdown.
-  `;
+  try {
+    const ai = getAI();
+    const prompt = `
+      Com base nos seguintes conteúdos: "${content}", crie um guia de estudos estruturado para os alunos.
+      Inclua tópicos principais, explicações breves e dicas de estudo.
+      Formate em Markdown.
+    `;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: prompt
-  });
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt
+    });
 
-  return response.text || "Não foi possível gerar o guia.";
+    return response.text || "Sem guia de estudos gerado.";
+  } catch (error) {
+    console.warn("AI generation failed, returning fallback content.", error);
+    return "Guia manual: " + content;
+  }
 }

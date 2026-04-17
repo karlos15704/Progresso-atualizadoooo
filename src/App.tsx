@@ -247,11 +247,11 @@ export default function App() {
       <header className="bg-white border-b border-border h-[70px] px-8 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <div className="bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm flex items-center gap-2">
-            <img src="https://colegioprogressosantista.com.br/wp-content/uploads/2025/11/logo-vinho-1024x1022.webp" alt="Logo CPS" className="w-5 h-5 object-contain" onError={(e) => {
+            <img src="/logo-vinho.webp" alt="Logo CPS" className="w-5 h-5 object-contain" onError={(e) => {
               (e.target as HTMLImageElement).src = "https://via.placeholder.com/150?text=Logo";
             }} />
             <div className="w-px h-4 bg-slate-200"></div>
-            <img src="https://colegioprogressosantista.com.br/wp-content/uploads/2025/11/Logo-COC-novo-1024x473.png" alt="Plataforma COC" className="h-4 object-contain" />
+            <img src="/logo-coc.png" alt="Plataforma COC" className="h-4 object-contain" />
           </div>
           <h1 className="text-lg font-bold text-primary tracking-tight uppercase hidden md:block">Colégio Progresso Santista</h1>
         </div>
@@ -433,11 +433,11 @@ function LoginView({ error, setError }: { error: string | null, setError: (e: st
         className="max-w-md w-full bg-white rounded-lg shadow-xl p-10 text-center border border-border"
       >
         <div className="bg-white w-full max-w-[200px] h-16 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100 gap-3 px-4">
-          <img src="https://colegioprogressosantista.com.br/wp-content/uploads/2025/11/logo-vinho-1024x1022.webp" alt="Logo CPS" className="w-10 h-10 object-contain" onError={(e) => {
+          <img src="/logo-vinho.webp" alt="Logo CPS" className="w-10 h-10 object-contain" onError={(e) => {
               (e.target as HTMLImageElement).src = "https://via.placeholder.com/150?text=Logo";
           }} />
           <div className="w-px h-8 bg-slate-200"></div>
-          <img src="https://colegioprogressosantista.com.br/wp-content/uploads/2025/11/Logo-COC-novo-1024x473.png" alt="Plataforma COC" className="h-6 object-contain" />
+          <img src="/logo-coc.png" alt="Plataforma COC" className="h-6 object-contain" />
         </div>
         <h1 className="text-2xl font-bold text-primary mb-2 uppercase tracking-tight">Colégio Progresso Santista</h1>
         <p className="text-slate-500 mb-8 text-sm">Acesso restrito para professores.</p>
@@ -1467,11 +1467,11 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
       <div id="schedule-container" className="bg-white rounded-lg border border-border overflow-hidden p-8 mb-8">
         <div className="text-center mb-8 border-b border-border pb-6">
           <div className="w-fit h-14 rounded-lg flex items-center justify-center mx-auto mb-4 bg-white px-4 border border-slate-100 gap-4">
-            <img src="https://colegioprogressosantista.com.br/wp-content/uploads/2025/11/logo-vinho-1024x1022.webp" alt="Logo CPS" className="w-10 h-10 object-contain" onError={(e) => {
+            <img src="/logo-vinho.webp" alt="Logo CPS" className="w-10 h-10 object-contain" onError={(e) => {
               (e.target as HTMLImageElement).src = "https://via.placeholder.com/150?text=Logo";
             }} />
             <div className="w-px h-8 bg-slate-200"></div>
-            <img src="https://colegioprogressosantista.com.br/wp-content/uploads/2025/11/Logo-COC-novo-1024x473.png" alt="Plataforma COC" className="h-6 object-contain" />
+            <img src="/logo-coc.png" alt="Plataforma COC" className="h-6 object-contain" />
           </div>
           <h1 className="text-xl font-bold text-primary uppercase">Colégio Progresso Santista</h1>
           <p className="text-sm text-slate-500 font-bold uppercase tracking-widest mt-1">Cronograma de Avaliações Semestrais</p>
@@ -1654,10 +1654,10 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
           {/* Top Row: Logos and School Name */}
           <div className="flex items-center justify-between border-b-[3px] border-black border-dashed pb-2 mb-1 px-4">
             <div className="flex items-center gap-4">
-              <img src="https://colegioprogressosantista.com.br/wp-content/uploads/2025/11/logo-vinho-1024x1022.webp" alt="Logo CPS" className="w-12 h-12 object-contain" referrerPolicy="no-referrer" />
+              <img src="/logo-vinho.webp" alt="Logo CPS" className="w-12 h-12 object-contain" referrerPolicy="no-referrer" />
               <div className="flex flex-col border-l border-black pl-3 py-1">
                 <span className="text-[6px] uppercase font-bold text-slate-800 leading-none mb-1">Plataforma<br/>de Educação</span>
-                <img src="https://colegioprogressosantista.com.br/wp-content/uploads/2025/11/Logo-COC-novo-1024x473.png" alt="COC" className="h-4 object-contain" referrerPolicy="no-referrer" />
+                <img src="/logo-coc.png" alt="COC" className="h-4 object-contain" referrerPolicy="no-referrer" />
               </div>
             </div>
             <h1 className="text-2xl font-bold uppercase text-center flex-1 tracking-wide mr-12">Colégio Progresso Santista</h1>
