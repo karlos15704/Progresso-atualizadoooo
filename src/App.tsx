@@ -21,6 +21,7 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
 import { correctExamFromImage, generateStudyGuide } from './services/aiService';
 import { exportToPDF, exportMultipleToPDF } from './lib/pdfUtils';
+import { LOGO_VINHO, LOGO_COC } from './assets';
 import { 
   BarChart, 
   Bar, 
@@ -190,7 +191,11 @@ export default function App() {
     if (!user) return;
 
     const fetchExams = async () => {
-      const { data } = await supabase.from('exams').select('*').eq('professorId', user.id).order('createdAt', { ascending: false });
+      let query = supabase.from('exams').select('*').order('createdAt', { ascending: false });
+      if (!isAdmin) {
+        query = query.eq('professorId', user.id);
+      }
+      const { data } = await query;
       if (data) {
         setExams(data.map(exam => {
           const meta = exam.answerKey?._metadata || {};
@@ -207,26 +212,32 @@ export default function App() {
     };
 
     const fetchResults = async () => {
-      const { data } = await supabase.from('results').select('*').eq('professorId', user.id);
+      let query = supabase.from('results').select('*');
+      if (!isAdmin) {
+        query = query.eq('professorId', user.id);
+      }
+      const { data } = await query;
       if (data) setResults(data);
     };
 
     fetchExams();
     fetchResults();
 
+    const examsFilter = isAdmin ? undefined : `professorId=eq.${user.id}`;
+    
     const examsSub = supabase.channel('exams_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'exams', filter: `professorId=eq.${user.id}` }, fetchExams)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'exams', filter: examsFilter }, fetchExams)
       .subscribe();
 
     const resultsSub = supabase.channel('results_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'results', filter: `professorId=eq.${user.id}` }, fetchResults)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'results', filter: examsFilter }, fetchResults)
       .subscribe();
 
     return () => {
       supabase.removeChannel(examsSub);
       supabase.removeChannel(resultsSub);
     };
-  }, [user]);
+  }, [user, isAdmin]);
 
   const handleLogout = () => supabase.auth.signOut();
 
@@ -248,11 +259,9 @@ export default function App() {
       <header className="bg-white border-b border-border h-[70px] px-8 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <div className="bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm flex items-center gap-2">
-            <img src="/logo-vinho.webp" alt="Logo CPS" className="w-5 h-5 object-contain" onError={(e) => {
-              (e.target as HTMLImageElement).src = "https://via.placeholder.com/150?text=Logo";
-            }} />
+            <img src={LOGO_VINHO} alt="Logo CPS" className="w-5 h-5 object-contain" />
             <div className="w-px h-4 bg-slate-200"></div>
-            <img src="/logo-coc.png" alt="Plataforma COC" className="h-4 object-contain" />
+            <img src={LOGO_COC} alt="Plataforma COC" className="h-4 object-contain" />
           </div>
           <h1 className="text-lg font-bold text-primary tracking-tight uppercase hidden md:block">Colégio Progresso Santista</h1>
         </div>
@@ -619,7 +628,7 @@ function CreateExamView({ user, setView, examToEdit }: { user: User, setView: (v
   const [subject, setSubject] = useState(examToEdit?.subject || schoolInfo.subjects[0] || '');
   const [classYear, setClassYear] = useState(examToEdit?.classYear || schoolInfo.classes[0] || '');
   const [content, setContent] = useState(examToEdit?.content || '');
-  const [examType, setExamType] = useState<'PII' | 'PIII'>(examToEdit?.examType || 'PII');
+  const [examType, setExamType] = useState<string>(examToEdit?.examType || 'PII');
   const [examDate, setExamDate] = useState(examToEdit?.examDate || '');
   const [examTime, setExamTime] = useState(examToEdit?.examTime || '');
   const [questions, setQuestions] = useState<Question[]>(examToEdit?.questions || []);
@@ -782,22 +791,26 @@ function CreateExamView({ user, setView, examToEdit }: { user: User, setView: (v
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tipo de Prova</label>
-            <div className="flex gap-4">
-              {['PII', 'PIII'].map(type => (
-                <button
-                  key={type}
-                  onClick={() => setExamType(type as any)}
-                  className={cn(
-                    "flex-1 py-2 rounded-md border font-bold text-sm transition-all",
-                    examType === type 
-                      ? "bg-primary border-primary text-white shadow-sm" 
-                      : "bg-white border-border text-slate-500 hover:border-slate-300"
-                  )}
-                >
-                  {type}
-                </button>
-              ))}
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tipo (Preencha ou Selecione)</label>
+            <div className="flex gap-2">
+              <input 
+                type="text"
+                list="exam-types"
+                value={examType}
+                onChange={e => setExamType(e.target.value)}
+                placeholder="Ex: PII, AP1, Recuperação..."
+                className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm"
+              />
+              <datalist id="exam-types">
+                <option value="PII" />
+                <option value="PIII" />
+                <option value="AP1" />
+                <option value="AP2" />
+                <option value="AP3" />
+                <option value="Recuperação" />
+                <option value="Recuperação Final" />
+                <option value="Simulado" />
+              </datalist>
             </div>
           </div>
           <div className="space-y-2">
@@ -1495,7 +1508,7 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-primary">Cronograma de Provas</h2>
         <div className="flex gap-3">
-          {(isAdmin || true) && (
+          {true && (
             <button 
               onClick={() => { setIsAdding(true); setFormData({}); setEditingId('new'); }}
               className="bg-primary text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-primary/90 shadow-sm"
@@ -1529,11 +1542,11 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
       <div id="schedule-container" className="bg-white rounded-lg border border-border overflow-hidden p-8 mb-8">
         <div className="text-center mb-8 border-b border-border pb-6">
           <div className="w-fit h-14 rounded-lg flex items-center justify-center mx-auto mb-4 bg-white px-4 border border-slate-100 gap-4">
-            <img src="/logo-vinho.webp" alt="Logo CPS" className="w-10 h-10 object-contain" onError={(e) => {
+            <img src={LOGO_VINHO} alt="Logo CPS" className="w-10 h-10 object-contain" onError={(e) => {
               (e.target as HTMLImageElement).src = "https://via.placeholder.com/150?text=Logo";
             }} />
             <div className="w-px h-8 bg-slate-200"></div>
-            <img src="/logo-coc.png" alt="Plataforma COC" className="h-6 object-contain" />
+            <img src={LOGO_COC} alt="Plataforma COC" className="h-6 object-contain" />
           </div>
           <h1 className="text-xl font-bold text-primary uppercase">Colégio Progresso Santista</h1>
           <p className="text-sm text-slate-500 font-bold uppercase tracking-widest mt-1">Cronograma de Avaliações Semestrais</p>
@@ -1578,11 +1591,14 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo</label>
-                <select value={formData.examType || 'PII'} onChange={e => setFormData({...formData, examType: e.target.value as any})} className="w-full border border-border rounded-md px-3 py-2 text-sm">
-                  <option value="PII">PII</option>
-                  <option value="PIII">PIII</option>
-                  <option value="Simulado">Simulado</option>
-                </select>
+                <input 
+                  list="exam-types"
+                  type="text"
+                  placeholder="Ex: AP1, PII..."
+                  value={formData.examType || ''} 
+                  onChange={e => setFormData({...formData, examType: e.target.value})} 
+                  className="w-full border border-border rounded-md px-3 py-2 text-sm" 
+                />
               </div>
             </div>
             <div className="mb-4">
@@ -1647,10 +1663,14 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
                           </div>
                           <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo</label>
-                            <select value={formData.examType || 'PII'} onChange={e => setFormData({...formData, examType: e.target.value as any})} className="w-full border border-border rounded-md px-3 py-2 text-sm">
-                              <option value="PII">PII</option>
-                              <option value="PIII">PIII</option>
-                            </select>
+                            <input 
+                              list="exam-types"
+                              type="text"
+                              placeholder="Ex: Recuperação..."
+                              value={formData.examType || ''} 
+                              onChange={e => setFormData({...formData, examType: e.target.value})} 
+                              className="w-full border border-border rounded-md px-3 py-2 text-sm" 
+                            />
                           </div>
                         </div>
                         <div className="mb-4">
@@ -1672,7 +1692,7 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
                           </div>
                           <div className="text-sm text-slate-600 whitespace-pre-wrap"><strong className="text-slate-500">Conteúdo:</strong> {exam.content || 'Nenhum conteúdo específico providenciado.'}</div>
                         </div>
-                        {isAdmin && (
+                        {(isAdmin || exam.professorId === user.id) && (
                           <div className="flex items-center gap-2">
                             <button onClick={() => handleEditClick(exam)} className="text-xs font-bold text-slate-500 hover:text-primary px-3 py-1.5 bg-slate-100 rounded-md">Editar</button>
                             <button onClick={() => handleDelete(exam.id.split('-')[0])} className="text-xs font-bold text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -1747,10 +1767,10 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
           {/* Top Row: Logos and School Name */}
           <div className="flex items-center justify-between border-b-[3px] border-black border-dashed pb-2 mb-1 px-4">
             <div className="flex items-center gap-4">
-              <img src="/logo-vinho.webp" alt="Logo CPS" className="w-12 h-12 object-contain" referrerPolicy="no-referrer" />
+              <img src={LOGO_VINHO} alt="Logo CPS" className="w-12 h-12 object-contain" referrerPolicy="no-referrer" />
               <div className="flex flex-col border-l border-black pl-3 py-1">
                 <span className="text-[6px] uppercase font-bold text-slate-800 leading-none mb-1">Plataforma<br/>de Educação</span>
-                <img src="/logo-coc.png" alt="COC" className="h-4 object-contain" referrerPolicy="no-referrer" />
+                <img src={LOGO_COC} alt="COC" className="h-4 object-contain" referrerPolicy="no-referrer" />
               </div>
             </div>
             <h1 className="text-2xl font-bold uppercase text-center flex-1 tracking-wide mr-12">Colégio Progresso Santista</h1>
