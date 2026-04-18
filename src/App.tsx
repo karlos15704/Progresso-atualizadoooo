@@ -134,6 +134,7 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'dashboard' | 'create' | 'correct' | 'reports' | 'guides' | 'admin' | 'schedule' | 'print'>('dashboard');
+  const [selectedPrintExam, setSelectedPrintExam] = useState<Exam | null>(null);
   const [examToEdit, setExamToEdit] = useState<Exam | null>(null);
   const [exams, setExams] = useState<Exam[]>([]);
   const [results, setResults] = useState<Result[]>([]);
