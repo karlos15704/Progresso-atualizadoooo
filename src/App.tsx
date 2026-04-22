@@ -1499,14 +1499,19 @@ function AdminView({ user }: { user: User }) {
                   </div>
                   <button 
                     onClick={async () => {
+                      if (item.email === 'cps@cps.local') {
+                         alert("A conta Master CPS não pode ter sua hierarquia alterada.");
+                         return;
+                      }
                       const newRole = item.role === 'admin' ? 'professor' : 'admin';
                       if (confirm(`Mudar ${item.email} para ${newRole}?`)) {
                         await supabase.from('users').update({ role: newRole }).eq('uid', item.uid);
                       }
                     }}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm ${item.role === 'admin' ? 'bg-[#feebc8] text-[#744210] hover:bg-[#f6e0b5]' : 'bg-[#c6f6d5] text-[#22543d] hover:bg-[#b2ebd0]'}`}
+                    disabled={item.email === 'cps@cps.local'}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm ${item.email === 'cps@cps.local' ? 'bg-slate-200 text-slate-500 opacity-50 cursor-not-allowed' : item.role === 'admin' ? 'bg-[#feebc8] text-[#744210] hover:bg-[#f6e0b5]' : 'bg-[#c6f6d5] text-[#22543d] hover:bg-[#b2ebd0]'}`}
                   >
-                    {item.role === 'admin' ? 'Rebaixar para Prof.' : 'Promover a Administrador'}
+                    {item.email === 'cps@cps.local' ? 'Master (Fixado)' : item.role === 'admin' ? 'Rebaixar para Prof.' : 'Promover a Administrador'}
                   </button>
                 </div>
               ))}
