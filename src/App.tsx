@@ -161,27 +161,28 @@ export default function App() {
   const handleUser = async (currentUser: User | null) => {
     if (currentUser) {
       try {
-        const { data: profile, error } = await supabase.from('users').select('*').eq('uid', currentUser.id).single();
+        let isUserAdmin = currentUser.email === 'cps@cps.local';
+        const { data: profile, error } = await supabase.from('users').select('*').eq('uid', currentUser.id).maybeSingle();
         
-        if (error && error.code === 'PGRST116') { // Not found
-          const isDefaultAdmin = currentUser.email === 'cps@cps.local';
+        if (error && error.code !== 'PGRST116') {
+           console.error("Database user fetch error, continuing securely... ", error);
+        } else if (!profile) {
           await supabase.from('users').insert({
             uid: currentUser.id,
             email: currentUser.email,
             display_name: currentUser.user_metadata?.displayName || currentUser.email?.split('@')[0],
-            role: isDefaultAdmin ? 'admin' : 'professor',
+            role: isUserAdmin ? 'admin' : 'professor',
             school_name: 'Colégio Progresso Santista'
           });
-          setIsAdmin(isDefaultAdmin);
-        } else if (profile) {
-          setIsAdmin(profile.role === 'admin' || currentUser.email === 'cps@cps.local');
         }
+        
+        setIsAdmin(isUserAdmin || profile?.role === 'admin');
         setUser(currentUser);
       } catch (err) {
-        console.error("Error checking user role:", err);
-        await supabase.auth.signOut();
-        setUser(null);
-        setError("Erro ao carregar perfil.");
+        console.error("Error setting up user:", err);
+        // Do not force sign out, let them proceed even if profile logic throws.
+        setIsAdmin(currentUser.email === 'cps@cps.local');
+        setUser(currentUser);
       }
     } else {
       setUser(null);
@@ -195,14 +196,19 @@ export default function App() {
     if (!user) return;
 
     const fetchExams = async () => {
-      let query = supabase.from('exams').select('*').order('created_at', { ascending: false });
-      if (!isAdmin) {
-        // Fetch exams owned by user OR global schedule items (isExternal in metadata)
-        query = query.or(`professor_id.eq.${user.id},answer_key->_metadata->>isExternal.eq.true`);
+      const { data, error } = await supabase.from('exams').select('*').order('created_at', { ascending: false });
+      if (error) {
+         console.error("Fetch exams failed:", error.message);
+         alert("Não foi possível carregar as provas. O administrador pode ter revogado certas permissões do sistema. (" + error.message + ")");
       }
-      const { data } = await query;
+      
       if (data) {
-        setExams(data.map(exam => {
+        // Javascript filtering to perfectly prevent JSON schema syntax errors in Supabase PostgREST queries
+        let validData = data;
+        if (!isAdmin) {
+          validData = data.filter(e => e.professor_id === user.id || e.answer_key?._metadata?.isExternal === true);
+        }
+        setExams(validData.map(exam => {
           const meta = exam.answer_key?._metadata || {};
           return {
             ...exam,
