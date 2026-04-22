@@ -759,6 +759,7 @@ function CreateExamView({ user, setView, examToEdit }: { user: User, setView: (v
         alert("Erro no banco de dados (Supabase): " + error.message);
         throw error;
       }
+      alert("Sucesso! A prova foi salva corretamente no servidor. Você agora pode imprimi-la.");
       setView('dashboard');
     } catch (err: any) {
       alert("Erro ao tentar salvar: " + (err.message || 'Erro desconhecido. A imagem pode ser muito pesada ou há um problema de conexão.'));
@@ -1615,7 +1616,15 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
   };
 
   const handleSave = async () => {
-    if (!formData.subject || !formData.classYear) return;
+    if (!formData.subject) {
+      alert("Atenção: A disciplina é obrigatória para o agendamento.");
+      return;
+    }
+    if (!formData.classYear) {
+      alert("Atenção: A(s) turma(s) são obrigatórias para o agendamento.");
+      return;
+    }
+    
     setSaving(true);
     try {
       if (editingId && editingId !== 'new') {
@@ -1645,10 +1654,13 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
       }
       setEditingId(null);
       setIsAdding(false);
+      alert("Sucesso! Agendamento/Prova salvo corretamente no servidor.");
     } catch (err: any) {
-      alert("Erro ao salvar: " + err.message);
+      alert("Erro ao salvar no banco de dados: " + (err.message || JSON.stringify(err)));
+      console.error(err);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const handleDelete = async (id: string) => {
