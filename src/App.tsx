@@ -45,6 +45,7 @@ interface Question {
   image?: string;
   options: string[];
   correctAnswer: string;
+  points?: number | string;
 }
 
 interface Exam {
@@ -689,7 +690,8 @@ function CreateExamView({ user, setView, examToEdit }: { user: User, setView: (v
       id: questions.length + 1,
       text: '',
       options: ['', '', '', ''],
-      correctAnswer: 'A'
+      correctAnswer: 'A',
+      points: 1
     }]);
   };
 
@@ -738,8 +740,8 @@ function CreateExamView({ user, setView, examToEdit }: { user: User, setView: (v
         study_guide: guide,
         professor_id: user.id,
         exam_type: examType,
-        exam_date: examDate,
-        exam_time: examTime,
+        exam_date: examDate ? examDate : null,
+        exam_time: examTime ? examTime : null,
         class_year: classYear,
         content
       };
@@ -922,12 +924,29 @@ function CreateExamView({ user, setView, examToEdit }: { user: User, setView: (v
             <div key={idx} className="bg-white p-6 rounded-lg border border-border shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[11px] font-bold uppercase tracking-wider">Questão {q.id}</span>
-                <button 
-                  onClick={() => setQuestions(questions.filter((_, i) => i !== idx))}
-                  className="text-red-400 hover:text-red-600"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-bold text-slate-500">Pontuação:</label>
+                    <input 
+                      type="number" 
+                      step="0.1" 
+                      min="0"
+                      value={q.points || 1}
+                      onChange={e => {
+                        const newQs = [...questions];
+                        newQs[idx].points = e.target.value;
+                        setQuestions(newQs);
+                      }}
+                      className="w-16 px-2 py-1 rounded border border-border focus:border-accent text-sm outline-none bg-slate-50 text-center"
+                    />
+                  </div>
+                  <button 
+                    onClick={() => setQuestions(questions.filter((_, i) => i !== idx))}
+                    className="text-red-400 hover:text-red-600"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
               <textarea 
                 value={q.text}
@@ -1045,7 +1064,7 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
     setCorrecting(true);
     try {
       const base64 = image.split(',')[1];
-      const correction = await correctExamFromImage(base64, exam.title, exam.answerKey);
+      const correction = await correctExamFromImage(base64, exam.title, exam.questions);
       
       const resultData = {
         exam_id: selectedExamId,
@@ -1574,7 +1593,7 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
         await supabase.from('exams').update({
           subject: formData.subject,
           class_year: formData.classYear,
-          exam_date: formData.examDate,
+          exam_date: formData.examDate ? formData.examDate : null,
           exam_type: formData.examType,
           content: formData.content
         }).eq('id', editingId);
@@ -1583,7 +1602,7 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
           title: `Agendamento: ${formData.subject}`,
           subject: formData.subject,
           exam_type: formData.examType || 'PII',
-          exam_date: formData.examDate,
+          exam_date: formData.examDate ? formData.examDate : null,
           class_year: formData.classYear,
           content: formData.content,
           questions: [],

@@ -20,21 +20,36 @@ export interface CorrectionResult {
 export async function correctExamFromImage(
   imageBase64: string,
   examTitle: string,
-  answerKey: Record<string, string>
+  questions: any[]
 ): Promise<CorrectionResult> {
   const ai = getAI();
+  
+  // Create a simplified mapping for the AI to understand the expected answers and their weights
+  const expectedAnswers = questions.map(q => ({
+    questionId: q.id,
+    correctOption: q.correctAnswer,
+    points: parseFloat(q.points || 1) // Default to 1 point if not specified
+  }));
+
+  const maxTotalScore = expectedAnswers.reduce((sum, q) => sum + q.points, 0);
+
   const prompt = `
-    Você é um assistente de correção de provas. 
-    Analise a imagem do gabarito da prova "${examTitle}".
-    O gabarito oficial é: ${JSON.stringify(answerKey)}.
+    Você é um assistente de correção de provas e avaliações. 
+    Analise a imagem da prova/gabarito de título "${examTitle}".
     
-    Extraia o nome do aluno e as respostas marcadas (ex: 1: A, 2: B, ...).
-    Compare com o gabarito oficial e calcule a nota final.
-    Dê um feedback construtivo curto.
+    Abaixo está a lista oficial de respostas esperadas ("correctOption") e o valor (peso) de cada questão ("points"):
+    ${JSON.stringify(expectedAnswers, null, 2)}
+    
+    Instruções estritas:
+    1. Identifique e extraia o nome do estudante da imagem.
+    2. Leia quais alternativas o estudante marcou para cada questão.
+    3. Construa o \`answers\` object onde a chave é o número da questão e o valor é a letra marcada pelo estudante (ex: "1": "A"). Se estiver rasurado ou em branco, coloque "".
+    4. Calcule a nota final (\`score\`) somando o valor (\`points\`) SOMENTE das questões em que o estudante acertou. O \`maxScore\` total desta prova é ${maxTotalScore}.
+    5. Crie um \`feedback\` curto para o aluno (ex: "Excelente!", "Estude mais o tópico X").
   `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-3.5-flash",
     contents: [
       {
         parts: [
