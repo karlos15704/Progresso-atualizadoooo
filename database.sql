@@ -1,4 +1,8 @@
--- Database Schema for Progresso Santista Fund 2
+-- 0. APAGA AS TABELAS ANTIGAS PARA RECRIAR CORRETAMENTE E RESOLVER PROBLEMAS COM CACHE. Zera o banco.
+DROP TABLE IF EXISTS results CASCADE;
+DROP TABLE IF EXISTS exams CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS allowed_professors CASCADE;
 
 -- 1. Allowed Professors Table (Whitelist for registration)
 CREATE TABLE allowed_professors (

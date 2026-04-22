@@ -756,11 +756,12 @@ function CreateExamView({ user, setView, examToEdit }: { user: User, setView: (v
       }
       
       if (error) {
-        alert("Erro no Supabase: " + error.message);
+        alert("Erro no banco de dados (Supabase): " + error.message);
         throw error;
       }
       setView('dashboard');
-    } catch (err) {
+    } catch (err: any) {
+      alert("Erro ao tentar salvar: " + (err.message || 'Erro desconhecido. A imagem pode ser muito pesada ou há um problema de conexão.'));
       console.error("Error saving exam:", err);
     } finally {
       setSaving(false);
@@ -972,9 +973,37 @@ function CreateExamView({ user, setView, examToEdit }: { user: User, setView: (v
                       if (file) {
                         const reader = new FileReader();
                         reader.onloadend = () => {
-                          const newQs = [...questions];
-                          newQs[idx].image = reader.result as string;
-                          setQuestions(newQs);
+                          const img = new Image();
+                          img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            const MAX_WIDTH = 1000;
+                            const MAX_HEIGHT = 1000;
+                            let width = img.width;
+                            let height = img.height;
+
+                            if (width > height) {
+                              if (width > MAX_WIDTH) {
+                                height *= MAX_WIDTH / width;
+                                width = MAX_WIDTH;
+                              }
+                            } else {
+                              if (height > MAX_HEIGHT) {
+                                width *= MAX_HEIGHT / height;
+                                height = MAX_HEIGHT;
+                              }
+                            }
+
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx?.drawImage(img, 0, 0, width, height);
+                            const resizedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+
+                            const newQs = [...questions];
+                            newQs[idx].image = resizedBase64;
+                            setQuestions(newQs);
+                          };
+                          img.src = reader.result as string;
                         };
                         reader.readAsDataURL(file);
                       }
@@ -1590,15 +1619,16 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
     setSaving(true);
     try {
       if (editingId && editingId !== 'new') {
-        await supabase.from('exams').update({
+        const { error } = await supabase.from('exams').update({
           subject: formData.subject,
           class_year: formData.classYear,
           exam_date: formData.examDate ? formData.examDate : null,
           exam_type: formData.examType,
           content: formData.content
         }).eq('id', editingId);
+        if (error) throw error;
       } else {
-        await supabase.from('exams').insert({
+        const { error } = await supabase.from('exams').insert({
           title: `Agendamento: ${formData.subject}`,
           subject: formData.subject,
           exam_type: formData.examType || 'PII',
@@ -1611,6 +1641,7 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
           professor_id: user.id,
           created_at: new Date().toISOString()
         });
+        if (error) throw error;
       }
       setEditingId(null);
       setIsAdding(false);
