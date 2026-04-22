@@ -368,11 +368,11 @@ export default function App() {
         <main className="flex-1 overflow-y-auto p-[25px]">
           <AnimatePresence mode="wait">
             {view === 'dashboard' && <DashboardView user={user} isAdmin={isAdmin} exams={exams} results={results} setView={setView} onSelectPrintExam={setSelectedPrintExam} onEditExam={e => { setExamToEdit(e); setView('create'); }} onDeleteExam={handleDeleteExam} />}
-            {view === 'create' && <CreateExamView user={user} setView={(v) => { setView(v); setExamToEdit(null); }} examToEdit={examToEdit} />}
+            {view === 'create' && <CreateExamView user={user} setView={(v) => { setView(v); setExamToEdit(null); }} examToEdit={examToEdit} onExamSaved={() => setRefreshTrigger(prev => prev + 1)} />}
             {view === 'correct' && <CorrectExamView user={user} exams={exams} setView={setView} />}
             {view === 'guides' && <GuidesView exams={exams} />}
             {view === 'reports' && <ReportsView exams={exams} results={results} />}
-            {view === 'schedule' && <ScheduleView exams={exams} isAdmin={isAdmin} user={user} />}
+            {view === 'schedule' && <ScheduleView exams={exams} isAdmin={isAdmin} user={user} onExamSaved={() => setRefreshTrigger(prev => prev + 1)} />}
             {view === 'print' && selectedPrintExam && <ExamPrintView exam={selectedPrintExam} onBack={() => setView('dashboard')} />}
             {view === 'admin' && isAdmin && <AdminView user={user} />}
           </AnimatePresence>
