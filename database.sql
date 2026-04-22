@@ -13,9 +13,9 @@ CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     uid UUID UNIQUE NOT NULL, -- This matches auth.users.id
     email TEXT UNIQUE NOT NULL,
-    displayName TEXT,
+    display_name TEXT,
     role TEXT DEFAULT 'professor', -- 'admin' or 'professor'
-    schoolName TEXT DEFAULT 'Colégio Progresso Santista',
+    school_name TEXT DEFAULT 'Colégio Progresso Santista',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -25,28 +25,28 @@ CREATE TABLE exams (
     title TEXT NOT NULL,
     subject TEXT NOT NULL,
     questions JSONB DEFAULT '[]'::jsonb,
-    answerKey JSONB DEFAULT '{}'::jsonb,
-    studyGuide TEXT DEFAULT '',
-    professorId UUID REFERENCES auth.users(id),
-    examType TEXT,
-    examDate DATE,
-    examTime TIME,
-    classYear TEXT,
+    answer_key JSONB DEFAULT '{}'::jsonb,
+    study_guide TEXT DEFAULT '',
+    professor_id UUID REFERENCES auth.users(id),
+    exam_type TEXT,
+    exam_date DATE,
+    exam_time TIME,
+    class_year TEXT,
     content TEXT,
-    createdAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 4. Results Table (Exam Submissions)
 CREATE TABLE results (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    examId UUID REFERENCES exams(id) ON DELETE CASCADE,
-    studentName TEXT NOT NULL,
-    studentClass TEXT NOT NULL,
+    exam_id UUID REFERENCES exams(id) ON DELETE CASCADE,
+    student_name TEXT NOT NULL,
+    student_class TEXT NOT NULL,
     answers JSONB NOT NULL,
     score NUMERIC NOT NULL,
-    maxScore NUMERIC NOT NULL,
-    correctedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    professorId UUID REFERENCES auth.users(id)
+    max_score NUMERIC NOT NULL,
+    corrected_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    professor_id UUID REFERENCES auth.users(id)
 );
 
 -- Row Level Security (RLS) Policies
@@ -72,8 +72,8 @@ CREATE POLICY "Allow public insert for first time registration" ON users
 -- 2. Exams Policies
 CREATE POLICY "Professors can see their own exams OR global schedule items" ON exams
     FOR SELECT USING (
-        professorId = auth.uid() OR 
-        (answerKey->'_metadata'->>'isExternal')::boolean = true OR
+        professor_id = auth.uid() OR 
+        (answer_key->'_metadata'->>'isExternal')::boolean = true OR
         EXISTS (SELECT 1 FROM users WHERE uid = auth.uid() AND role = 'admin')
     );
 
@@ -82,20 +82,20 @@ CREATE POLICY "Users can insert exams" ON exams
 
 CREATE POLICY "Owners or Admin can update exams" ON exams
     FOR UPDATE USING (
-        professorId = auth.uid() OR 
+        professor_id = auth.uid() OR 
         EXISTS (SELECT 1 FROM users WHERE uid = auth.uid() AND role = 'admin')
     );
 
 CREATE POLICY "Owners or Admin can delete exams" ON exams
     FOR DELETE USING (
-        professorId = auth.uid() OR 
+        professor_id = auth.uid() OR 
         EXISTS (SELECT 1 FROM users WHERE uid = auth.uid() AND role = 'admin')
     );
 
 -- 3. Results Policies
 CREATE POLICY "Professors can view results for their exams" ON results
     FOR SELECT USING (
-        professorId = auth.uid() OR
+        professor_id = auth.uid() OR
         EXISTS (SELECT 1 FROM users WHERE uid = auth.uid() AND role = 'admin')
     );
 

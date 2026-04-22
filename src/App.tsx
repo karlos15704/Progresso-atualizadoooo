@@ -165,9 +165,9 @@ export default function App() {
           await supabase.from('users').insert({
             uid: currentUser.id,
             email: currentUser.email,
-            displayName: currentUser.user_metadata?.displayName || currentUser.email?.split('@')[0],
+            display_name: currentUser.user_metadata?.displayName || currentUser.email?.split('@')[0],
             role: isDefaultAdmin ? 'admin' : 'professor',
-            schoolName: 'Colégio Progresso Santista'
+            school_name: 'Colégio Progresso Santista'
           });
           setIsAdmin(isDefaultAdmin);
         } else if (profile) {
@@ -192,22 +192,26 @@ export default function App() {
     if (!user) return;
 
     const fetchExams = async () => {
-      let query = supabase.from('exams').select('*').order('createdAt', { ascending: false });
+      let query = supabase.from('exams').select('*').order('created_at', { ascending: false });
       if (!isAdmin) {
         // Fetch exams owned by user OR global schedule items (isExternal in metadata)
-        query = query.or(`professorId.eq.${user.id},answerKey->_metadata->>isExternal.eq.true`);
+        query = query.or(`professor_id.eq.${user.id},answer_key->_metadata->>isExternal.eq.true`);
       }
       const { data } = await query;
       if (data) {
         setExams(data.map(exam => {
-          const meta = exam.answerKey?._metadata || {};
+          const meta = exam.answer_key?._metadata || {};
           return {
             ...exam,
-            classYear: exam.classYear || meta.classYear,
-            content: exam.content || meta.content,
-            examType: exam.examType || meta.examType,
-            examDate: exam.examDate || meta.examDate,
-            examTime: exam.examTime || meta.examTime
+            answerKey: exam.answer_key,
+            studyGuide: exam.study_guide,
+            professorId: exam.professor_id,
+            examType: exam.exam_type || meta.examType,
+            examDate: exam.exam_date || meta.examDate,
+            examTime: exam.exam_time || meta.examTime,
+            classYear: exam.class_year || meta.classYear,
+            content: exam.content,
+            createdAt: exam.created_at
           };
         }));
       }
@@ -216,10 +220,20 @@ export default function App() {
     const fetchResults = async () => {
       let query = supabase.from('results').select('*');
       if (!isAdmin) {
-        query = query.eq('professorId', user.id);
+        query = query.eq('professor_id', user.id);
       }
       const { data } = await query;
-      if (data) setResults(data);
+      if (data) {
+        setResults(data.map(r => ({
+          ...r,
+          examId: r.exam_id,
+          professorId: r.professor_id,
+          studentName: r.student_name,
+          studentClass: r.student_class,
+          maxScore: r.max_score,
+          correctedAt: r.corrected_at
+        })));
+      }
     };
 
     fetchExams();
@@ -713,13 +727,13 @@ function CreateExamView({ user, setView, examToEdit }: { user: User, setView: (v
         title,
         subject,
         questions: isExternal ? [] : questions,
-        answerKey,
-        studyGuide: guide,
-        professorId: user.id,
-        examType,
-        examDate,
-        examTime,
-        classYear,
+        answer_key: answerKey,
+        study_guide: guide,
+        professor_id: user.id,
+        exam_type: examType,
+        exam_date: examDate,
+        exam_time: examTime,
+        class_year: classYear,
         content
       };
 
@@ -728,7 +742,7 @@ function CreateExamView({ user, setView, examToEdit }: { user: User, setView: (v
         const res = await supabase.from('exams').update(examData).eq('id', examToEdit.id);
         error = res.error;
       } else {
-        const res = await supabase.from('exams').insert({ ...examData, createdAt: new Date().toISOString() });
+        const res = await supabase.from('exams').insert({ ...examData, created_at: new Date().toISOString() });
         error = res.error;
       }
       
@@ -979,13 +993,15 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
       const correction = await correctExamFromImage(base64, exam.title, exam.answerKey);
       
       const resultData = {
-        examId: selectedExamId,
-        professorId: user.id,
-        studentName: correction.studentName,
+        exam_id: selectedExamId,
+        professor_id: user.id,
+        student_name: correction.studentName,
         score: correction.score,
-        maxScore: correction.maxScore,
+        max_score: correction.maxScore,
         feedback: correction.feedback,
-        correctedAt: new Date().toISOString()
+        corrected_at: new Date().toISOString(),
+        answers: correction.answers || {}, // Ensure required fields from SQL
+        student_class: exam.classYear || '' // Ensure required fields from SQL
       };
 
       const { error } = await supabase.from('results').insert(resultData);
@@ -1235,8 +1251,7 @@ function AdminView({ user }: { user: User }) {
       const { error } = await supabase.from('allowed_professors').insert({
         email: supabaseEmail,
         username: cleanUsername,
-        addedBy: user.id,
-        createdAt: new Date().toISOString()
+        created_at: new Date().toISOString()
       });
       if (error) throw error;
       setUsername('');
@@ -1503,23 +1518,24 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
       if (editingId && editingId !== 'new') {
         await supabase.from('exams').update({
           subject: formData.subject,
-          classYear: formData.classYear,
-          examDate: formData.examDate,
-          examType: formData.examType,
+          class_year: formData.classYear,
+          exam_date: formData.examDate,
+          exam_type: formData.examType,
           content: formData.content
         }).eq('id', editingId);
       } else {
         await supabase.from('exams').insert({
           title: `Agendamento: ${formData.subject}`,
           subject: formData.subject,
-          examType: formData.examType || 'PII',
-          examDate: formData.examDate,
-          classYear: formData.classYear,
+          exam_type: formData.examType || 'PII',
+          exam_date: formData.examDate,
+          class_year: formData.classYear,
           content: formData.content,
           questions: [],
-          answerKey: { _metadata: { isExternal: true, examType: formData.examType } },
-          studyGuide: '',
-          professorId: user.id
+          answer_key: { _metadata: { isExternal: true, examType: formData.examType } },
+          study_guide: '',
+          professor_id: user.id,
+          created_at: new Date().toISOString()
         });
       }
       setEditingId(null);
