@@ -199,7 +199,9 @@ export default function App() {
       const { data, error } = await supabase.from('exams').select('*').order('created_at', { ascending: false });
       if (error) {
          console.error("Fetch exams failed:", error.message);
-         alert("Não foi possível carregar as provas. O administrador pode ter revogado certas permissões do sistema. (" + error.message + ")");
+         if (!error.message.includes('infinite recursion')) {
+           alert("Alerta de Sincronização: Não foi possível carregar as provas. (" + error.message + ")");
+         }
       }
       
       if (data) {
@@ -386,13 +388,13 @@ export default function App() {
       </div>
 
       {/* Mobile Nav */}
-      <nav className="lg:hidden bg-white border-t border-border px-2 py-2 flex justify-around overflow-x-auto gap-2">
-        <MobileNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<BarChart3 />} />
-        <MobileNavButton active={view === 'create'} onClick={() => setView('create')} icon={<Plus />} />
-        <MobileNavButton active={view === 'correct'} onClick={() => setView('correct')} icon={<Camera />} />
-        <MobileNavButton active={view === 'schedule'} onClick={() => setView('schedule')} icon={<Calendar />} />
-        <MobileNavButton active={view === 'guides'} onClick={() => setView('guides')} icon={<BookOpen />} />
-        {isAdmin && <MobileNavButton active={view === 'admin'} onClick={() => setView('admin')} icon={<UserIcon />} />}
+      <nav className="lg:hidden bg-white border-t border-slate-200 px-2 py-2 flex justify-between overflow-x-auto gap-1 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-50">
+        <MobileNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<BarChart3 />} label="Início" />
+        <MobileNavButton active={view === 'create'} onClick={() => setView('create')} icon={<Plus />} label="Provas" />
+        <MobileNavButton active={view === 'correct'} onClick={() => setView('correct')} icon={<Camera />} label="Corrigir" />
+        <MobileNavButton active={view === 'schedule'} onClick={() => setView('schedule')} icon={<Calendar />} label="Agenda" />
+        <MobileNavButton active={view === 'guides'} onClick={() => setView('guides')} icon={<BookOpen />} label="Guias" />
+        {isAdmin && <MobileNavButton active={view === 'admin'} onClick={() => setView('admin')} icon={<UserIcon />} label="Admin" />}
       </nav>
     </div>
   );
@@ -416,16 +418,19 @@ function NavButton({ active, onClick, icon, label }: { active: boolean, onClick:
   );
 }
 
-function MobileNavButton({ active, onClick, icon }: { active: boolean, onClick: () => void, icon: React.ReactNode }) {
+function MobileNavButton({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string }) {
   return (
     <button 
       onClick={onClick}
       className={cn(
-        "p-3 rounded-xl transition-colors",
-        active ? "text-accent bg-accent/10" : "text-slate-400"
+        "flex flex-col items-center justify-center p-2 rounded-xl transition-all flex-1 min-w-[64px]",
+        active ? "text-accent bg-accent/5 scale-105" : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
       )}
     >
-      {React.cloneElement(icon as React.ReactElement, { className: "w-6 h-6" })}
+      <div className={cn("mb-1 transition-transform", active ? "scale-110" : "")}>
+        {React.cloneElement(icon as React.ReactElement, { className: "w-5 h-5 md:w-6 md:h-6" })}
+      </div>
+      <span className={cn("text-[9px] md:text-[10px] font-bold tracking-wide", active ? "text-accent" : "text-slate-500")}>{label}</span>
     </button>
   );
 }
