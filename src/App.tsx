@@ -193,7 +193,8 @@ export default function App() {
     const fetchExams = async () => {
       let query = supabase.from('exams').select('*').order('createdAt', { ascending: false });
       if (!isAdmin) {
-        query = query.eq('professorId', user.id);
+        // Fetch exams owned by user OR global schedule items (isExternal in metadata)
+        query = query.or(`professorId.eq.${user.id},answerKey->_metadata->>isExternal.eq.true`);
       }
       const { data } = await query;
       if (data) {
@@ -223,10 +224,10 @@ export default function App() {
     fetchExams();
     fetchResults();
 
-    const examsFilter = isAdmin ? undefined : `professorId=eq.${user.id}`;
+    const examsFilter = isAdmin ? undefined : undefined; // Subscription for all exams to see global schedule updates
     
     const examsSub = supabase.channel('exams_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'exams', filter: examsFilter }, fetchExams)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'exams' }, fetchExams)
       .subscribe();
 
     const resultsSub = supabase.channel('results_changes')
@@ -1591,14 +1592,26 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo</label>
-                <input 
-                  list="exam-types"
-                  type="text"
-                  placeholder="Ex: AP1, PII..."
-                  value={formData.examType || ''} 
-                  onChange={e => setFormData({...formData, examType: e.target.value})} 
-                  className="w-full border border-border rounded-md px-3 py-2 text-sm" 
-                />
+                <div className="flex gap-2">
+                  <input 
+                    list="exam-types"
+                    type="text"
+                    placeholder="Ex: AP1, PII..."
+                    value={formData.examType || ''} 
+                    onChange={e => setFormData({...formData, examType: e.target.value})} 
+                    className="w-full border border-border rounded-md px-3 py-2 text-sm" 
+                  />
+                  <datalist id="exam-types">
+                    <option value="PII" />
+                    <option value="PIII" />
+                    <option value="AP1" />
+                    <option value="AP2" />
+                    <option value="AP3" />
+                    <option value="Recuperação" />
+                    <option value="Recuperação Final" />
+                    <option value="Simulado" />
+                  </datalist>
+                </div>
               </div>
             </div>
             <div className="mb-4">
@@ -1663,14 +1676,16 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
                           </div>
                           <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo</label>
-                            <input 
-                              list="exam-types"
-                              type="text"
-                              placeholder="Ex: Recuperação..."
-                              value={formData.examType || ''} 
-                              onChange={e => setFormData({...formData, examType: e.target.value})} 
-                              className="w-full border border-border rounded-md px-3 py-2 text-sm" 
-                            />
+                            <div className="flex gap-2">
+                              <input 
+                                list="exam-types"
+                                type="text"
+                                placeholder="Ex: Recuperação..."
+                                value={formData.examType || ''} 
+                                onChange={e => setFormData({...formData, examType: e.target.value})} 
+                                className="w-full border border-border rounded-md px-3 py-2 text-sm" 
+                              />
+                            </div>
                           </div>
                         </div>
                         <div className="mb-4">
