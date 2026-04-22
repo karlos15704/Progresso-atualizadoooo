@@ -369,7 +369,7 @@ export default function App() {
           <AnimatePresence mode="wait">
             {view === 'dashboard' && <DashboardView user={user} isAdmin={isAdmin} exams={exams} results={results} setView={setView} onSelectPrintExam={setSelectedPrintExam} onEditExam={e => { setExamToEdit(e); setView('create'); }} onDeleteExam={handleDeleteExam} />}
             {view === 'create' && <CreateExamView user={user} setView={(v) => { setView(v); setExamToEdit(null); }} examToEdit={examToEdit} onExamSaved={() => setRefreshTrigger(prev => prev + 1)} />}
-            {view === 'correct' && <CorrectExamView user={user} exams={exams} setView={setView} />}
+            {view === 'correct' && <CorrectExamView user={user} exams={exams.filter(e => !e.answerKey?._metadata?.isExternal)} setView={setView} />}
             {view === 'guides' && <GuidesView exams={exams} />}
             {view === 'reports' && <ReportsView exams={exams} results={results} />}
             {view === 'schedule' && <ScheduleView exams={exams} isAdmin={isAdmin} user={user} onExamSaved={() => setRefreshTrigger(prev => prev + 1)} />}
@@ -380,12 +380,13 @@ export default function App() {
       </div>
 
       {/* Mobile Nav */}
-      <nav className="lg:hidden bg-white border-t border-border px-4 py-2 flex justify-around">
+      <nav className="lg:hidden bg-white border-t border-border px-2 py-2 flex justify-around overflow-x-auto gap-2">
         <MobileNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<BarChart3 />} />
         <MobileNavButton active={view === 'create'} onClick={() => setView('create')} icon={<Plus />} />
         <MobileNavButton active={view === 'correct'} onClick={() => setView('correct')} icon={<Camera />} />
         <MobileNavButton active={view === 'schedule'} onClick={() => setView('schedule')} icon={<Calendar />} />
         <MobileNavButton active={view === 'guides'} onClick={() => setView('guides')} icon={<BookOpen />} />
+        {isAdmin && <MobileNavButton active={view === 'admin'} onClick={() => setView('admin')} icon={<UserIcon />} />}
       </nav>
     </div>
   );
