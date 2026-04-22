@@ -143,6 +143,7 @@ export default function App() {
   const [exams, setExams] = useState<Exam[]>([]);
   const [results, setResults] = useState<Result[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Auth Listener
   useEffect(() => {
@@ -255,7 +256,7 @@ export default function App() {
       supabase.removeChannel(examsSub);
       supabase.removeChannel(resultsSub);
     };
-  }, [user, isAdmin]);
+  }, [user, isAdmin, refreshTrigger]);
 
   const handleLogout = () => supabase.auth.signOut();
 
@@ -670,7 +671,7 @@ function StatCard({ label, value, icon, color }: { label: string, value: any, ic
   );
 }
 
-function CreateExamView({ user, setView, examToEdit }: { user: User, setView: (v: any) => void, examToEdit?: Exam | null }) {
+function CreateExamView({ user, setView, examToEdit, onExamSaved }: { user: User, setView: (v: any) => void, examToEdit?: Exam | null, onExamSaved: () => void }) {
   const schoolInfo = getSchoolInfo();
   
   const [title, setTitle] = useState(examToEdit?.title || '');
@@ -760,6 +761,7 @@ function CreateExamView({ user, setView, examToEdit }: { user: User, setView: (v
         throw error;
       }
       alert("Sucesso! A prova foi salva corretamente no servidor. Você agora pode imprimi-la.");
+      onExamSaved();
       setView('dashboard');
     } catch (err: any) {
       alert("Erro ao tentar salvar: " + (err.message || 'Erro desconhecido. A imagem pode ser muito pesada ou há um problema de conexão.'));
@@ -1572,7 +1574,7 @@ function ReportsView({ exams, results }: { exams: Exam[], results: Result[] }) {
   );
 }
 
-function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolean, user: User }) {
+function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], isAdmin: boolean, user: User, onExamSaved: () => void }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Exam>>({});
   const [isAdding, setIsAdding] = useState(false);
@@ -1654,6 +1656,7 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
       }
       setEditingId(null);
       setIsAdding(false);
+      onExamSaved();
       alert("Sucesso! Agendamento/Prova salvo corretamente no servidor.");
     } catch (err: any) {
       alert("Erro ao salvar no banco de dados: " + (err.message || JSON.stringify(err)));
