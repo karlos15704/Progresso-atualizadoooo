@@ -1305,6 +1305,7 @@ function GuidesView({ exams }: { exams: Exam[] }) {
 function AdminView({ user }: { user: User }) {
   const [username, setUsername] = useState('');
   const [allowedUsers, setAllowedUsers] = useState<{id: string, username: string}[]>([]);
+  const [networkUsers, setNetworkUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
   const [schoolInfo, setSchoolInfoState] = useState(getSchoolInfo());
@@ -1342,11 +1343,15 @@ function AdminView({ user }: { user: User }) {
     const fetchAllowed = async () => {
       const { data } = await supabase.from('allowed_professors').select('*');
       if (data) setAllowedUsers(data);
+      
+      const { data: usersData } = await supabase.from('users').select('*');
+      if (usersData) setNetworkUsers(usersData);
     };
     fetchAllowed();
 
     const sub = supabase.channel('allowed_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'allowed_professors' }, fetchAllowed)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, fetchAllowed)
       .subscribe();
 
     return () => {
@@ -1474,6 +1479,34 @@ function AdminView({ user }: { user: User }) {
               ))}
               {allowedUsers.length === 0 && (
                 <p className="text-center text-slate-400 py-4 text-sm">Nenhum professor autorizado ainda.</p>
+              )}
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg border border-border shadow-sm">
+            <h3 className="text-base font-bold text-primary mb-4">Controle de Hierarquia dos Registrados ({networkUsers.length})</h3>
+            <div className="space-y-2">
+              {networkUsers.map(item => (
+                <div key={item.uid} className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-100">
+                  <div className="flex flex-col">
+                    <span className="font-bold text-slate-700 text-sm">{item.email}</span>
+                    <span className="text-xs text-slate-500">Patente atual: <span className="uppercase font-bold">{item.role}</span></span>
+                  </div>
+                  <button 
+                    onClick={async () => {
+                      const newRole = item.role === 'admin' ? 'professor' : 'admin';
+                      if (confirm(`Mudar ${item.email} para ${newRole}?`)) {
+                        await supabase.from('users').update({ role: newRole }).eq('uid', item.uid);
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm ${item.role === 'admin' ? 'bg-[#feebc8] text-[#744210] hover:bg-[#f6e0b5]' : 'bg-[#c6f6d5] text-[#22543d] hover:bg-[#b2ebd0]'}`}
+                  >
+                    {item.role === 'admin' ? 'Rebaixar para Prof.' : 'Promover a Administrador'}
+                  </button>
+                </div>
+              ))}
+              {networkUsers.length === 0 && (
+                <p className="text-center text-slate-400 py-4 text-sm">Nenhum usuário registrado.</p>
               )}
             </div>
           </div>
