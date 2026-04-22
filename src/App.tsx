@@ -1630,16 +1630,19 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
     setSaving(true);
     try {
       if (editingId && editingId !== 'new') {
-        const { error } = await supabase.from('exams').update({
+        const { error, data } = await supabase.from('exams').update({
           subject: formData.subject,
           class_year: formData.classYear,
           exam_date: formData.examDate ? formData.examDate : null,
           exam_type: formData.examType,
           content: formData.content
-        }).eq('id', editingId);
-        if (error) throw error;
+        }).eq('id', editingId).select();
+        if (error) {
+          alert(`Erro RLS Update: ${error.message}`);
+          throw error;
+        }
       } else {
-        const { error } = await supabase.from('exams').insert({
+        const { error, data } = await supabase.from('exams').insert({
           title: `Agendamento: ${formData.subject}`,
           subject: formData.subject,
           exam_type: formData.examType || 'PII',
@@ -1649,10 +1652,12 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
           questions: [],
           answer_key: { _metadata: { isExternal: true, examType: formData.examType } },
           study_guide: '',
-          professor_id: user.id,
-          created_at: new Date().toISOString()
-        });
-        if (error) throw error;
+          professor_id: user.id
+        }).select();
+        if (error) {
+          alert(`Erro RLS Insert: ${error.message} \nDetalhes: ${error.details}`);
+          throw error;
+        }
       }
       setEditingId(null);
       setIsAdding(false);
@@ -1787,7 +1792,9 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
               <textarea value={formData.content || ''} onChange={e => setFormData({...formData, content: e.target.value})} placeholder="Páginas, capítulos e assuntos..." className="w-full border border-border rounded-md px-3 py-2 text-sm h-20" />
             </div>
             <div className="flex gap-2">
-              <button disabled={saving} onClick={handleSave} className="bg-green-600 text-white px-4 py-2 rounded-md font-bold text-sm">Salvar</button>
+              <button disabled={saving} onClick={handleSave} className="bg-green-600 text-white px-4 py-2 rounded-md font-bold text-sm">
+                {saving ? 'Salvando...' : 'Salvar'}
+              </button>
               <button onClick={() => { setIsAdding(false); setEditingId(null); }} className="bg-white border border-slate-300 px-4 py-2 rounded-md font-bold text-sm text-slate-600">Cancelar</button>
             </div>
           </div>
