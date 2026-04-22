@@ -12,6 +12,7 @@ import {
   AlertCircle,
   Loader2,
   ChevronRight,
+  Pencil,
   User as UserIcon,
   School,
   Clock,
@@ -49,13 +50,13 @@ interface Exam {
   id: string;
   title: string;
   subject: string;
-  examType: 'PII' | 'PIII';
+  examType: string;
   examDate?: string;
   examTime?: string;
   classYear?: string;
   content?: string;
   questions: Question[];
-  answerKey: Record<string, string>;
+  answerKey: any;
   studyGuide: string;
   professorId: string;
   createdAt: any;
@@ -242,6 +243,17 @@ export default function App() {
 
   const handleLogout = () => supabase.auth.signOut();
 
+  const handleDeleteExam = async (id: string) => {
+    if (!window.confirm("Tem certeza que deseja excluir esta prova? Esta ação também excluirá todos os resultados associados.")) return;
+    try {
+      const { error } = await supabase.from('exams').delete().eq('id', id);
+      if (error) throw error;
+      setExams(exams.filter(e => e.id !== id));
+    } catch (err: any) {
+      alert("Erro ao excluir: " + err.message);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
@@ -287,44 +299,44 @@ export default function App() {
           <div className="py-6 flex flex-col gap-1">
             <NavButton 
               active={view === 'dashboard'} 
-              onClick={() => setView('dashboard')} 
+              onClick={() => { setView('dashboard'); setExamToEdit(null); }} 
               icon={<BarChart3 className="w-5 h-5" />} 
               label="Painel Geral" 
             />
             <NavButton 
               active={view === 'create'} 
-              onClick={() => setView('create')} 
+              onClick={() => { setView('create'); setExamToEdit(null); }} 
               icon={<Plus className="w-5 h-5" />} 
               label="Banco de Provas" 
             />
             <NavButton 
               active={view === 'correct'} 
-              onClick={() => setView('correct')} 
+              onClick={() => { setView('correct'); setExamToEdit(null); }} 
               icon={<Camera className="w-5 h-5" />} 
               label="Correção Automática" 
             />
             <NavButton 
               active={view === 'guides'} 
-              onClick={() => setView('guides')} 
+              onClick={() => { setView('guides'); setExamToEdit(null); }} 
               icon={<BookOpen className="w-5 h-5" />} 
               label="Guia de Estudos" 
             />
             <NavButton 
               active={view === 'reports'} 
-              onClick={() => setView('reports')} 
+              onClick={() => { setView('reports'); setExamToEdit(null); }} 
               icon={<FileText className="w-5 h-5" />} 
               label="Relatórios de Turma" 
             />
             <NavButton 
               active={view === 'schedule'} 
-              onClick={() => setView('schedule')} 
+              onClick={() => { setView('schedule'); setExamToEdit(null); }} 
               icon={<Calendar className="w-5 h-5" />} 
               label="Cronograma" 
             />
             {isAdmin && (
               <NavButton 
                 active={view === 'admin'} 
-                onClick={() => setView('admin')} 
+                onClick={() => { setView('admin'); setExamToEdit(null); }} 
                 icon={<UserIcon className="w-5 h-5" />} 
                 label="Administração" 
               />
@@ -338,7 +350,7 @@ export default function App() {
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-[25px]">
           <AnimatePresence mode="wait">
-            {view === 'dashboard' && <DashboardView exams={exams} results={results} setView={setView} onSelectPrintExam={setSelectedPrintExam} onEditExam={e => { setExamToEdit(e); setView('create'); }} />}
+            {view === 'dashboard' && <DashboardView user={user} isAdmin={isAdmin} exams={exams} results={results} setView={setView} onSelectPrintExam={setSelectedPrintExam} onEditExam={e => { setExamToEdit(e); setView('create'); }} onDeleteExam={handleDeleteExam} />}
             {view === 'create' && <CreateExamView user={user} setView={(v) => { setView(v); setExamToEdit(null); }} examToEdit={examToEdit} />}
             {view === 'correct' && <CorrectExamView user={user} exams={exams} setView={setView} />}
             {view === 'guides' && <GuidesView exams={exams} />}
@@ -499,7 +511,10 @@ function LoginView({ error, setError }: { error: string | null, setError: (e: st
   );
 }
 
-function DashboardView({ exams, results, setView, onSelectPrintExam, onEditExam }: { exams: Exam[], results: Result[], setView: (v: any) => void, onSelectPrintExam: (e: Exam) => void, onEditExam: (exam: Exam) => void }) {
+function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintExam, onEditExam, onDeleteExam }: { user: User, isAdmin: boolean, exams: Exam[], results: Result[], setView: (v: any) => void, onSelectPrintExam: (e: Exam) => void, onEditExam: (exam: Exam) => void, onDeleteExam: (id: string) => void }) {
+  const [showAll, setShowAll] = useState(false);
+  const displayExams = showAll ? exams : exams.slice(0, 6);
+
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
@@ -517,8 +532,10 @@ function DashboardView({ exams, results, setView, onSelectPrintExam, onEditExam 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
         <div className="lg:col-span-3 bg-white rounded-lg border border-border overflow-hidden shadow-sm">
           <div className="px-5 py-4 border-b border-border flex justify-between items-center bg-[#fcfcfd]">
-            <h3 className="text-base font-bold text-primary">Avaliações Recentes</h3>
-            <span className="text-[12px] text-accent font-bold cursor-pointer hover:underline">Ver Banco de Dados Completo</span>
+            <h3 className="text-base font-bold text-primary">{showAll ? 'Todas as Avaliações' : 'Avaliações Recentes'}</h3>
+            <button onClick={() => setShowAll(!showAll)} className="text-[12px] text-accent font-bold cursor-pointer hover:underline">
+              {showAll ? 'Ver Menos' : 'Ver Banco de Dados Completo'}
+            </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
@@ -534,7 +551,7 @@ function DashboardView({ exams, results, setView, onSelectPrintExam, onEditExam 
                 </tr>
               </thead>
               <tbody>
-                {exams.slice(0, 6).map(exam => (
+                {displayExams.map(exam => (
                   <tr key={exam.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-5 py-3 border-b border-border font-medium text-slate-600">#PRV-{exam.id.slice(-4).toUpperCase()}</td>
                     <td className="px-5 py-3 border-b border-border text-slate-700 font-bold">{exam.classYear || '--'}</td>
@@ -556,22 +573,37 @@ function DashboardView({ exams, results, setView, onSelectPrintExam, onEditExam 
                           setView('print');
                         }}
                         className="text-accent font-bold hover:underline flex items-center gap-1"
+                        title="Imprimir Prova"
                       >
                         <FileText className="w-4 h-4" />
-                        Imprimir
+                        <span className="hidden xl:inline">Imprimir</span>
                       </button>
-                      <button 
-                        onClick={() => onEditExam(exam)}
-                        className="text-slate-500 font-bold hover:text-primary flex items-center gap-1"
-                      >
-                        Editar Prv
-                      </button>
+                      {(isAdmin || exam.professorId === user.id) && (
+                        <>
+                          <button 
+                            onClick={() => onEditExam(exam)}
+                            className="text-slate-500 font-bold hover:text-primary flex items-center gap-1"
+                            title="Editar Prova"
+                          >
+                            <Pencil className="w-4 h-4" />
+                            <span className="hidden xl:inline">Editar</span>
+                          </button>
+                          <button 
+                            onClick={() => onDeleteExam(exam.id)}
+                            className="text-red-400 font-bold hover:text-red-600 flex items-center gap-1"
+                            title="Excluir Prova"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span className="hidden xl:inline">Excluir</span>
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}
                 {exams.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-10 text-center text-slate-400">Nenhuma prova criada ainda.</td>
+                    <td colSpan={7} className="px-5 py-10 text-center text-slate-400">Nenhuma prova criada ainda.</td>
                   </tr>
                 )}
               </tbody>
@@ -1708,9 +1740,23 @@ function ScheduleView({ exams, isAdmin, user }: { exams: Exam[], isAdmin: boolea
                           <div className="text-sm text-slate-600 whitespace-pre-wrap"><strong className="text-slate-500">Conteúdo:</strong> {exam.content || 'Nenhum conteúdo específico providenciado.'}</div>
                         </div>
                         {(isAdmin || exam.professorId === user.id) && (
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => handleEditClick(exam)} className="text-xs font-bold text-slate-500 hover:text-primary px-3 py-1.5 bg-slate-100 rounded-md">Editar</button>
-                            <button onClick={() => handleDelete(exam.id.split('-')[0])} className="text-xs font-bold text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
+                          <div className="flex items-center gap-1">
+                            <button 
+                              onClick={() => handleEditClick(exam)} 
+                              className="p-1 px-2 text-slate-500 hover:text-primary hover:bg-slate-50 rounded transition-all flex items-center gap-1 text-[11px] font-bold"
+                              title="Editar Agendamento"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Editar</span>
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(exam.id.split('-')[0])} 
+                              className="p-1 px-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-all flex items-center gap-1 text-[11px] font-bold"
+                              title="Excluir Agendamento"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Excluir</span>
+                            </button>
                           </div>
                         )}
                       </div>
