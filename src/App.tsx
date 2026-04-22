@@ -161,7 +161,7 @@ export default function App() {
   const handleUser = async (currentUser: User | null) => {
     if (currentUser) {
       try {
-        let isUserAdmin = currentUser.email === 'cps@cps.local';
+        let isUserAdmin = currentUser.email?.toLowerCase() === 'cps@cps.local';
         const { data: profile, error } = await supabase.from('users').select('*').eq('uid', currentUser.id).maybeSingle();
         
         if (error && error.code !== 'PGRST116') {
@@ -181,7 +181,7 @@ export default function App() {
       } catch (err) {
         console.error("Error setting up user:", err);
         // Do not force sign out, let them proceed even if profile logic throws.
-        setIsAdmin(currentUser.email === 'cps@cps.local');
+        setIsAdmin(currentUser.email?.toLowerCase() === 'cps@cps.local');
         setUser(currentUser);
       }
     } else {
