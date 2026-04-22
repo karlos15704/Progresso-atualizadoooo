@@ -79,40 +79,197 @@ const DEFAULT_SCHOOL_INFO = {
   classes: ['6º A', '6º B', '6º C', '7º A', '7º B', '8º A', '8º B', '9º A', '9º B'],
   studentsDB: {
     '6º ano': [
-      { classId: '6º A', name: 'Alice Silva' },
-      { classId: '6º A', name: 'Arthur Santos' },
-      { classId: '6º A', name: 'Beatriz Costa' },
-      { classId: '6º A', name: 'Bernardo Oliveira' },
-      { classId: '6º B', name: 'Camila Pereira' },
-      { classId: '6º B', name: 'Cauã Rodrigues' },
-      { classId: '6º B', name: 'Davi Mendes' },
-      { classId: '6º C', name: 'Eduarda Alves' },
-      { classId: '6º C', name: 'Enzo Gabriel' },
+      { classId: '6º A', name: 'ADRIELLY LUCIA PERES SANTOS SILVA' },
+      { classId: '6º A', name: 'BEATRIZ TEIXEIRA DA SILVA' },
+      { classId: '6º A', name: 'BERNARDO DE PAULA ARAUJO' },
+      { classId: '6º A', name: 'BERNARDO DONATO JAQUES SANTOS' },
+      { classId: '6º A', name: 'BERNARDO SILVA' },
+      { classId: '6º A', name: 'CATARINA FERREIRA GUIMARAES' },
+      { classId: '6º A', name: 'CAUÃ LIMA DOS SANTOS MAFRA' },
+      { classId: '6º A', name: 'CECÍLIA FERREIRA DANTAS DORIA DIAS' },
+      { classId: '6º A', name: 'CLARA MARIA GOMES DOS SANTOS' },
+      { classId: '6º A', name: 'DAVI PONTES TRIGO' },
+      { classId: '6º A', name: 'ENZO GABRIEL MARZOCHI ALVES' },
+      { classId: '6º A', name: 'HENRIQUE SANTOS CABRAL DE ANDRADE' },
+      { classId: '6º A', name: 'LORENZO DA SILVA COSTA' },
+      { classId: '6º A', name: 'LUCAS DE JESUS CORREIA' },
+      { classId: '6º A', name: 'MANUELLA CARDOSO MATOS' },
+      { classId: '6º A', name: 'MATHEUS SANTANA AIRES' },
+      { classId: '6º A', name: 'MIGUEL GONÇALVES GOMES DA SILVA' },
+      { classId: '6º A', name: 'RAPHAEL DOS SANTOS RODRIGUES' },
+      { classId: '6º A', name: 'SARAH VASCONCELOS MARQUES DE OLIVEIRA' },
+      { classId: '6º A', name: 'SOPHIA MAIROS BRAZ CARVALHO' },
+      { classId: '6º A', name: 'VINÍCIUS VICHI FERREIRA DE ANDRADE SILVA' },
+
+      { classId: '6º B', name: 'AGATHA VIEIRA BATISTA' },
+      { classId: '6º B', name: 'AGATHA XAVIER DE LIMA' },
+      { classId: '6º B', name: 'ALICE MALTAS SABINO DE FREITAS' },
+      { classId: '6º B', name: 'ALICE TORRES FAGUNDES FONSECA' },
+      { classId: '6º B', name: 'ANA CLARA HONORATO ACCORSINI' },
+      { classId: '6º B', name: 'BERNARDO SANTOS LADISLAÚ' },
+      { classId: '6º B', name: 'DANIEL MARINO ZANELLI' },
+      { classId: '6º B', name: 'ENZO PASCOAL RESENDE' },
+      { classId: '6º B', name: 'FERNANDA SOUZA BATISTA FONSECA' },
+      { classId: '6º B', name: 'ISABELLA RIBEIRO DE MELO' },
+      { classId: '6º B', name: 'LARISSA FIRMINO DOS SANTOS PEDRO' },
+      { classId: '6º B', name: 'LAURA FERNANDES TEIXEIRA' },
+      { classId: '6º B', name: 'LETÍCIA SILVA DE CAMARGO' },
+      { classId: '6º B', name: 'LIVIA DE CASTRO AGRA COSTA' },
+      { classId: '6º B', name: 'LUIZ GUSTAVO PEREIRA ALVES' },
+      { classId: '6º B', name: 'LUIZA SENA DE ASSIZ' },
+      { classId: '6º B', name: 'MANUELA SANTANA FERNANDES' },
+      { classId: '6º B', name: 'MARIA LUIZA BONVETI RAFANINI' },
+      { classId: '6º B', name: 'MICHELLI CAMILI CANDIDO GONÇALO' },
+      { classId: '6º B', name: 'MURILO JUVINO ALVES' },
+      { classId: '6º B', name: 'NICOLAS FEITOSA SANTANA' },
+      { classId: '6º B', name: 'NICOLLY WILLIANS FAGUNDES LIMA' },
+
+      { classId: '6º C', name: 'ARTHUR HENRIQUE DA COSTA BRITO' },
+      { classId: '6º C', name: 'BRYAN BOSCARDIN MARCIANO' },
+      { classId: '6º C', name: 'DAVI LORENZO PEREIRA NASCIMENTO' },
+      { classId: '6º C', name: 'ELENA APARECIDA DE SOUZA FERREIRA' },
+      { classId: '6º C', name: 'ELISA MIRANDA SATO' },
+      { classId: '6º C', name: 'GABRIEL OLIVEIRA MENDES DOS SANTOS' },
+      { classId: '6º C', name: 'GIULIA ARCHANJO DE MOURA' },
+      { classId: '6º C', name: 'GUILHERME CARVALHO DE ALMEIDA' },
+      { classId: '6º C', name: 'HEITOR BARBOSA ALMEIDA' },
+      { classId: '6º C', name: 'JAMAL HENRIQUE DA SILVA' },
+      { classId: '6º C', name: 'KEVYN CHRISTOPHER CONCEIÇÃO SILVA RODRIGUES' },
+      { classId: '6º C', name: 'LAVINIA DE OLIVEIRA SANTOS' },
+      { classId: '6º C', name: 'LUIZA KIYOKO WAKAI PINHO' },
+      { classId: '6º C', name: 'MARIA FERNANDA NOBRE BORGES' },
+      { classId: '6º C', name: 'MARIA LUIZA SILVA BARBOSA' },
+      { classId: '6º C', name: 'MATHEUS SALVADOR ROSAS' },
+      { classId: '6º C', name: 'MATHEUS XAVIER BRITO DO NASCIMENTO' },
+      { classId: '6º C', name: 'MIGUEL CORREIA SOARES DE MOURA' },
+      { classId: '6º C', name: 'PEDRO SANTOS DO NASCIMENTO' },
+      { classId: '6º C', name: 'SOPHIA DOS SANTOS DE ARRUDA OLIVEIRA' },
     ],
     '7º ano': [
-      { classId: '7º A', name: 'Felipe Rocha' },
-      { classId: '7º A', name: 'Fernanda Lima' },
-      { classId: '7º A', name: 'Gabriel Martins' },
-      { classId: '7º B', name: 'Giovanna Souza' },
-      { classId: '7º B', name: 'Heitor Ferreira' },
-      { classId: '7º B', name: 'Heloísa Gomes' },
+      { classId: '7º A', name: 'ALICE HONORATO ACCORSINI' },
+      { classId: '7º A', name: 'BEATRIZ DE MELO SHIMOKOMAKI GONÇALVES' },
+      { classId: '7º A', name: 'DAVI DE ARAUJO DA SILVA' },
+      { classId: '7º A', name: 'DAVI SILVA FERREIRA MENEZES' },
+      { classId: '7º A', name: 'ENZO PEREIRA FARO HERNANDES' },
+      { classId: '7º A', name: 'GABRIELA BARRIO CURÁTOLO DE MOURA FÉ' },
+      { classId: '7º A', name: 'GUSTAVO MENEZES PASSOS' },
+      { classId: '7º A', name: 'GUSTAVO SOUZA FONSECA' },
+      { classId: '7º A', name: 'ISABELLA SILVA SANTANA' },
+      { classId: '7º A', name: 'JORGE HENRIQUE GOMES DOS SANTOS' },
+      { classId: '7º A', name: 'KAUAN BARRADA LIMA COSME' },
+      { classId: '7º A', name: 'LUIZ HENRIQUE ESTEVÃO SOARES' },
+      { classId: '7º A', name: 'MANUELA TINEU VIEIRA ARAUJO' },
+      { classId: '7º A', name: 'MANUELLA DE ANDRADE MARIANO' },
+      { classId: '7º A', name: 'PEROLA DE SANTANA BERNARDINHO' },
+      { classId: '7º A', name: 'PIETRA VALENTINA LIRA MARQUES XAVIER' },
+      { classId: '7º A', name: 'RAPHAEL PEREIRA RIBEIRO DA FONSECA' },
+      { classId: '7º A', name: 'YASMIM RODRIGUES AGRA DE OLIVEIRA' },
+      { classId: '7º A', name: 'YASMIN SANTANA POLETO' },
+
+      { classId: '7º B', name: 'ANNA JÚLIA FRANCO SILVA' },
+      { classId: '7º B', name: 'BERNARDO ANDRADE FRANCO SANTOS' },
+      { classId: '7º B', name: 'BERNARDO RIBEIRO DA SILVA SENA' },
+      { classId: '7º B', name: 'BRENDA VICTORIA LIMA DA SILVA' },
+      { classId: '7º B', name: 'BRENO SANTOS REIS DE OLIVEIRA' },
+      { classId: '7º B', name: 'DAVI FELIPE DOS SANTOS PUGLIESI' },
+      { classId: '7º B', name: 'DAVI LIMA BALBO' },
+      { classId: '7º B', name: 'EDUARDO JESUS ARAÚJO DE OLIVEIRA' },
+      { classId: '7º B', name: 'HEITOR MARINHO DINIZ' },
+      { classId: '7º B', name: 'HEITOR TEIXEIRA SACRAMENTO' },
+      { classId: '7º B', name: 'LAYSA ALVES DE OLIVEIRA LIMA' },
+      { classId: '7º B', name: 'LUCAS BRITO SOUSA' },
+      { classId: '7º B', name: 'MANUELLA MARINO ZANELLI' },
+      { classId: '7º B', name: 'MARCOS VINICIUS CAVACO BROGLIA' },
+      { classId: '7º B', name: 'MARIA CLARA VIEIRA DA CRUZ' },
+      { classId: '7º B', name: 'NICOLE CORREA DE SOUZA' },
+      { classId: '7º B', name: 'NICOLLAS DOS SANTOS SILVA' },
+      { classId: '7º B', name: 'PAULO DAVI MOURA DA SILVA' },
+      { classId: '7º B', name: 'PEDRO OSWALDO DOS SANTOS AMARAL' },
+      { classId: '7º B', name: 'RAYSSA OLIVEIRA SANTOS' },
+      { classId: '7º B', name: 'SARAH MARCIANO DOS SANTOS' },
     ],
     '8º ano': [
-      { classId: '8º A', name: 'Isabella Dias' },
-      { classId: '8º A', name: 'Isaac Ribeiro' },
-      { classId: '8º B', name: 'Júlia Azevedo' },
-      { classId: '8º B', name: 'João Miguel' },
+      { classId: '8º A', name: 'ADRIELLY RODRIGUES CARAMEZ' },
+      { classId: '8º A', name: 'BEATRIZ DE LACERDA VILAÇO SULPINO' },
+      { classId: '8º A', name: 'BEATRIZ OHANA DE GOUVEIA MENDONÇA' },
+      { classId: '8º A', name: 'DANTE MÜLLER AGUIAR' },
+      { classId: '8º A', name: 'GABRIEL MENDONÇA DA SILVA' },
+      { classId: '8º A', name: 'GIOVANNA SANTOS GONÇALVES' },
+      { classId: '8º A', name: 'GUILHERME BELLINI VIEIRA CARMO' },
+      { classId: '8º A', name: 'IAN BARALDI AGIANI' },
+      { classId: '8º A', name: 'JOÃO PEDRO FERREIRA DA SILVA' },
+      { classId: '8º A', name: 'JOSÉ ANDRÉS BARRIOS SÁNCHEZ' },
+      { classId: '8º A', name: 'JULIE VITÓRIA AGUIAR CRUZ' },
+      { classId: '8º A', name: 'KAUAI RIOS CABRAL' },
+      { classId: '8º A', name: 'LUIZ FELIPE DE CASTRO AGRA COSTA' },
+      { classId: '8º A', name: 'MATHEUS HENRIQUE SANTOS CAMARGO' },
+      { classId: '8º A', name: 'MIKAELLA VITORIA PEREIRA FRANCO' },
+      { classId: '8º A', name: 'PIETRA VICENTE DOS SANTOS' },
+      { classId: '8º A', name: 'RAFAEL DOS SANTOS MACIEL' },
+      { classId: '8º A', name: 'SOPHIA SOUZA DELFINO' },
+
+      { classId: '8º B', name: 'AMANDA AUGUSTO DOS SANTOS MARQUES' },
+      { classId: '8º B', name: 'CLARA MENDES DO VALE' },
+      { classId: '8º B', name: 'DAVI LUIZ RIOS DA GAMA CARDOZO' },
+      { classId: '8º B', name: 'ENZO BARBOSA SILVA' },
+      { classId: '8º B', name: 'ESTHELA SANTOS ROSA' },
+      { classId: '8º B', name: 'ISABELLA CARDOSO PALLOTTINI COELHO' },
+      { classId: '8º B', name: 'JULIA VILLANI PEIXOTO DE CARVALHO' },
+      { classId: '8º B', name: 'KAIQUE LEONARDO PEREIRA' },
+      { classId: '8º B', name: 'KAUÊ CICARONI PIEMONTE' },
+      { classId: '8º B', name: 'KETHELLYN HELENA DA SILVA VIEIRA SOUZA' },
+      { classId: '8º B', name: 'LUCAS RIVELA MENDES' },
+      { classId: '8º B', name: 'MARIA CLARA TINEO BECK' },
+      { classId: '8º B', name: 'MARIA FERNANDA SILVA FERNANDES' },
+      { classId: '8º B', name: 'MIGUEL RODRIGUES SILVA' },
+      { classId: '8º B', name: 'NICOLAS RIBEIRO GOES' },
+      { classId: '8º B', name: 'VINICIUS BULHOES DA SILVA' },
+      { classId: '8º B', name: 'YURI GOMES SILVA' },
     ],
     '9º ano': [
-      { classId: '9º A', name: 'Pedro Almeida' },
-      { classId: '9º A', name: 'Laura Carvalho' },
-      { classId: '9º B', name: 'Lucas Castro' },
-      { classId: '9º B', name: 'Sofia Mendes' },
+      { classId: '9º A', name: 'ARTHUR SOBRAL SARAPIO RIBEIRO' },
+      { classId: '9º A', name: 'ERICK DE OLIVEIRA ROCHA' },
+      { classId: '9º A', name: 'ESTHER ROSA FONTES' },
+      { classId: '9º A', name: 'FELLIPE TEIXEIRA SILVA' },
+      { classId: '9º A', name: 'GABRIEL CLEMENTE MAURI' },
+      { classId: '9º A', name: 'GABRIEL SILVEIRA LOPES' },
+      { classId: '9º A', name: 'GABRIELA FREIRE MATOS' },
+      { classId: '9º A', name: 'HELOISA TEIXEIRA SACRAMENTO' },
+      { classId: '9º A', name: 'HENRIQUE DOS SANTOS WALTER' },
+      { classId: '9º A', name: 'JOÃO VITOR RODRIGUES DA SILVA' },
+      { classId: '9º A', name: 'MARCELLO DE SOUZA GALDINO RODRIGUES' },
+      { classId: '9º A', name: 'MARIA EDUARDA CAMARGO DOS SANTOS' },
+      { classId: '9º A', name: 'PEDRO MIGUEL DA SILVA FERREIRA' },
+      { classId: '9º A', name: 'ROGER DO NASCIMENTO CASTRO DOS SANTOS' },
+      { classId: '9º A', name: 'SOFIA BUENO DE MELO' },
+      { classId: '9º A', name: 'STHEFANY XAVIER DA SILVA' },
+      { classId: '9º A', name: 'VALENTINA FERREIRA BARCELOS' },
+      { classId: '9º A', name: 'VICTORIA GARCIA CANELAS' },
+
+      { classId: '9º B', name: 'ANA LUIZA SILVEIRA DE OLIVEIRA' },
+      { classId: '9º B', name: 'ANNA CLARA FERREIRA DA SILVA' },
+      { classId: '9º B', name: 'BERNARDO LUIZ GOMES FIDELIS' },
+      { classId: '9º B', name: 'EMILLY SOUZA CARNEIRO' },
+      { classId: '9º B', name: 'ENZO TELES GONÇALVES' },
+      { classId: '9º B', name: 'GABRIEL SILVA DE CAMARGO' },
+      { classId: '9º B', name: 'GIULIA PEREIRA DE JESUS MENDONÇA' },
+      { classId: '9º B', name: 'GIULIA ROZADOS DE OLIVEIRA' },
+      { classId: '9º B', name: 'GUILHERME DONATO JAQUES DOS SANTOS' },
+      { classId: '9º B', name: 'JOÃO MENDONÇA DOS SANTOS' },
+      { classId: '9º B', name: 'JOÃO PEDRO ALVES DA SILVA' },
+      { classId: '9º B', name: 'KAMILLY INDAUI DE CASTRO FERREIRA' },
+      { classId: '9º B', name: 'LETICIA CRISTINA SOUSA CORREA' },
+      { classId: '9º B', name: 'LUKAS ANDRADE FERNANDES' },
+      { classId: '9º B', name: 'MIGUEL BARROS DA SILVA' },
+      { classId: '9º B', name: 'PETRICK VILLANI SILVA' },
+      { classId: '9º B', name: 'THIAGO BEZERRA ORIGUELA' },
+      { classId: '9º B', name: 'VITÓRIA ALONSO SODRÉ' },
+      { classId: '9º B', name: 'WILLER INÁCIO ALVES DOS SANTOS' },
     ]
   } as Record<string, { classId: string, name: string }[]>
 };
 
-function getSchoolInfo() {
+function getSchoolInfo(): { subjects: string[], classes: string[], studentsDB: Record<string, { classId: string, name: string }[]> } {
   const saved = localStorage.getItem('schoolInfo');
   if (saved) {
     try {
@@ -292,9 +449,9 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col">
+    <div className="min-h-screen bg-bg flex flex-col print:bg-white print:block">
       {/* Header */}
-      <header className="bg-white border-b border-border h-[70px] px-8 flex items-center justify-between sticky top-0 z-10">
+      <header className="bg-white border-b border-border h-[70px] px-8 flex items-center justify-between sticky top-0 z-10 print:hidden">
         <div className="flex items-center gap-3">
           <div className="bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm flex items-center gap-2">
             <img src={LOGO_VINHO} alt="Logo CPS" className="w-5 h-5 object-contain" />
@@ -318,9 +475,9 @@ export default function App() {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden print:overflow-visible print:block">
         {/* Sidebar */}
-        <aside className="w-[240px] bg-primary text-white flex flex-col hidden lg:flex">
+        <aside className="w-[240px] bg-primary text-white flex flex-col hidden lg:flex print:hidden">
           <div className="py-6 flex flex-col gap-1">
             <NavButton 
               active={view === 'dashboard'} 
@@ -373,7 +530,7 @@ export default function App() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-[25px]">
+        <main className="flex-1 overflow-y-auto p-[25px] print:overflow-visible print:p-0">
           <AnimatePresence mode="wait">
             {view === 'dashboard' && <DashboardView user={user} isAdmin={isAdmin} exams={exams} results={results} setView={setView} onSelectPrintExam={setSelectedPrintExam} onEditExam={e => { setExamToEdit(e); setView('create'); }} onDeleteExam={handleDeleteExam} />}
             {view === 'create' && <CreateExamView user={user} setView={(v) => { setView(v); setExamToEdit(null); }} examToEdit={examToEdit} onExamSaved={() => setRefreshTrigger(prev => prev + 1)} />}
@@ -388,7 +545,7 @@ export default function App() {
       </div>
 
       {/* Mobile Nav */}
-      <nav className="lg:hidden bg-white border-t border-slate-200 px-2 py-2 flex justify-between overflow-x-auto gap-1 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-50">
+      <nav className="lg:hidden bg-white border-t border-slate-200 px-2 py-2 flex justify-between overflow-x-auto gap-1 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-50 print:hidden">
         <MobileNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<BarChart3 />} label="Início" />
         <MobileNavButton active={view === 'create'} onClick={() => setView('create')} icon={<Plus />} label="Provas" />
         <MobileNavButton active={view === 'correct'} onClick={() => setView('correct')} icon={<Camera />} label="Corrigir" />
@@ -1974,19 +2131,80 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState("");
 
-  const handleExportSheets = async () => {
-    setIsExporting(true);
-    await exportMultipleToPDF('answer-sheet-page', `Gabaritos-${(exam.title || '').replace(/\s+/g, '_')}`, setExportProgress);
-    setIsExporting(false);
-    setExportProgress("");
+  const schoolInfo = getSchoolInfo();
+  // Get all registered students
+  const allStudents = Object.values(schoolInfo.studentsDB).flat();
+  // Get all available classes sorted
+  const availableClasses = Array.from(new Set(allStudents.map(s => s.classId))).sort();
+
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const [selectedStudentNames, setSelectedStudentNames] = useState<string[]>([]);
+
+  // Initialize selected class and students based on exam's classYear
+  useEffect(() => {
+    let initialClassId = '';
+    if (exam.classYear) {
+      // Find the first matching sub-class (e.g. if exam.classYear === '6º ano', pick '6º A')
+      const target = exam.classYear.toLowerCase();
+      const match = availableClasses.find(c => c.toLowerCase().includes(target) || target.includes(c.toLowerCase()));
+      initialClassId = match || (availableClasses.length > 0 ? availableClasses[0] : '');
+    } else if (availableClasses.length > 0) {
+      initialClassId = availableClasses[0];
+    }
+    
+    setSelectedClassId(initialClassId);
+  }, [exam.classYear]);
+
+  useEffect(() => {
+    if (selectedClassId) {
+      const studsForClass = allStudents.filter(s => s.classId === selectedClassId).map(s => s.name);
+      setSelectedStudentNames(studsForClass);
+    } else {
+      setSelectedStudentNames([]);
+    }
+  }, [selectedClassId]);
+
+  const toggleStudent = (name: string) => {
+    if (selectedStudentNames.includes(name)) {
+      setSelectedStudentNames(prev => prev.filter(n => n !== name));
+    } else {
+      setSelectedStudentNames(prev => [...prev, name]);
+    }
   };
 
-  const schoolInfo = getSchoolInfo();
-  const studentsToPrint = schoolInfo.studentsDB[exam.classYear || ''] || [{ name: '', classId: '' }];
+  const handleStandardPrint = () => {
+    // Hide the answer sheets temporarily if needed, but for now we trust the user knows what they are printing. 
+    // Actually we will print everything visible. We should separate "Imprimir Provas" and "Imprimir Gabaritos" 
+    // by triggering window.print() but using CSS to hide the irrelevant section during print.
+    const sheets = document.getElementById('answer-sheets-container');
+    const exams = document.getElementById('exams-container');
+    if (sheets && exams) {
+      sheets.classList.add('print:hidden');
+      exams.classList.remove('print:hidden');
+      window.print();
+      sheets.classList.remove('print:hidden');
+    }
+  };
+
+  const handlePrintGabaritos = () => {
+    const sheets = document.getElementById('answer-sheets-container');
+    const exams = document.getElementById('exams-container');
+    if (sheets && exams) {
+      exams.classList.add('print:hidden');
+      sheets.classList.remove('print:hidden');
+      window.print();
+      exams.classList.remove('print:hidden');
+    }
+  };
+
+  // Determine students to render (minimum 1 blank if none selected)
+  const studentsToRender = selectedStudentNames.length > 0 
+    ? allStudents.filter(s => selectedStudentNames.includes(s.name) && s.classId === selectedClassId)
+    : [{ name: '', classId: selectedClassId || exam.classYear || '' }];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8">
+      <div className="flex items-center justify-between print:hidden">
         <button 
           onClick={onBack}
           className="text-slate-500 font-bold text-sm flex items-center gap-2 hover:text-slate-700"
@@ -1996,143 +2214,188 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
         </button>
         <div className="flex gap-3">
           <button 
-            onClick={() => exportToPDF('exam-content', `Prova-${exam.title}`)}
+            onClick={handleStandardPrint}
             className="bg-primary text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-primary/90 shadow-sm disabled:opacity-50"
           >
             <Download className="w-4 h-4" />
-            Imprimir Prova
+            Imprimir Provas Preenchidas
           </button>
           <button 
-            onClick={handleExportSheets}
-            disabled={isExporting}
+            onClick={handlePrintGabaritos}
             className="bg-accent text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-accent/90 shadow-sm disabled:opacity-50"
           >
-            {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            {isExporting ? exportProgress || 'Gerando...' : 'Imprimir Cadernos de Resposta'}
+            <Download className="w-4 h-4" />
+            Imprimir Cadernos de Resposta
           </button>
         </div>
       </div>
 
-      {/* Standardized Exam Layout */}
-      <div id="exam-content" className="bg-white p-8 border border-border max-w-[210mm] mx-auto min-h-[297mm] text-black">
-        {/* Main Header Box */}
-        <div className="border-[3px] border-black border-dashed p-1 mb-8">
-          
-          {/* Top Row: Logos and School Name */}
-          <div className="flex items-center justify-between border-b-[3px] border-black border-dashed pb-2 mb-1 px-4">
-            <div className="flex items-center gap-4">
-              <img src={LOGO_VINHO} alt="Logo CPS" className="w-12 h-12 object-contain" referrerPolicy="no-referrer" />
-              <div className="flex flex-col border-l border-black pl-3 py-1">
-                <span className="text-[6px] uppercase font-bold text-slate-800 leading-none mb-1">Plataforma<br/>de Educação</span>
-                <img src={LOGO_COC} alt="COC" className="h-4 object-contain" referrerPolicy="no-referrer" />
-              </div>
-            </div>
-            <h1 className="text-2xl font-bold uppercase text-center flex-1 tracking-wide mr-12">Colégio Progresso Santista</h1>
+      {/* Settings Panel */}
+      <div className="bg-white p-6 border border-border shadow-sm rounded-lg print:hidden">
+        <h3 className="text-lg font-bold text-primary mb-4">Configurações de Impressão</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">Turma Alvo</label>
+            <select 
+              value={selectedClassId} 
+              onChange={e => setSelectedClassId(e.target.value)}
+              className="w-full border border-border rounded-md px-3 py-2 text-sm"
+            >
+              <option value="">Selecione uma turma...</option>
+              {availableClasses.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <p className="text-xs text-slate-500 mt-2">
+              Selecione a sala específica. Todos os alunos desta sala serão marcados para impressão por padrão.
+            </p>
           </div>
-
-          {/* Student Info Fields */}
-          <div className="text-[12px] font-bold flex flex-col uppercase">
-            {/* Row 1 */}
-            <div className="flex border-b-[3px] border-black border-dashed">
-              <div className="flex-[3] border-r-[3px] border-black border-dashed px-2 py-0.5 flex items-end">
-                Nome:<span className="flex-1 border-b border-black mx-2 mb-1"></span>
-              </div>
-              <div className="flex-1 border-r-[3px] border-black border-dashed px-2 py-0.5 whitespace-nowrap">
-                Classe: {exam.classYear || '____'}
-              </div>
-              <div className="flex-1 px-2 py-0.5 whitespace-nowrap">
-                Valor: <span className="border-b border-black w-10 inline-block"></span>
-              </div>
-            </div>
-            {/* Row 2 */}
-            <div className="flex border-b-[3px] border-black border-dashed">
-              <div className="flex-[2] border-r-[3px] border-black border-dashed px-2 py-0.5">
-                Disciplina: <span className="font-normal normal-case">{exam.subject}</span>
-              </div>
-              <div className="flex-[2] border-r-[3px] border-black border-dashed px-2 py-0.5 flex">
-                Prof:<span className="flex-1 border-b border-black ml-2 mb-1"></span>
-              </div>
-              <div className="flex-1 border-r-[3px] border-black border-dashed px-2 py-0.5">
-                Data: <span className="font-normal">{exam.examDate ? new Date(exam.examDate + 'T00:00:00').toLocaleDateString('pt-BR') : '___/___/____'}</span>
-              </div>
-              <div className="flex-1 px-2 py-0.5 whitespace-nowrap">
-                Nota: <span className="border-b border-black w-12 inline-block"></span>
-              </div>
-            </div>
-            {/* Row 3 */}
-            <div className="flex">
-              <div className="flex-[4] border-r-[3px] border-black border-dashed px-2 py-1 normal-case">
-                <span className="uppercase">Instruções:</span>
-                <ul className="text-[11px] font-normal list-none ml-6 mt-0.5 space-y-0 text-black">
-                  <li>❖ Faça letra legível;</li>
-                  <li>❖ Mantenha a limpeza e a organização da prova;</li>
-                  <li>❖ Evite rasuras e não deixe questões em branco.</li>
-                </ul>
-              </div>
-              <div className="flex-1 flex flex-col justify-between items-center text-center px-0 py-0">
-                <div className="w-full border-b-[3px] border-black border-dashed pb-1 pt-1 h-1/2 flex items-center justify-center">
-                  Ass. do professor
-                </div>
-                <div className="h-1/2 flex items-center justify-center">
-                  {exam.examType}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Content / Title */}
-        {(() => {
-          const displayTitle = (exam.content || exam.title || '')
-            .replace(/[-–]?\s*\(?\b(PII|PIII)\b\)?\s*/gi, '')
-            .replace(/\(\s*\)/g, '')
-            .trim();
-            
-          if (!displayTitle) return null;
-          
-          return (
-            <div className="text-center mb-8 px-8">
-              <h2 className="text-sm font-bold">{displayTitle}</h2>
-            </div>
-          );
-        })()}
-
-        {/* Questions */}
-        <div className="space-y-10">
-          {exam.questions.map((q, idx) => (
-            <div key={q.id} className="space-y-4 break-inside-avoid">
-              <div className="w-full text-center px-4">
-                <span className="font-bold text-sm mr-1">{idx + 1}.</span>
-                <span className="text-sm font-bold leading-relaxed">{q.text}</span>
-              </div>
-              
-              {q.image && (
-                <div className="flex justify-center my-4">
-                  <img src={q.image} alt={`Imagem da Questão ${q.id}`} className="max-h-64 object-contain max-w-[80%]" />
-                </div>
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">
+              Alunos Selecionados ({selectedStudentNames.length})
+            </label>
+            <div className="border border-border rounded-md h-48 overflow-y-auto p-3 bg-slate-50 space-y-1">
+              {allStudents.filter(s => s.classId === selectedClassId).length === 0 && (
+                <div className="text-sm text-slate-400 italic">Por favor selecione uma turma...</div>
               )}
-
-              <div className="flex flex-col items-start w-fit mx-auto space-y-1">
-                {['a', 'b', 'c', 'd'].map((letter, i) => (
-                  <div key={letter} className="flex gap-2">
-                    <span className="text-sm">{letter})</span>
-                    <span className="text-sm">{q.options[i]}</span>
-                  </div>
-                ))}
-              </div>
+              {allStudents.filter(s => s.classId === selectedClassId).map(student => (
+                <label key={student.name} className="flex items-center gap-3 p-2 hover:bg-slate-100 rounded cursor-pointer transition-colors">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedStudentNames.includes(student.name)}
+                    onChange={() => toggleStudent(student.name)}
+                    className="w-4 h-4 text-primary rounded border-slate-300 focus:ring-primary"
+                  />
+                  <span className="text-sm font-medium text-slate-700 truncate">{student.name}</span>
+                </label>
+              ))}
             </div>
-          ))}
-        </div>
-
-        <div className="mt-20 pt-8 border-t border-slate-100 text-center text-[9px] text-slate-300 font-bold uppercase">
-          Boa Prova! • Colégio Progresso Santista
+          </div>
         </div>
       </div>
 
-      {/* Answer Sheets Pattern - Repeated mapped elements */}
-      <div id="answer-sheets-container" className="space-y-12">
-        {studentsToPrint.map((student, sIdx) => (
-          <div key={sIdx} className="answer-sheet-page bg-white p-12 border border-border max-w-[210mm] mx-auto mt-10">
+      {/* Generated Exams */}
+      <div id="exams-container" className="space-y-12">
+        {studentsToRender.map((student, sIdx) => (
+          <div key={`exam-${sIdx}`} className="exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto min-h-[297mm] text-black print:border-none print:shadow-none print:max-w-none print:w-[210mm] print:break-after-page">
+            {/* Main Header Box */}
+            <div className="border-[3px] border-black border-dashed p-1 mb-8">
+              
+              {/* Top Row: Logos and School Name */}
+              <div className="flex items-center justify-between border-b-[3px] border-black border-dashed pb-2 mb-1 px-4">
+                <div className="flex items-center gap-4">
+                  <img src={LOGO_VINHO} alt="Logo CPS" className="w-12 h-12 object-contain" referrerPolicy="no-referrer" />
+                  <div className="flex flex-col border-l border-black pl-3 py-1">
+                    <span className="text-[6px] uppercase font-bold text-slate-800 leading-none mb-1">Plataforma<br/>de Educação</span>
+                    <img src={LOGO_COC} alt="COC" className="h-4 object-contain" referrerPolicy="no-referrer" />
+                  </div>
+                </div>
+                <h1 className="text-2xl font-bold uppercase text-center flex-1 tracking-wide mr-12">Colégio Progresso Santista</h1>
+              </div>
+
+              {/* Student Info Fields */}
+              <div className="text-[12px] font-bold flex flex-col uppercase">
+                {/* Row 1 */}
+                <div className="flex border-b-[3px] border-black border-dashed">
+                  <div className="flex-[3] border-r-[3px] border-black border-dashed px-2 py-0.5 flex items-end">
+                    Nome: <span className="flex-1 font-black ml-2 text-sm">{student.name}</span><span className="flex-1 border-b border-black mx-2 mb-1"></span>
+                  </div>
+                  <div className="flex-1 border-r-[3px] border-black border-dashed px-2 py-0.5 whitespace-nowrap">
+                    Classe: {student.classId || '____'}
+                  </div>
+                  <div className="flex-1 px-2 py-0.5 whitespace-nowrap">
+                    Valor: <span className="border-b border-black w-10 inline-block"></span>
+                  </div>
+                </div>
+                {/* Row 2 */}
+                <div className="flex border-b-[3px] border-black border-dashed">
+                  <div className="flex-[2] border-r-[3px] border-black border-dashed px-2 py-0.5">
+                    Disciplina: <span className="font-normal normal-case">{exam.subject}</span>
+                  </div>
+                  <div className="flex-[2] border-r-[3px] border-black border-dashed px-2 py-0.5 flex">
+                    Prof:<span className="flex-1 border-b border-black ml-2 mb-1"></span>
+                  </div>
+                  <div className="flex-1 border-r-[3px] border-black border-dashed px-2 py-0.5">
+                    Data: <span className="font-normal text-xs">{exam.examDate ? new Date(exam.examDate + 'T00:00:00').toLocaleDateString('pt-BR') : '___/___/____'}</span>
+                  </div>
+                  <div className="flex-1 px-2 py-0.5 whitespace-nowrap">
+                    Nota: <span className="border-b border-black w-12 inline-block"></span>
+                  </div>
+                </div>
+                {/* Row 3 */}
+                <div className="flex">
+                  <div className="flex-[4] border-r-[3px] border-black border-dashed px-2 py-1 normal-case">
+                    <span className="uppercase">Instruções:</span>
+                    <ul className="text-[11px] font-normal list-none ml-6 mt-0.5 space-y-0 text-black">
+                      <li>❖ Faça letra legível;</li>
+                      <li>❖ Mantenha a limpeza e a organização da prova;</li>
+                      <li>❖ Evite rasuras e não deixe questões em branco.</li>
+                    </ul>
+                  </div>
+                  <div className="flex-1 flex flex-col justify-between items-center text-center px-0 py-0">
+                    <div className="w-full border-b-[3px] border-black border-dashed pb-1 pt-1 h-1/2 flex items-center justify-center">
+                      Ass. do professor
+                    </div>
+                    <div className="h-1/2 flex items-center justify-center">
+                      {exam.examType}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Content / Title */}
+            {(() => {
+              const displayTitle = (exam.content || exam.title || '')
+                .replace(/[-–]?\s*\(?\b(PII|PIII)\b\)?\s*/gi, '')
+                .replace(/\(\s*\)/g, '')
+                .trim();
+                
+              if (!displayTitle) return null;
+              
+              return (
+                <div className="text-center mb-8 px-8">
+                  <h2 className="text-sm font-bold">{displayTitle}</h2>
+                </div>
+              );
+            })()}
+
+            {/* Questions */}
+            <div className="space-y-10">
+              {exam.questions.map((q, idx) => (
+                <div key={q.id} className="space-y-4 break-inside-avoid">
+                  <div className="w-full text-center px-4">
+                    <span className="font-bold text-sm mr-1">{idx + 1}.</span>
+                    <span className="text-sm font-bold leading-relaxed">{q.text}</span>
+                  </div>
+                  
+                  {q.image && (
+                    <div className="flex justify-center my-4">
+                      <img src={q.image} alt={`Imagem da Questão ${q.id}`} className="max-h-64 object-contain max-w-[80%]" />
+                    </div>
+                  )}
+
+                  <div className="flex flex-col items-start w-fit mx-auto space-y-1">
+                    {['a', 'b', 'c', 'd'].map((letter, i) => (
+                      <div key={letter} className="flex gap-2">
+                        <span className="text-sm">{letter})</span>
+                        <span className="text-sm">{q.options[i]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-20 pt-8 border-t border-slate-100 text-center text-[9px] text-slate-300 font-bold uppercase">
+              Boa Prova! • Colégio Progresso Santista
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Answer Sheets Container (hidden by default unless printing) */}
+      <div id="answer-sheets-container" className="space-y-12 print:hidden">
+        {studentsToRender.map((student, sIdx) => (
+          <div key={`sheet-${sIdx}`} className="answer-sheet-page bg-white p-12 border border-border max-w-[210mm] mx-auto mt-10 print:border-none print:shadow-none print:mt-0 print:max-w-none print:w-[210mm] print:break-after-page">
             <div className="text-center border-b-2 border-primary pb-6 mb-8">
               <h2 className="text-lg font-black text-primary uppercase">Caderno de Respostas • Folha Óptica</h2>
               <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">
@@ -2143,7 +2406,7 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
             <div className="grid grid-cols-4 gap-6 mb-10">
               <div className="col-span-3 border border-slate-200 p-4 rounded bg-slate-50">
                 <label className="block text-[10px] font-black text-primary uppercase mb-1">Nome do Aluno:</label>
-                <div className="h-8 border-b-2 border-slate-400 flex items-end pb-1 font-bold text-slate-800 text-lg uppercase">{student.name}</div>
+                <div className="h-8 border-b-2 border-slate-400 flex items-end pb-1 font-bold text-slate-800 text-lg uppercase truncate">{student.name}</div>
               </div>
               <div className="border border-slate-200 p-4 rounded bg-slate-50">
                 <label className="block text-[10px] font-black text-primary uppercase mb-1 text-center">Turma:</label>
