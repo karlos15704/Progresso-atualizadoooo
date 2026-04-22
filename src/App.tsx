@@ -2139,6 +2139,7 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
 
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [selectedStudentNames, setSelectedStudentNames] = useState<string[]>([]);
+  const [includeBlank, setIncludeBlank] = useState<boolean>(false);
 
   // Initialize selected class and students based on exam's classYear
   useEffect(() => {
@@ -2198,9 +2199,15 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
   };
 
   // Determine students to render (minimum 1 blank if none selected)
-  const studentsToRender = selectedStudentNames.length > 0 
+  let studentsToRender = selectedStudentNames.length > 0 
     ? allStudents.filter(s => selectedStudentNames.includes(s.name) && s.classId === selectedClassId)
-    : [{ name: '', classId: selectedClassId || exam.classYear || '' }];
+    : [];
+
+  if (studentsToRender.length === 0 && !includeBlank) {
+    studentsToRender = [{ name: '', classId: selectedClassId || exam.classYear || '' }];
+  } else if (includeBlank) {
+    studentsToRender = [...studentsToRender, { name: '', classId: selectedClassId || exam.classYear || '' }];
+  }
 
   return (
     <div className="space-y-8">
@@ -2247,6 +2254,20 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
             <p className="text-xs text-slate-500 mt-2">
               Selecione a sala específica. Todos os alunos desta sala serão marcados para impressão por padrão.
             </p>
+            <div className="mt-6 p-4 border border-slate-200 rounded-md bg-slate-50">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={includeBlank}
+                  onChange={e => setIncludeBlank(e.target.checked)}
+                  className="w-4 h-4 text-primary rounded border-slate-300 focus:ring-primary"
+                />
+                <span className="text-sm font-bold text-slate-700">Incluir cópia em branco extra</span>
+              </label>
+              <p className="text-xs text-slate-500 mt-1 ml-7">
+                Gera uma cópia sem nome no final, ideal para alunos novatos na sala.
+              </p>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-2">
@@ -2295,8 +2316,13 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
               <div className="text-[12px] font-bold flex flex-col uppercase">
                 {/* Row 1 */}
                 <div className="flex border-b-[3px] border-black border-dashed">
-                  <div className="flex-[3] border-r-[3px] border-black border-dashed px-2 py-0.5 flex items-end">
-                    Nome: <span className="flex-1 font-black ml-2 text-sm">{student.name}</span><span className="flex-1 border-b border-black mx-2 mb-1"></span>
+                  <div className="flex-[3] border-r-[3px] border-black border-dashed px-2 py-0.5 flex items-center overflow-hidden">
+                    <span className="shrink-0">Nome:</span>
+                    {student.name ? (
+                      <span className="ml-2 font-black text-[13px] truncate flex-1">{student.name}</span>
+                    ) : (
+                      <span className="flex-1 border-b border-black mx-2 pt-3"></span>
+                    )}
                   </div>
                   <div className="flex-1 border-r-[3px] border-black border-dashed px-2 py-0.5 whitespace-nowrap">
                     Classe: {student.classId || '____'}
@@ -2406,7 +2432,11 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
             <div className="grid grid-cols-4 gap-6 mb-10">
               <div className="col-span-3 border border-slate-200 p-4 rounded bg-slate-50">
                 <label className="block text-[10px] font-black text-primary uppercase mb-1">Nome do Aluno:</label>
-                <div className="h-8 border-b-2 border-slate-400 flex items-end pb-1 font-bold text-slate-800 text-lg uppercase truncate">{student.name}</div>
+                {student.name ? (
+                  <div className="h-8 border-b-2 border-transparent flex items-end pb-1 font-bold text-slate-800 text-lg uppercase truncate">{student.name}</div>
+                ) : (
+                  <div className="h-8 border-b-2 border-slate-400 flex items-end pb-1 font-bold text-slate-800 text-lg uppercase truncate"></div>
+                )}
               </div>
               <div className="border border-slate-200 p-4 rounded bg-slate-50">
                 <label className="block text-[10px] font-black text-primary uppercase mb-1 text-center">Turma:</label>
