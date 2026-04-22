@@ -42,6 +42,7 @@ import { cn } from './lib/utils';
 interface Question {
   id: number;
   text: string;
+  image?: string;
   options: string[];
   correctAnswer: string;
 }
@@ -680,6 +681,7 @@ function CreateExamView({ user, setView, examToEdit }: { user: User, setView: (v
   const [examTime, setExamTime] = useState(examToEdit?.examTime || '');
   const [questions, setQuestions] = useState<Question[]>(examToEdit?.questions || []);
   const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState('');
   const [isExternal, setIsExternal] = useState(examToEdit?.answerKey?._metadata?.isExternal || false);
 
   const addQuestion = () => {
@@ -692,8 +694,13 @@ function CreateExamView({ user, setView, examToEdit }: { user: User, setView: (v
   };
 
   const handleSave = async () => {
-    if (!title || !subject) return;
-    if (!isExternal && questions.length === 0) return;
+    if (!title) { setValidationError('O título da prova é obrigatório.'); return; }
+    if (!subject) { setValidationError('A disciplina é obrigatória.'); return; }
+    if (!classYear) { setValidationError('Selecione pelo menos uma turma.'); return; }
+    if (!examType) { setValidationError('O tipo de prova (ex: PII, Recuperação) é obrigatório.'); return; }
+    if (!isExternal && questions.length === 0) { setValidationError('Adicione pelo menos uma questão ou marque a prova como "Externa" (apenas para cronograma).'); return; }
+    
+    setValidationError('');
     setSaving(true);
     try {
       const answerKey: Record<string, any> = {
@@ -787,6 +794,13 @@ function CreateExamView({ user, setView, examToEdit }: { user: User, setView: (v
           </button>
         </div>
       </div>
+
+      {validationError && (
+        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-md text-sm font-bold flex items-center gap-2 shadow-sm">
+          <AlertCircle className="w-5 h-5" />
+          {validationError}
+        </div>
+      )}
 
       <div className="bg-white p-6 rounded-lg border border-border shadow-sm space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -925,6 +939,47 @@ function CreateExamView({ user, setView, examToEdit }: { user: User, setView: (v
                 placeholder="Enunciado da questão..."
                 className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all min-h-[80px] text-sm"
               />
+              
+              <div className="flex flex-col gap-2">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 cursor-pointer w-fit hover:text-primary transition-colors">
+                  <Camera className="w-4 h-4" />
+                  {q.image ? 'Alterar Imagem da Questão' : 'Adicionar Imagem à Questão'}
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          const newQs = [...questions];
+                          newQs[idx].image = reader.result as string;
+                          setQuestions(newQs);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </label>
+                {q.image && (
+                  <div className="relative w-full max-w-sm border border-slate-200 rounded overflow-hidden mt-2 bg-slate-50 flex items-center justify-center p-2">
+                    <img src={q.image} alt={`Imagem da Questão ${q.id}`} className="max-h-48 object-contain" />
+                    <button 
+                      onClick={() => {
+                        const newQs = [...questions];
+                        newQs[idx].image = undefined;
+                        setQuestions(newQs);
+                      }}
+                      className="absolute top-2 right-2 bg-white/90 p-1.5 rounded-full text-red-500 hover:bg-red-500 hover:text-white transition-all shadow"
+                      title="Remover imagem"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {['A', 'B', 'C', 'D'].map((opt, optIdx) => (
                   <div key={opt} className="flex items-center gap-3">
@@ -1928,6 +1983,13 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
                 <span className="font-bold text-sm mr-1">{idx + 1}.</span>
                 <span className="text-sm font-bold leading-relaxed">{q.text}</span>
               </div>
+              
+              {q.image && (
+                <div className="flex justify-center my-4">
+                  <img src={q.image} alt={`Imagem da Questão ${q.id}`} className="max-h-64 object-contain max-w-[80%]" />
+                </div>
+              )}
+
               <div className="flex flex-col items-start w-fit mx-auto space-y-1">
                 {['a', 'b', 'c', 'd'].map((letter, i) => (
                   <div key={letter} className="flex gap-2">
