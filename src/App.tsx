@@ -43,6 +43,8 @@ interface Question {
   id: number;
   text: string;
   image?: string;
+  imageSize?: number;
+  imageAlign?: 'left' | 'center' | 'right';
   options: string[];
   correctAnswer: string;
   points?: number | string;
@@ -57,6 +59,8 @@ interface Exam {
   examTime?: string;
   classYear?: string;
   content?: string;
+  fontSize?: number;
+  fontFamily?: string;
   questions: Question[];
   answerKey: any;
   studyGuide: string;
@@ -384,6 +388,8 @@ export default function App() {
             examDate: exam.exam_date || meta.examDate,
             examTime: exam.exam_time || meta.examTime,
             classYear: exam.class_year || meta.classYear,
+            fontSize: meta.fontSize,
+            fontFamily: meta.fontFamily,
             content: exam.content,
             createdAt: exam.created_at
           };
@@ -863,6 +869,8 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
   const [examType, setExamType] = useState<string>(examToEdit?.examType || 'PII');
   const [examDate, setExamDate] = useState(examToEdit?.examDate || '');
   const [examTime, setExamTime] = useState(examToEdit?.examTime || '');
+  const [fontSize, setFontSize] = useState(examToEdit?.fontSize || 13);
+  const [fontFamily, setFontFamily] = useState(examToEdit?.fontFamily || 'Inter');
   const [questions, setQuestions] = useState<Question[]>(examToEdit?.questions || []);
   const [saving, setSaving] = useState(false);
   const [validationError, setValidationError] = useState('');
@@ -874,7 +882,9 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
       text: '',
       options: ['', '', '', ''],
       correctAnswer: 'A',
-      points: 1
+      points: 1,
+      imageSize: 100,
+      imageAlign: 'center'
     }]);
   };
 
@@ -895,7 +905,9 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
           examType,
           examDate,
           examTime,
-          isExternal
+          isExternal,
+          fontSize,
+          fontFamily
         }
       };
       
@@ -1091,6 +1103,36 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
             className="w-full px-4 py-3 rounded-md border border-border focus:border-accent outline-none transition-all text-sm min-h-[80px]"
           />
         </div>
+
+        <div className="pt-4 border-t border-slate-100 flex flex-col md:flex-row gap-6">
+          <div className="space-y-2 flex-1">
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tamanho da Fonte (Principal)</label>
+            <div className="flex items-center gap-3">
+              <input 
+                type="range" 
+                min="10" 
+                max="24" 
+                value={fontSize} 
+                onChange={e => setFontSize(parseInt(e.target.value))}
+                className="flex-1 accent-accent"
+              />
+              <span className="text-sm font-bold text-primary w-10">{fontSize}px</span>
+            </div>
+          </div>
+          <div className="space-y-2 flex-1">
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Fonte da Prova</label>
+            <select 
+              value={fontFamily}
+              onChange={e => setFontFamily(e.target.value)}
+              className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none text-sm bg-white"
+            >
+              <option value="Inter">Sem Serifa (Inter)</option>
+              <option value="Playfair Display">Serifada (Playfair)</option>
+              <option value="JetBrains Mono">Monoespaçada (Código)</option>
+              <option value="Outfit">Moderna (Outfit)</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       {!isExternal && (
@@ -1196,19 +1238,58 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
                   />
                 </label>
                 {q.image && (
-                  <div className="relative w-full max-w-sm border border-slate-200 rounded overflow-hidden mt-2 bg-slate-50 flex items-center justify-center p-2">
-                    <img src={q.image} alt={`Imagem da Questão ${q.id}`} className="max-h-48 object-contain" />
-                    <button 
-                      onClick={() => {
-                        const newQs = [...questions];
-                        newQs[idx].image = undefined;
-                        setQuestions(newQs);
-                      }}
-                      className="absolute top-2 right-2 bg-white/90 p-1.5 rounded-full text-red-500 hover:bg-red-500 hover:text-white transition-all shadow"
-                      title="Remover imagem"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
+                  <div className="flex flex-col md:flex-row gap-6 p-4 bg-slate-50 rounded-md border border-slate-200 mt-2">
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Tamanho da Imagem ({q.imageSize || 100}%)</label>
+                        <button 
+                          onClick={() => {
+                            const newQs = [...questions];
+                            newQs[idx].image = undefined;
+                            setQuestions(newQs);
+                          }}
+                          className="text-red-400 text-[10px] hover:underline"
+                        >
+                          Remover
+                        </button>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="10" 
+                        max="100" 
+                        value={q.imageSize || 100} 
+                        onChange={e => {
+                          const newQs = [...questions];
+                          newQs[idx].imageSize = parseInt(e.target.value);
+                          setQuestions(newQs);
+                        }}
+                        className="w-full accent-accent"
+                      />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Posicionamento</label>
+                      <div className="flex gap-2">
+                        {['left', 'center', 'right'].map((align) => (
+                          <button
+                            key={align}
+                            type="button"
+                            onClick={() => {
+                              const newQs = [...questions];
+                              newQs[idx].imageAlign = align as any;
+                              setQuestions(newQs);
+                            }}
+                            className={cn(
+                              "flex-1 py-1 px-2 rounded text-[10px] font-bold border transition-all uppercase",
+                              (q.imageAlign || 'center') === align 
+                                ? "bg-accent text-white border-accent" 
+                                : "bg-white text-slate-500 border-border"
+                            )}
+                          >
+                            {align === 'left' ? 'Esquerda' : align === 'center' ? 'Centro' : 'Direita'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2441,7 +2522,12 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
       {/* Generated Exams */}
       <div id="exams-container" className="space-y-12">
         {studentsToRender.map((student, sIdx) => (
-          <div key={`exam-${sIdx}`} className="exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto min-h-[297mm] text-black print:border-none print:shadow-none print:max-w-none print:w-[210mm] print:break-after-page">
+          <div 
+            key={`exam-${sIdx}`} 
+            className="exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto min-h-[297mm] text-black print:border-none print:shadow-none print:max-w-none print:w-[210mm] print:break-after-page flex flex-col justify-between"
+            style={{ fontSize: `${exam.fontSize || 13}px`, fontFamily: exam.fontFamily || 'Inter' }}
+          >
+            <div className="flex-1">
             {/* Main Header Box */}
             <div className="border-[3px] border-black border-dashed p-1 mb-8">
               
@@ -2540,8 +2626,16 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
                   </div>
                   
                   {q.image && (
-                    <div className="flex justify-center my-4">
-                      <img src={q.image} alt={`Imagem da Questão ${q.id}`} className="max-h-64 object-contain max-w-[80%]" />
+                    <div className={cn(
+                      "flex my-4",
+                      q.imageAlign === 'left' ? "justify-start" : q.imageAlign === 'right' ? "justify-end" : "justify-center"
+                    )}>
+                      <img 
+                        src={q.image} 
+                        alt={`Imagem da Questão ${q.id}`} 
+                        className="object-contain" 
+                        style={{ width: `${q.imageSize || 100}%`, maxWidth: '100%' }}
+                      />
                     </div>
                   )}
 
@@ -2557,8 +2651,17 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
               ))}
             </div>
 
-            <div className="mt-20 pt-8 border-t border-slate-100 text-center text-[9px] text-slate-300 font-bold uppercase">
-              Boa Prova! • Colégio Progresso Santista
+            </div>
+
+            <div className="mt-20 pt-8 border-t border-black/10 flex items-end justify-between text-[11px] font-bold uppercase">
+              <div className="flex flex-col gap-1">
+                <span>Boa Sorte! • {exam.subject}</span>
+                <span className="text-[8px] opacity-40">Colégio Progresso Santista</span>
+              </div>
+              <div className="flex flex-col items-end gap-1 text-[10px]">
+                <span className="text-black/60">Resultado em PDF</span>
+                <span className="bg-black text-white px-2 py-0.5 rounded text-[8px]">PRODUZIDO POR EDUGRADE PRO</span>
+              </div>
             </div>
           </div>
         ))}
