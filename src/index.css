@@ -30,3 +30,8 @@
     @apply bg-bg text-text font-sans;
   }
 }
+
+@media print {
+  @page { margin: 0; }
+  body { margin: 1cm; }
+}

@@ -24,6 +24,7 @@ import { supabase } from './lib/supabase';
 import { correctExamFromImage, generateStudyGuide } from './services/aiService';
 import { exportToPDF, exportMultipleToPDF } from './lib/pdfUtils';
 import { LOGO_VINHO, LOGO_COC } from './assets';
+import DefaultEditor from 'react-simple-wysiwyg';
 import { 
   BarChart, 
   Bar, 
@@ -1067,12 +1068,14 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
                 className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm"
               />
               <datalist id="exam-types">
+                <option value="PI" />
                 <option value="PII" />
                 <option value="PIII" />
                 <option value="AP1" />
                 <option value="AP2" />
                 <option value="AP3" />
-                <option value="Recuperação" />
+                <option value="Recuperação Mensal" />
+                <option value="Recuperação Bimestral" />
                 <option value="Recuperação Final" />
                 <option value="Simulado" />
               </datalist>
@@ -1100,11 +1103,11 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
 
         <div className="space-y-2">
           <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Conteúdo Programático</label>
-          <textarea 
+          <DefaultEditor 
             value={content}
             onChange={e => setContent(e.target.value)}
-            placeholder="Ex: Revolução Revolução Francesa, Iluminismo... (Opcional, usado para guiar os estudos dos alunos e compor o cronograma)"
-            className="w-full px-4 py-3 rounded-md border border-border focus:border-accent outline-none transition-all text-sm min-h-[80px]"
+            className="w-full rounded-md border border-border focus:border-accent outline-none transition-all min-h-[80px]"
+            style={{ fontFamily: fontFamily, fontSize: `${fontSize}px` }}
           />
         </div>
 
@@ -1180,21 +1183,21 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
                   </button>
                 </div>
               </div>
-              <textarea 
+              <DefaultEditor 
                 value={q.text}
                 onChange={e => {
                   const newQs = [...questions];
                   newQs[idx].text = e.target.value;
                   setQuestions(newQs);
                 }}
-                placeholder="Enunciado da questão..."
-                className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all min-h-[80px] text-sm"
+                className="w-full rounded-md border border-border focus:border-accent outline-none transition-all min-h-[80px]"
+                style={{ fontFamily: fontFamily, fontSize: `${fontSize}px` }}
               />
               
               <div className="flex flex-col gap-2">
                 <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 cursor-pointer w-fit hover:text-primary transition-colors">
                   <Camera className="w-4 h-4" />
-                  {q.image ? 'Alterar Imagem da Questão' : 'Adicionar Imagem à Questão'}
+                  Adicionar Imagem à Questão
                   <input 
                     type="file" 
                     accept="image/*"
@@ -1231,7 +1234,7 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
                             const resizedBase64 = canvas.toDataURL('image/jpeg', 0.8);
 
                             const newQs = [...questions];
-                            newQs[idx].image = resizedBase64;
+                            newQs[idx].text = (newQs[idx].text || '') + `<br/><br/><div style="text-align: center;"><img src="${resizedBase64}" style="max-width: 100%; display: inline-block;" /></div><br/>`;
                             setQuestions(newQs);
                           };
                           img.src = reader.result as string;
@@ -1241,61 +1244,6 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
                     }}
                   />
                 </label>
-                {q.image && (
-                  <div className="flex flex-col md:flex-row gap-6 p-4 bg-slate-50 rounded-md border border-slate-200 mt-2">
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Tamanho da Imagem ({q.imageSize || 100}%)</label>
-                        <button 
-                          onClick={() => {
-                            const newQs = [...questions];
-                            newQs[idx].image = undefined;
-                            setQuestions(newQs);
-                          }}
-                          className="text-red-400 text-[10px] hover:underline"
-                        >
-                          Remover
-                        </button>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="10" 
-                        max="100" 
-                        value={q.imageSize || 100} 
-                        onChange={e => {
-                          const newQs = [...questions];
-                          newQs[idx].imageSize = parseInt(e.target.value);
-                          setQuestions(newQs);
-                        }}
-                        className="w-full accent-accent"
-                      />
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Posicionamento</label>
-                      <div className="flex gap-2">
-                        {['left', 'center', 'right'].map((align) => (
-                          <button
-                            key={align}
-                            type="button"
-                            onClick={() => {
-                              const newQs = [...questions];
-                              newQs[idx].imageAlign = align as any;
-                              setQuestions(newQs);
-                            }}
-                            className={cn(
-                              "flex-1 py-1 px-2 rounded text-[10px] font-bold border transition-all uppercase",
-                              (q.imageAlign || 'center') === align 
-                                ? "bg-accent text-white border-accent" 
-                                : "bg-white text-slate-500 border-border"
-                            )}
-                          >
-                            {align === 'left' ? 'Esquerda' : align === 'center' ? 'Centro' : 'Direita'}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1365,6 +1313,13 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
       const base64 = image.split(',')[1];
       const correction = await correctExamFromImage(base64, exam.title, exam.questions);
       
+      let identifiedClass = correction.studentClass;
+      if (!identifiedClass || identifiedClass.trim() === '') {
+         // Fallback to exam's classYear. If multiple, we just use the string or prompt the user. 
+         // Since we can't block here easily, we fallback to exactly what is in the exam.
+         identifiedClass = exam.classYear || ''; 
+      }
+
       const resultData = {
         exam_id: selectedExamId,
         professor_id: user.id,
@@ -1374,15 +1329,16 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
         feedback: correction.feedback,
         corrected_at: new Date().toISOString(),
         answers: correction.answers || {}, // Ensure required fields from SQL
-        student_class: exam.classYear || '' // Ensure required fields from SQL
+        student_class: identifiedClass // Extracted by AI or fallback to exam's classes
       };
 
       const { error } = await supabase.from('results').insert(resultData);
       if (error) throw error;
       
       setResult(correction);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert("Falha ao corrigir prova: " + (err.message || 'Erro desconhecido. Verifique o console.'));
     } finally {
       setCorrecting(false);
     }
@@ -1902,14 +1858,17 @@ function ReportsView({ exams, results }: { exams: Exam[], results: Result[] }) {
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
 
-  // Extract unique subjects and classes from the available exams
-  const subjects = Array.from(new Set(exams.map(e => e.subject).filter(Boolean)));
+  const validExamIds = new Set(results.map(r => r.examId));
+  const relevantExams = exams.filter(e => validExamIds.has(e.id));
+
+  // Extract unique subjects and classes from the available exams that actually have results
+  const subjects = Array.from(new Set(relevantExams.map(e => e.subject).filter(Boolean)));
   const classes = Array.from(new Set(
-    exams.flatMap(e => (e.classYear || '').split(',').map(s => s.trim()).filter(Boolean))
+    results.map(r => r.studentClass).filter(Boolean).map(c => c!.trim())
   ));
 
   // Determine which exams are relevant based on filters
-  const filteredExams = exams.filter(e => {
+  const filteredExams = relevantExams.filter(e => {
     if (selectedSubject && e.subject !== selectedSubject) return false;
     if (selectedClass && !(e.classYear || '').includes(selectedClass)) return false;
     return true;
@@ -1952,7 +1911,7 @@ function ReportsView({ exams, results }: { exams: Exam[], results: Result[] }) {
       
       const key = `${exam.id}-${q.id}`;
       if (!missedQuestionsMap[key]) {
-        missedQuestionsMap[key] = { count: 0, total: 0, examTitle: exam.title, questionText: q.prompt || `Questão ${qNum}` };
+        missedQuestionsMap[key] = { count: 0, total: 0, examTitle: exam.title, questionText: q.text || `Questão ${qNum}` };
       }
       missedQuestionsMap[key].total++;
       if (!isCorrect) {
@@ -2236,6 +2195,19 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
         </div>
       </div>
 
+      <datalist id="exam-types">
+        <option value="PI" />
+        <option value="PII" />
+        <option value="PIII" />
+        <option value="AP1" />
+        <option value="AP2" />
+        <option value="AP3" />
+        <option value="Recuperação Mensal" />
+        <option value="Recuperação Bimestral" />
+        <option value="Recuperação Final" />
+        <option value="Simulado" />
+      </datalist>
+
       <div className="bg-white p-4 rounded-lg border border-border shadow-sm flex items-center gap-3 print:hidden">
         <label className="text-sm font-bold text-slate-500 uppercase">Filtrar por Turma:</label>
         <select 
@@ -2309,22 +2281,12 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
                     onChange={e => setFormData({...formData, examType: e.target.value})} 
                     className="w-full border border-border rounded-md px-3 py-2 text-sm" 
                   />
-                  <datalist id="exam-types">
-                    <option value="PII" />
-                    <option value="PIII" />
-                    <option value="AP1" />
-                    <option value="AP2" />
-                    <option value="AP3" />
-                    <option value="Recuperação" />
-                    <option value="Recuperação Final" />
-                    <option value="Simulado" />
-                  </datalist>
                 </div>
               </div>
             </div>
             <div className="mb-4">
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Conteúdo para Estudo</label>
-              <textarea value={formData.content || ''} onChange={e => setFormData({...formData, content: e.target.value})} placeholder="Páginas, capítulos e assuntos..." className="w-full border border-border rounded-md px-3 py-2 text-sm h-20" />
+              <DefaultEditor value={formData.content || ''} onChange={e => setFormData({...formData, content: e.target.value})} className="w-full border border-border rounded-md min-h-[80px]" />
             </div>
             <div className="flex gap-2">
               <button disabled={saving} onClick={handleSave} className="bg-green-600 text-white px-4 py-2 rounded-md font-bold text-sm">
@@ -2400,7 +2362,11 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
                         </div>
                         <div className="mb-4">
                           <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Conteúdo</label>
-                          <textarea value={formData.content || ''} onChange={e => setFormData({...formData, content: e.target.value})} className="w-full border border-border rounded-md px-3 py-2 text-sm h-20" />
+                          <DefaultEditor 
+                            value={formData.content || ''} 
+                            onChange={e => setFormData({...formData, content: e.target.value})} 
+                            className="w-full border border-border rounded-md min-h-[80px]" 
+                          />
                         </div>
                         <div className="flex gap-2">
                           <button disabled={saving} onClick={handleSave} className="bg-green-600 text-white px-4 py-2 rounded-md font-bold text-sm">Salvar</button>
@@ -2415,7 +2381,7 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
                             <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold uppercase">{exam.examType}</span>
                             <span className="text-sm font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">{exam.displayClass || exam.classYear}</span>
                           </div>
-                          <div className="text-sm text-slate-600 whitespace-pre-wrap"><strong className="text-slate-500">Conteúdo:</strong> {exam.content || 'Nenhum conteúdo específico providenciado.'}</div>
+                          <div className="text-sm text-slate-600 whitespace-pre-wrap"><strong className="text-slate-500">Conteúdo:</strong> <div dangerouslySetInnerHTML={{ __html: exam.content || 'Nenhum conteúdo específico providenciado.' }} className="inline-block relative top-0 [&>*:first-child]:inline" /></div>
                         </div>
                         {(isAdmin || exam.professorId === user.id) && (
                           <div className="flex items-center gap-1 print:hidden">
@@ -2743,9 +2709,12 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
             <div className="space-y-10">
               {exam.questions.map((q, idx) => (
                 <div key={q.id} className="space-y-4 break-inside-avoid">
-                  <div className="w-full text-center px-4">
-                    <span className="font-bold text-sm mr-1">{idx + 1}.</span>
-                    <span className="text-sm font-bold leading-relaxed">{q.text}</span>
+                  <div className="w-full text-center px-4 flex items-start justify-center gap-1">
+                    <span className="font-bold text-sm">{idx + 1}.</span>
+                    <span 
+                      className="text-sm font-bold leading-relaxed q-text-html-container" 
+                      dangerouslySetInnerHTML={{ __html: q.text }} 
+                    />
                   </div>
                   
                   {q.image && (
