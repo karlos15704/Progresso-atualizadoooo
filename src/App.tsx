@@ -2613,7 +2613,7 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
         {studentsToRender.map((student, sIdx) => (
           <div 
             key={`exam-${sIdx}`} 
-            className="exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto min-h-[297mm] text-black print:border-none print:shadow-none print:max-w-none print:w-[210mm] print:break-after-page flex flex-col justify-between"
+            className="exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto min-h-[297mm] text-black print:border-none print:shadow-none print:max-w-none print:w-[210mm] print:min-h-[100vh] print:break-after-page flex flex-col justify-between print:m-0"
             style={{ fontSize: `${exam.fontSize || 13}px`, fontFamily: exam.fontFamily || 'Inter' }}
           >
             <div className="flex-1">
