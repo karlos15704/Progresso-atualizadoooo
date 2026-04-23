@@ -4,7 +4,11 @@ let aiInstance: GoogleGenAI | null = null;
 
 function getAI() {
   if (!aiInstance) {
-    aiInstance = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey === "undefined") {
+      throw new Error("A chave da API Gemini não foi encontrada. Certifique-se de que o ambiente está configurado.");
+    }
+    aiInstance = new GoogleGenAI({ apiKey });
   }
   return aiInstance;
 }
@@ -50,7 +54,7 @@ export async function correctExamFromImage(
   `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-1.5-flash",
     contents: [
       {
         parts: [
@@ -85,7 +89,7 @@ export async function correctExamFromImage(
   });
 
   if (!response.text) {
-    throw new Error("Falha ao processar a imagem da prova.");
+    throw new Error("Falha ao processar a imagem da prova. Verifique se a foto está nítida.");
   }
 
   return JSON.parse(response.text);
@@ -101,7 +105,7 @@ export async function generateStudyGuide(content: string): Promise<string> {
     `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-flash",
       contents: prompt
     });
 

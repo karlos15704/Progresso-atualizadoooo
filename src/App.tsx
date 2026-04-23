@@ -60,6 +60,7 @@ interface Exam {
   examDate?: string;
   examTime?: string;
   classYear?: string;
+  bimester?: string;
   content?: string;
   fontSize?: number;
   fontFamily?: string;
@@ -75,6 +76,7 @@ interface Result {
   examId: string;
   studentName: string;
   studentClass?: string;
+  bimester?: string;
   professorId?: string;
   score: number;
   maxScore: number;
@@ -716,7 +718,10 @@ function LoginView({ error, setError }: { error: string | null, setError: (e: st
 
 function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintExam, onEditExam, onDeleteExam }: { user: User, isAdmin: boolean, exams: Exam[], results: Result[], setView: (v: any) => void, onSelectPrintExam: (e: Exam) => void, onEditExam: (exam: Exam) => void, onDeleteExam: (id: string) => void }) {
   const [showAll, setShowAll] = useState(false);
-  const displayExams = showAll ? exams : exams.slice(0, 6);
+  const [bimesterFilter, setBimesterFilter] = useState('');
+  
+  const filteredExams = exams.filter(e => bimesterFilter === '' || e.bimester === bimesterFilter);
+  const displayExams = showAll ? filteredExams : filteredExams.slice(0, 6);
 
   return (
     <motion.div 
@@ -735,7 +740,20 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
         <div className="lg:col-span-3 bg-white rounded-lg border border-border overflow-hidden shadow-sm">
           <div className="px-5 py-4 border-b border-border flex justify-between items-center bg-[#fcfcfd]">
-            <h3 className="text-base font-bold text-primary">{showAll ? 'Todas as Avaliações' : 'Avaliações Recentes'}</h3>
+            <div className="flex items-center gap-4">
+              <h3 className="text-base font-bold text-primary">{showAll ? 'Todas as Avaliações' : 'Avaliações Recentes'}</h3>
+              <select 
+                value={bimesterFilter}
+                onChange={e => setBimesterFilter(e.target.value)}
+                className="text-[11px] font-bold border border-slate-200 rounded px-2 py-1 outline-none bg-white"
+              >
+                <option value="">Filtrar Bimestre</option>
+                <option value="1º Bimestre">1º Bim.</option>
+                <option value="2º Bimestre">2º Bim.</option>
+                <option value="3º Bimestre">3º Bim.</option>
+                <option value="4º Bimestre">4º Bim.</option>
+              </select>
+            </div>
             <button onClick={() => setShowAll(!showAll)} className="text-[12px] text-accent font-bold cursor-pointer hover:underline">
               {showAll ? 'Ver Menos' : 'Ver Banco de Dados Completo'}
             </button>
@@ -746,6 +764,7 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                 <tr className="bg-[#f8fafc]">
                   <th className="text-left px-5 py-3 text-[#4a5568] font-semibold border-b border-border">Identificador</th>
                   <th className="text-left px-5 py-3 text-[#4a5568] font-semibold border-b border-border">Turma</th>
+                  <th className="text-left px-5 py-3 text-[#4a5568] font-semibold border-b border-border">Bimestre</th>
                   <th className="text-left px-5 py-3 text-[#4a5568] font-semibold border-b border-border">Matéria</th>
                   <th className="text-left px-5 py-3 text-[#4a5568] font-semibold border-b border-border">Tipo</th>
                   <th className="text-left px-5 py-3 text-[#4a5568] font-semibold border-b border-border">Data</th>
@@ -754,59 +773,74 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                 </tr>
               </thead>
               <tbody>
-                {displayExams.map(exam => (
-                  <tr key={exam.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-5 py-3 border-b border-border font-medium text-slate-600">#PRV-{exam.id.slice(-4).toUpperCase()}</td>
-                    <td className="px-5 py-3 border-b border-border text-slate-700 font-bold">{exam.classYear || '--'}</td>
-                    <td className="px-5 py-3 border-b border-border text-slate-700">{exam.subject}</td>
-                    <td className="px-5 py-3 border-b border-border text-slate-700">{exam.examType}</td>
-                    <td className="px-5 py-3 border-b border-border text-slate-500">{new Date(exam.createdAt).toLocaleDateString()}</td>
-                    <td className="px-5 py-3 border-b border-border">
-                      <span className={cn(
-                        "px-2 py-1 rounded-full text-[11px] font-bold uppercase",
-                        results.some(r => r.examId === exam.id) ? "bg-[#c6f6d5] text-[#22543d]" : "bg-[#feebc8] text-[#744210]"
-                      )}>
-                        {results.some(r => r.examId === exam.id) ? 'Corrigida' : 'Pendente'}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 border-b border-border text-slate-500 flex items-center gap-3">
-                      <button 
-                        onClick={() => {
-                          onSelectPrintExam(exam);
-                          setView('print');
-                        }}
-                        className="text-accent font-bold hover:underline flex items-center gap-1"
-                        title="Imprimir Prova"
-                      >
-                        <FileText className="w-4 h-4" />
-                        <span className="hidden xl:inline">Imprimir</span>
-                      </button>
-                      {(isAdmin || exam.professorId === user.id) && (
-                        <>
-                          <button 
-                            onClick={() => onEditExam(exam)}
-                            className="text-slate-500 font-bold hover:text-primary flex items-center gap-1"
-                            title="Editar Prova"
-                          >
-                            <Pencil className="w-4 h-4" />
-                            <span className="hidden xl:inline">Editar</span>
-                          </button>
-                          <button 
-                            onClick={() => onDeleteExam(exam.id)}
-                            className="text-red-400 font-bold hover:text-red-600 flex items-center gap-1"
-                            title="Excluir Prova"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            <span className="hidden xl:inline">Excluir</span>
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {exams.length === 0 && (
+                {displayExams.length > 0 ? (
+                  Array.from(new Set(displayExams.map(e => e.bimester || '1º Bimestre'))).map(bim => (
+                    <React.Fragment key={bim}>
+                      <tr className="bg-slate-50/50">
+                        <td colSpan={8} className="px-5 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-border">
+                          {bim}
+                        </td>
+                      </tr>
+                      {displayExams.filter(e => (e.bimester || '1º Bimestre') === bim).map(exam => (
+                        <tr key={exam.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-5 py-3 border-b border-border font-medium text-slate-600">#PRV-{exam.id.slice(-4).toUpperCase()}</td>
+                          <td className="px-5 py-3 border-b border-border text-slate-700 font-bold">{exam.classYear || '--'}</td>
+                          <td className="px-5 py-3 border-b border-border text-slate-600 font-medium">
+                            <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] uppercase font-bold">
+                              {exam.bimester || '1º Bim.'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 border-b border-border text-slate-700">{exam.subject}</td>
+                          <td className="px-5 py-3 border-b border-border text-slate-700">{exam.examType}</td>
+                          <td className="px-5 py-3 border-b border-border text-slate-500">{new Date(exam.createdAt).toLocaleDateString()}</td>
+                          <td className="px-5 py-3 border-b border-border">
+                            <span className={cn(
+                              "px-2 py-1 rounded-full text-[11px] font-bold uppercase",
+                              results.some(r => r.examId === exam.id) ? "bg-[#c6f6d5] text-[#22543d]" : "bg-[#feebc8] text-[#744210]"
+                            )}>
+                              {results.some(r => r.examId === exam.id) ? 'Corrigida' : 'Pendente'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 border-b border-border text-slate-500 flex items-center gap-3">
+                            <button 
+                              onClick={() => {
+                                onSelectPrintExam(exam);
+                                setView('print');
+                              }}
+                              className="text-accent font-bold hover:underline flex items-center gap-1"
+                              title="Imprimir Prova"
+                            >
+                              <FileText className="w-4 h-4" />
+                              <span className="hidden xl:inline">Imprimir</span>
+                            </button>
+                            {(isAdmin || exam.professorId === user.id) && (
+                              <>
+                                <button 
+                                  onClick={() => onEditExam(exam)}
+                                  className="text-slate-500 font-bold hover:text-primary flex items-center gap-1"
+                                  title="Editar Prova"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                  <span className="hidden xl:inline">Editar</span>
+                                </button>
+                                <button 
+                                  onClick={() => onDeleteExam(exam.id)}
+                                  className="text-red-400 font-bold hover:text-red-600 flex items-center gap-1"
+                                  title="Excluir Prova"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  <span className="hidden xl:inline">Excluir</span>
+                                </button>
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))
+                ) : (
                   <tr>
-                    <td colSpan={7} className="px-5 py-10 text-center text-slate-400">Nenhuma prova criada ainda.</td>
+                    <td colSpan={8} className="px-5 py-10 text-center text-slate-400">Nenhuma prova encontrada para este filtro.</td>
                   </tr>
                 )}
               </tbody>
@@ -870,6 +904,7 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
   const defaultClass = userProfile?.assigned_classes?.[0] || schoolInfo.classes[0] || '';
   const [classYear, setClassYear] = useState(examToEdit?.classYear || defaultClass);
   
+  const [bimester, setBimester] = useState(examToEdit?.bimester || '1º Bimestre');
   const [content, setContent] = useState(examToEdit?.content || '');
   const [examType, setExamType] = useState<string>(examToEdit?.examType || 'PII');
   const [examDate, setExamDate] = useState(examToEdit?.examDate || '');
@@ -943,6 +978,7 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
         exam_date: examDate ? examDate : null,
         exam_time: examTime ? examTime : null,
         class_year: classYear,
+        bimester: bimester,
         content
       };
 
@@ -1017,6 +1053,19 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
               placeholder="Ex: Prova Mensal de História"
               className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm"
             />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Bimestre</label>
+            <select 
+              value={bimester}
+              onChange={e => setBimester(e.target.value)}
+              className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm bg-white"
+            >
+              <option value="1º Bimestre">1º Bimestre</option>
+              <option value="2º Bimestre">2º Bimestre</option>
+              <option value="3º Bimestre">3º Bimestre</option>
+              <option value="4º Bimestre">4º Bimestre</option>
+            </select>
           </div>
           <div className="space-y-2 col-span-1 md:col-span-3">
             <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Turmas (Pode ser mais de uma)</label>
@@ -1329,7 +1378,8 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
         feedback: correction.feedback,
         corrected_at: new Date().toISOString(),
         answers: correction.answers || {}, // Ensure required fields from SQL
-        student_class: identifiedClass // Extracted by AI or fallback to exam's classes
+        student_class: identifiedClass, // Extracted by AI or fallback to exam's classes
+        bimester: exam.bimester
       };
 
       const { error } = await supabase.from('results').insert(resultData);
@@ -1857,6 +1907,7 @@ function AdminView({ user }: { user: User }) {
 function ReportsView({ exams, results }: { exams: Exam[], results: Result[] }) {
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
+  const [selectedBimester, setSelectedBimester] = useState('');
 
   const validExamIds = new Set(results.map(r => r.examId));
   const relevantExams = exams.filter(e => validExamIds.has(e.id));
@@ -1866,11 +1917,15 @@ function ReportsView({ exams, results }: { exams: Exam[], results: Result[] }) {
   const classes = Array.from(new Set(
     results.map(r => r.studentClass).filter(Boolean).map(c => c!.trim())
   ));
+  const bimesters = Array.from(new Set(
+    relevantExams.map(e => e.bimester).filter(Boolean)
+  ));
 
   // Determine which exams are relevant based on filters
   const filteredExams = relevantExams.filter(e => {
     if (selectedSubject && e.subject !== selectedSubject) return false;
     if (selectedClass && !(e.classYear || '').includes(selectedClass)) return false;
+    if (selectedBimester && e.bimester !== selectedBimester) return false;
     return true;
   });
 
@@ -1933,6 +1988,14 @@ function ReportsView({ exams, results }: { exams: Exam[], results: Result[] }) {
           <p className="text-sm text-slate-500">Dados educacionais completos por sala e disciplina</p>
         </div>
         <div className="flex items-center gap-3">
+          <select 
+            value={selectedBimester}
+            onChange={e => setSelectedBimester(e.target.value)}
+            className="bg-white border border-border px-4 py-2 rounded-md outline-none text-sm font-bold text-slate-600"
+          >
+            <option value="">Todos os Bimestres</option>
+            {bimesters.map(b => <option key={b} value={b}>{b}</option>)}
+          </select>
           <select 
             value={selectedSubject}
             onChange={e => setSelectedSubject(e.target.value)}
@@ -2124,6 +2187,7 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
           class_year: formData.classYear,
           exam_date: formData.examDate ? formData.examDate : null,
           exam_type: formData.examType,
+          bimester: formData.bimester,
           content: formData.content
         }).eq('id', editingId).select();
         if (error) {
@@ -2137,6 +2201,7 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
           exam_type: formData.examType || 'PII',
           exam_date: formData.examDate ? formData.examDate : null,
           class_year: formData.classYear,
+          bimester: formData.bimester || '1º Bimestre',
           content: formData.content,
           questions: [],
           answer_key: { _metadata: { isExternal: true, examType: formData.examType } },
@@ -2283,6 +2348,19 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
                   />
                 </div>
               </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Bimestre</label>
+                <select 
+                  value={formData.bimester || '1º Bimestre'} 
+                  onChange={e => setFormData({...formData, bimester: e.target.value})} 
+                  className="w-full border border-border rounded-md px-3 py-2 text-sm"
+                >
+                  <option value="1º Bimestre">1º Bimestre</option>
+                  <option value="2º Bimestre">2º Bimestre</option>
+                  <option value="3º Bimestre">3º Bimestre</option>
+                  <option value="4º Bimestre">4º Bimestre</option>
+                </select>
+              </div>
             </div>
             <div className="mb-4">
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Conteúdo para Estudo</label>
@@ -2358,6 +2436,19 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
                                 className="w-full border border-border rounded-md px-3 py-2 text-sm" 
                               />
                             </div>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Bimestre</label>
+                            <select 
+                              value={formData.bimester || '1º Bimestre'} 
+                              onChange={e => setFormData({...formData, bimester: e.target.value})} 
+                              className="w-full border border-border rounded-md px-3 py-2 text-sm"
+                            >
+                              <option value="1º Bimestre">1º Bimestre</option>
+                              <option value="2º Bimestre">2º Bimestre</option>
+                              <option value="3º Bimestre">3º Bimestre</option>
+                              <option value="4º Bimestre">4º Bimestre</option>
+                            </select>
                           </div>
                         </div>
                         <div className="mb-4">
