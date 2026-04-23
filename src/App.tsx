@@ -1538,7 +1538,7 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
       }
     } catch (err: any) {
       console.error(err);
-      alert("O scanner não conseguiu ler o gabarito. Certifique-se de usar a folha padrão e que a foto esteja bem iluminada.");
+      alert(err.message || "O scanner não conseguiu ler o gabarito. Certifique-se de usar a folha padrão e que a foto esteja bem iluminada.");
     } finally {
       setCorrecting(false);
     }

@@ -39,7 +39,8 @@ export async function scanBubbleSheet(
   let sumG = 0;
   for (let i = 0; i < grayscale.length; i++) sumG += grayscale[i];
   const avgG = sumG / grayscale.length;
-  const threshold = Math.min(160, Math.max(80, avgG * 0.75)); // Dynamic threshold based on image brightness
+  // Use a more generous threshold for detecting markers in possible shadows
+  const threshold = Math.min(180, Math.max(90, avgG * 0.8)); 
 
   const binary = new Uint8Array(width * height);
   for (let i = 0; i < grayscale.length; i++) {
@@ -47,30 +48,35 @@ export async function scanBubbleSheet(
   }
 
   // 3. Find Markers (4 black squares)
+  // We search in the corners (30% margin) for the most solid black squares
   const findMarker = (quad: 'tl' | 'tr' | 'bl' | 'br') => {
-    const margin = 0.25;
-    let startX = 0, startY = 0, endX = width * margin, endY = height * margin;
+    const marginW = width * 0.3;
+    const marginH = height * 0.3;
+    let startX = 0, startY = 0, endX = marginW, endY = marginH;
 
-    if (quad === 'tr') { startX = width * (1 - margin); endX = width; }
-    if (quad === 'bl') { startY = height * (1 - margin); endY = height; }
-    if (quad === 'br') { startX = width * (1 - margin); endX = width; startY = height * (1 - margin); endY = height; }
+    if (quad === 'tr') { startX = width - marginW; endX = width; }
+    if (quad === 'bl') { startY = height - marginH; endY = height; }
+    if (quad === 'br') { startX = width - marginW; endX = width; startY = height - marginH; endY = height; }
 
     let bestMarker = { x: 0, y: 0, area: 0 };
-    const step = Math.max(2, Math.floor(width / 500)); 
+    const step = Math.max(2, Math.floor(width / 600)); 
+    const winSize = Math.floor(width * 0.03); // Approximate marker size search window
 
-    for (let y = Math.floor(startY); y < Math.floor(endY); y += step) {
-      for (let x = Math.floor(startX); x < Math.floor(endX); x += step) {
+    for (let y = Math.floor(startY + winSize); y < Math.floor(endY - winSize); y += step * 2) {
+      for (let x = Math.floor(startX + winSize); x < Math.floor(endX - winSize); x += step * 2) {
         if (binary[y * width + x] === 1) {
-          // Check block solidness
-          let area = 0;
-          const checkSize = Math.floor(width * 0.015);
-          for (let dy = -checkSize; dy <= checkSize; dy += 2) {
-            for (let dx = -checkSize; dx <= checkSize; dx += 2) {
+          // Check density around this point
+          let density = 0;
+          const s = Math.floor(winSize / 2);
+          for (let dy = -s; dy <= s; dy += step) {
+            for (let dx = -s; dx <= s; dx += step) {
               const sx = x + dx, sy = y + dy;
-              if (sx >= 0 && sx < width && sy >= 0 && sy < height && binary[sy * width + sx] === 1) area++;
+              if (sx >= 0 && sx < width && sy >= 0 && sy < height && binary[sy * width + sx] === 1) density++;
             }
           }
-          if (area > bestMarker.area) bestMarker = { x, y, area };
+          if (density > bestMarker.area) {
+            bestMarker = { x, y, area: density };
+          }
         }
       }
     }
@@ -82,8 +88,8 @@ export async function scanBubbleSheet(
   const bl = findMarker('bl');
   const br = findMarker('br');
 
-  if (tl.area < 10 || tr.area < 10 || bl.area < 10 || br.area < 10) {
-    throw new Error("Marcadores não encontrados. Verifique se os 4 quadrados pretos nos cantos estão visíveis e nítidos.");
+  if (tl.area < 5 || tr.area < 5 || bl.area < 5 || br.area < 5) {
+    throw new Error("Marcadores não encontrados. Tente tirar a foto mais de cima, focando nos 4 quadrados pretos dos cantos.");
   }
 
   // 4. QR Identity
@@ -114,22 +120,11 @@ export async function scanBubbleSheet(
     let maxBlack = -1;
 
     for (let oIdx = 0; oIdx < 5; oIdx++) {
-      // Relative positions from PDF template:
-      // Vertical: 110mm / 297mm = 0.370; step 8mm / 297mm = 0.0269
-      // Horizontal: 60mm / 210mm = 0.285; step 20mm / 210mm = 0.0952
-      const relY = 0.370 + (qIdx * 0.0269); 
-      const relX = 0.285 + (oIdx * 0.0952);
-
-      // Mapping between markers (tl=10,10; tr=190,10; bl=10,280; br=190,280)
-      // The relative coordinate in the coordinate system of the markers:
-      // The markers are at (10/210, 10/297) etc.
-      // We need to map [0,1] range to [marker_min, marker_max] range
-      // Or easier: relX is the fraction of total width.
-      // But markers are at 10mm and 190mm (180mm apart).
-      // So 60mm is (60-10)/180 = 0.277 of the distance between markers.
-      
-      const normX = ( (60 + oIdx * 20) - 10 ) / 180;
-      const normY = ( (110 + qIdx * 8) - 10 ) / 270;
+      // PDF Template coordinates (mm):
+      // Markers at 15mm centers (distance 180x270)
+      // Bubble centers: X = 60 + oIdx*20, Y = 110 + qIdx*8
+      const normX = ((60 + (oIdx * 20)) - 15) / 180;
+      const normY = ((110 + (qIdx * 8)) - 15) / 270;
 
       // Bilinear mapping using found marker positions
       const topX = tl.x + (tr.x - tl.x) * normX;
@@ -141,7 +136,7 @@ export async function scanBubbleSheet(
       const py = topY + (botY - topY) * normY;
 
       let blackCount = 0;
-      const r = Math.floor(width * 0.008); 
+      const r = Math.floor(width * 0.012); // Bubble sampling radius (slightly increased)
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
           const sx = Math.floor(px + dx), sy = Math.floor(py + dy);
@@ -149,8 +144,9 @@ export async function scanBubbleSheet(
         }
       }
 
-      // Check if darkness is significant (at least 60% of bubble area)
-      if (blackCount > maxBlack && blackCount > (r * r * 2.0)) {
+      // If at least 25% of pixels in the search circle are dark, consider it marked
+      const minDarkness = (Math.PI * r * r) * 0.25;
+      if (blackCount > maxBlack && blackCount > minDarkness) {
         maxBlack = blackCount;
         bestOption = options[oIdx];
       }
