@@ -293,6 +293,7 @@ function saveSchoolInfo(info: any) {
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userProfile, setUserProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'dashboard' | 'create' | 'correct' | 'reports' | 'guides' | 'admin' | 'schedule' | 'print'>('dashboard');
   const [selectedPrintExam, setSelectedPrintExam] = useState<Exam | null>(null);
@@ -324,13 +325,17 @@ export default function App() {
         if (error && error.code !== 'PGRST116') {
            console.error("Database user fetch error, continuing securely... ", error);
         } else if (!profile) {
-          await supabase.from('users').insert({
+          const newProfile = {
             uid: currentUser.id,
             email: currentUser.email,
             display_name: currentUser.user_metadata?.displayName || currentUser.email?.split('@')[0],
             role: isUserAdmin ? 'admin' : 'professor',
             school_name: 'Colégio Progresso Santista'
-          });
+          };
+          await supabase.from('users').insert(newProfile);
+          setUserProfile(newProfile);
+        } else {
+          setUserProfile(profile);
         }
         
         setIsAdmin(isUserAdmin || profile?.role === 'admin');
@@ -344,6 +349,7 @@ export default function App() {
     } else {
       setUser(null);
       setIsAdmin(false);
+      setUserProfile(null);
     }
     setLoading(false);
   };
@@ -533,7 +539,7 @@ export default function App() {
         <main className="flex-1 overflow-y-auto p-[25px] print:overflow-visible print:p-0">
           <AnimatePresence mode="wait">
             {view === 'dashboard' && <DashboardView user={user} isAdmin={isAdmin} exams={exams} results={results} setView={setView} onSelectPrintExam={setSelectedPrintExam} onEditExam={e => { setExamToEdit(e); setView('create'); }} onDeleteExam={handleDeleteExam} />}
-            {view === 'create' && <CreateExamView user={user} setView={(v) => { setView(v); setExamToEdit(null); }} examToEdit={examToEdit} onExamSaved={() => setRefreshTrigger(prev => prev + 1)} />}
+            {view === 'create' && <CreateExamView user={user} userProfile={userProfile} setView={(v) => { setView(v); setExamToEdit(null); }} examToEdit={examToEdit} onExamSaved={() => setRefreshTrigger(prev => prev + 1)} />}
             {view === 'correct' && <CorrectExamView user={user} exams={exams.filter(e => !e.answerKey?._metadata?.isExternal)} setView={setView} />}
             {view === 'guides' && <GuidesView exams={exams} />}
             {view === 'reports' && <ReportsView exams={exams} results={results} />}
@@ -840,12 +846,19 @@ function StatCard({ label, value, icon, color }: { label: string, value: any, ic
   );
 }
 
-function CreateExamView({ user, setView, examToEdit, onExamSaved }: { user: User, setView: (v: any) => void, examToEdit?: Exam | null, onExamSaved: () => void }) {
+function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }: { user: User, userProfile: any, setView: (v: any) => void, examToEdit?: Exam | null, onExamSaved: () => void }) {
   const schoolInfo = getSchoolInfo();
   
   const [title, setTitle] = useState(examToEdit?.title || '');
-  const [subject, setSubject] = useState(examToEdit?.subject || schoolInfo.subjects[0] || '');
-  const [classYear, setClassYear] = useState(examToEdit?.classYear || schoolInfo.classes[0] || '');
+  
+  // Default subject from profile if available, otherwise first subject in schoolInfo
+  const defaultSubject = userProfile?.assigned_subjects?.[0] || schoolInfo.subjects[0] || '';
+  const [subject, setSubject] = useState(examToEdit?.subject || defaultSubject);
+  
+  // Default class from profile if available, otherwise first class in schoolInfo
+  const defaultClass = userProfile?.assigned_classes?.[0] || schoolInfo.classes[0] || '';
+  const [classYear, setClassYear] = useState(examToEdit?.classYear || defaultClass);
+  
   const [content, setContent] = useState(examToEdit?.content || '');
   const [examType, setExamType] = useState<string>(examToEdit?.examType || 'PII');
   const [examDate, setExamDate] = useState(examToEdit?.examDate || '');
@@ -1474,6 +1487,33 @@ function AdminView({ user }: { user: User }) {
   const [newSubject, setNewSubject] = useState('');
   const [newClass, setNewClass] = useState('');
   
+  const [configuringUser, setConfiguringUser] = useState<any | null>(null);
+  const [configLoading, setConfigLoading] = useState(false);
+
+  const handleUpdateUserConfig = async () => {
+    if (!configuringUser) return;
+    setConfigLoading(true);
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          professional_name: configuringUser.professional_name,
+          assigned_subjects: configuringUser.assigned_subjects || [],
+          assigned_classes: configuringUser.assigned_classes || []
+        })
+        .eq('uid', configuringUser.uid);
+      
+      if (error) throw error;
+      alert("Configurações do professor atualizadas com sucesso!");
+      setConfiguringUser(null);
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao atualizar configurações.");
+    } finally {
+      setConfigLoading(false);
+    }
+  };
+
   const saveInfo = (newInfo: any) => {
     setSchoolInfoState(newInfo);
     saveSchoolInfo(newInfo);
@@ -1654,8 +1694,15 @@ function AdminView({ user }: { user: User }) {
                     <span className="font-bold text-slate-700 text-sm">{item.email}</span>
                     <span className="text-xs text-slate-500">Patente atual: <span className="uppercase font-bold">{item.role}</span></span>
                   </div>
-                  <button 
-                    onClick={async () => {
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setConfiguringUser({...item})}
+                      className="px-3 py-1.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all shadow-sm flex items-center gap-1"
+                    >
+                      Configurar Vínculos
+                    </button>
+                    <button 
+                      onClick={async () => {
                       if (item.email === 'cps@cps.local') {
                          alert("A conta Master CPS não pode ter sua hierarquia alterada.");
                          return;
@@ -1671,7 +1718,8 @@ function AdminView({ user }: { user: User }) {
                     {item.email === 'cps@cps.local' ? 'Master (Fixado)' : item.role === 'admin' ? 'Rebaixar para Prof.' : 'Promover a Administrador'}
                   </button>
                 </div>
-              ))}
+              </div>
+            ))}
               {networkUsers.length === 0 && (
                 <p className="text-center text-slate-400 py-4 text-sm">Nenhum usuário registrado.</p>
               )}
@@ -1679,6 +1727,88 @@ function AdminView({ user }: { user: User }) {
           </div>
         </div>
       </div>
+
+      {configuringUser && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8">
+            <h3 className="text-lg font-bold text-primary mb-6">Configurar Perfil Profissional</h3>
+            <p className="text-sm text-slate-500 mb-6">Vincule o professor às suas turmas e disciplinas para facilitar a criação de provas.</p>
+            
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase">Nome Profissional (Como aparecerá na prova)</label>
+                <input 
+                  type="text"
+                  value={configuringUser.professional_name || ''}
+                  onChange={e => setConfiguringUser({...configuringUser, professional_name: e.target.value})}
+                  placeholder="Ex: Prof. Dr. Carlos Silva"
+                  className="w-full px-4 py-2 border border-border rounded-md outline-none focus:border-accent"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase">Disciplinas que Leciona</label>
+                <div className="flex flex-wrap gap-2">
+                  {schoolInfo.subjects.map(sub => {
+                    const selected = (configuringUser.assigned_subjects || []).includes(sub);
+                    return (
+                      <button 
+                        key={sub}
+                        onClick={() => {
+                          const current = configuringUser.assigned_subjects || [];
+                          if (selected) setConfiguringUser({...configuringUser, assigned_subjects: current.filter((s: string) => s !== sub)});
+                          else setConfiguringUser({...configuringUser, assigned_subjects: [...current, sub]});
+                        }}
+                        className={`px-3 py-1 rounded-full text-xs font-bold border transition-colors ${selected ? 'bg-primary text-white border-primary' : 'bg-slate-50 text-slate-600 border-border'}`}
+                      >
+                        {sub}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase">Turmas que Leciona</label>
+                <div className="flex flex-wrap gap-2">
+                  {schoolInfo.classes.map(cls => {
+                    const selected = (configuringUser.assigned_classes || []).includes(cls);
+                    return (
+                      <button 
+                        key={cls}
+                        onClick={() => {
+                          const current = configuringUser.assigned_classes || [];
+                          if (selected) setConfiguringUser({...configuringUser, assigned_classes: current.filter((c: string) => c !== cls)});
+                          else setConfiguringUser({...configuringUser, assigned_classes: [...current, cls]});
+                        }}
+                        className={`px-3 py-1 rounded-full text-xs font-bold border transition-colors ${selected ? 'bg-primary text-white border-primary' : 'bg-slate-50 text-slate-600 border-border'}`}
+                      >
+                        {cls}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-6">
+                <button 
+                  onClick={() => setConfiguringUser(null)}
+                  className="flex-1 px-6 py-2 rounded-md font-bold text-slate-500 hover:bg-slate-100 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleUpdateUserConfig}
+                  disabled={configLoading}
+                  className="flex-1 bg-accent text-white px-6 py-2 rounded-md font-bold flex items-center justify-center gap-2 hover:bg-accent/90 transition-all disabled:opacity-50"
+                >
+                  {configLoading ? <Loader2 className="animate-spin w-4 h-4" /> : 'Salvar Configurações'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2130,8 +2260,23 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
 function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState("");
+  const [professorName, setProfessorName] = useState<string>('____________________');
 
   const schoolInfo = getSchoolInfo();
+
+  useEffect(() => {
+    const fetchProf = async () => {
+      if (!exam.professorId) return;
+      const { data } = await supabase.from('users').select('professional_name, email').eq('uid', exam.professorId).single();
+      if (data) {
+        setProfessorName(data.professional_name || data.email.split('@')[0]);
+      }
+    };
+    fetchProf();
+  }, [exam.professorId]);
+
+  const totalValue = exam.questions.reduce((acc, q) => acc + (parseFloat(q.points as string) || 0), 0);
+  
   // Get all registered students
   const allStudents = Object.values(schoolInfo.studentsDB).flat();
   // Get all available classes sorted
@@ -2328,7 +2473,7 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
                     Classe: {student.classId || '____'}
                   </div>
                   <div className="flex-1 px-2 py-0.5 whitespace-nowrap">
-                    Valor: <span className="border-b border-black w-10 inline-block"></span>
+                    Valor: <span className="font-black ml-1 text-sm">{totalValue || '____'}</span>
                   </div>
                 </div>
                 {/* Row 2 */}
@@ -2336,8 +2481,9 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
                   <div className="flex-[2] border-r-[3px] border-black border-dashed px-2 py-0.5">
                     Disciplina: <span className="font-normal normal-case">{exam.subject}</span>
                   </div>
-                  <div className="flex-[2] border-r-[3px] border-black border-dashed px-2 py-0.5 flex">
-                    Prof:<span className="flex-1 border-b border-black ml-2 mb-1"></span>
+                  <div className="flex-[2] border-r-[3px] border-black border-dashed px-2 py-0.5 flex items-center overflow-hidden">
+                    <span className="shrink-0">Prof:</span>
+                    <span className="ml-2 font-normal normal-case truncate">{professorName}</span>
                   </div>
                   <div className="flex-1 border-r-[3px] border-black border-dashed px-2 py-0.5">
                     Data: <span className="font-normal text-xs">{exam.examDate ? new Date(exam.examDate + 'T00:00:00').toLocaleDateString('pt-BR') : '___/___/____'}</span>
@@ -2430,7 +2576,7 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
             </div>
 
             <div className="grid grid-cols-4 gap-6 mb-10">
-              <div className="col-span-3 border border-slate-200 p-4 rounded bg-slate-50">
+              <div className="col-span-2 border border-slate-200 p-4 rounded bg-slate-50">
                 <label className="block text-[10px] font-black text-primary uppercase mb-1">Nome do Aluno:</label>
                 {student.name ? (
                   <div className="h-8 border-b-2 border-transparent flex items-end pb-1 font-bold text-slate-800 text-lg uppercase truncate">{student.name}</div>
@@ -2441,6 +2587,10 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
               <div className="border border-slate-200 p-4 rounded bg-slate-50">
                 <label className="block text-[10px] font-black text-primary uppercase mb-1 text-center">Turma:</label>
                 <div className="h-8 border-b-2 border-slate-400 flex items-end justify-center pb-1 font-black text-primary text-xl uppercase tracking-widest">{student.classId || exam.classYear}</div>
+              </div>
+              <div className="border border-slate-200 p-4 rounded bg-slate-50">
+                <label className="block text-[10px] font-black text-primary uppercase mb-1 text-center">Professor:</label>
+                <div className="h-8 border-b-2 border-transparent flex items-end justify-center pb-1 font-bold text-slate-700 text-[10px] uppercase truncate">{professorName}</div>
               </div>
             </div>
 
