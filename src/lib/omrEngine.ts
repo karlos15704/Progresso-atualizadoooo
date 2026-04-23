@@ -29,7 +29,64 @@ export async function scanBubbleSheet(
   const imageData = ctx.getImageData(0, 0, width, height);
   const data = imageData.data;
 
-  // 0. Detect QR Code for Student Identity
+  // 1. Greyscale
+  const grayscale = new Uint8ClampedArray(width * height);
+  for (let i = 0; i < data.length; i += 4) {
+    grayscale[i / 4] = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+  }
+
+  // 2. Adaptive Binarization (simple local threshold)
+  let sumG = 0;
+  for (let i = 0; i < grayscale.length; i++) sumG += grayscale[i];
+  const avgG = sumG / grayscale.length;
+  const threshold = Math.min(160, Math.max(80, avgG * 0.75)); // Dynamic threshold based on image brightness
+
+  const binary = new Uint8Array(width * height);
+  for (let i = 0; i < grayscale.length; i++) {
+    binary[i] = grayscale[i] < threshold ? 1 : 0; // 1 = black, 0 = white
+  }
+
+  // 3. Find Markers (4 black squares)
+  const findMarker = (quad: 'tl' | 'tr' | 'bl' | 'br') => {
+    const margin = 0.25;
+    let startX = 0, startY = 0, endX = width * margin, endY = height * margin;
+
+    if (quad === 'tr') { startX = width * (1 - margin); endX = width; }
+    if (quad === 'bl') { startY = height * (1 - margin); endY = height; }
+    if (quad === 'br') { startX = width * (1 - margin); endX = width; startY = height * (1 - margin); endY = height; }
+
+    let bestMarker = { x: 0, y: 0, area: 0 };
+    const step = Math.max(2, Math.floor(width / 500)); 
+
+    for (let y = Math.floor(startY); y < Math.floor(endY); y += step) {
+      for (let x = Math.floor(startX); x < Math.floor(endX); x += step) {
+        if (binary[y * width + x] === 1) {
+          // Check block solidness
+          let area = 0;
+          const checkSize = Math.floor(width * 0.015);
+          for (let dy = -checkSize; dy <= checkSize; dy += 2) {
+            for (let dx = -checkSize; dx <= checkSize; dx += 2) {
+              const sx = x + dx, sy = y + dy;
+              if (sx >= 0 && sx < width && sy >= 0 && sy < height && binary[sy * width + sx] === 1) area++;
+            }
+          }
+          if (area > bestMarker.area) bestMarker = { x, y, area };
+        }
+      }
+    }
+    return bestMarker;
+  };
+
+  const tl = findMarker('tl');
+  const tr = findMarker('tr');
+  const bl = findMarker('bl');
+  const br = findMarker('br');
+
+  if (tl.area < 10 || tr.area < 10 || bl.area < 10 || br.area < 10) {
+    throw new Error("Marcadores não encontrados. Verifique se os 4 quadrados pretos nos cantos estão visíveis e nítidos.");
+  }
+
+  // 4. QR Identity
   let decodedIdentity = { name: '', class: '' };
   try {
     const code = jsQR(data, width, height);
@@ -40,49 +97,13 @@ export async function scanBubbleSheet(
         decodedIdentity.class = parts[1];
       }
     }
-  } catch (err) {
-    console.warn("QR Detection failed:", err);
-  }
+  } catch (err) { console.warn("QR failed"); }
 
-  // 1. Simple Thresholding & Greyscale
-  const grayscale = new Uint8ClampedArray(width * height);
-  for (let i = 0; i < data.length; i += 4) {
-    const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-    grayscale[i / 4] = avg;
-  }
-
-  // 2. Find Markers (4 black squares in corners)
-  // This is a simplified version. We look for the darkest regions in quadrants.
-  const findMarker = (startX: number, startY: number, endX: number, endY: number) => {
-    let bestX = 0, bestY = 0, minAvg = 255;
-    for (let y = startY; y < endY; y += 10) {
-      for (let x = startX; x < endX; x += 10) {
-        const idx = y * width + x;
-        if (grayscale[idx] < minAvg) {
-          minAvg = grayscale[idx];
-          bestX = x;
-          bestY = y;
-        }
-      }
-    }
-    return { x: bestX, y: bestY };
-  };
-
-  const pad = 50;
-  const tl = findMarker(0, 0, pad, pad);
-  const tr = findMarker(width - pad, 0, width, pad);
-  const bl = findMarker(0, height - pad, pad, height);
-  const br = findMarker(width - pad, height - pad, width, height);
-
-  // 3. Grid Calculation
-  // We assume the sheet has A-E options for N questions.
-  // We map the space between markers to question positions.
+  // 5. Scan Questions
   const rowCount = correctAnswers.length;
-  const colCount = 5; // A, B, C, D, E
   const results: Record<number, string> = {};
   let scoreValue = 0;
   let maxPossible = 0;
-
   const options = ['A', 'B', 'C', 'D', 'E'];
 
   for (let qIdx = 0; qIdx < rowCount; qIdx++) {
@@ -90,45 +111,57 @@ export async function scanBubbleSheet(
     maxPossible += qPoints;
 
     let bestOption = "";
-    let maxDarkness = -1;
+    let maxBlack = -1;
 
-    for (let oIdx = 0; oIdx < colCount; oIdx++) {
-      // Calculate normalized position (approximate)
-      const relY = (qIdx + 1) / (rowCount + 1);
-      const relX = (oIdx + 1) / (colCount + 1);
+    for (let oIdx = 0; oIdx < 5; oIdx++) {
+      // Relative positions from PDF template:
+      // Vertical: 110mm / 297mm = 0.370; step 8mm / 297mm = 0.0269
+      // Horizontal: 60mm / 210mm = 0.285; step 20mm / 210mm = 0.0952
+      const relY = 0.370 + (qIdx * 0.0269); 
+      const relX = 0.285 + (oIdx * 0.0952);
 
-      // Interpolate based on markers
-      const px = tl.x + (tr.x - tl.x) * relX;
-      const py = tl.y + (bl.y - tl.y) * relY;
+      // Mapping between markers (tl=10,10; tr=190,10; bl=10,280; br=190,280)
+      // The relative coordinate in the coordinate system of the markers:
+      // The markers are at (10/210, 10/297) etc.
+      // We need to map [0,1] range to [marker_min, marker_max] range
+      // Or easier: relX is the fraction of total width.
+      // But markers are at 10mm and 190mm (180mm apart).
+      // So 60mm is (60-10)/180 = 0.277 of the distance between markers.
+      
+      const normX = ( (60 + oIdx * 20) - 10 ) / 180;
+      const normY = ( (110 + qIdx * 8) - 10 ) / 270;
 
-      // Sample a small area around the expected bubble
-      let darknessSum = 0;
-      const sampleSize = 5;
-      for (let dy = -sampleSize; dy <= sampleSize; dy++) {
-        for (let dx = -sampleSize; dx <= sampleSize; dx++) {
-          const sx = Math.floor(px + dx);
-          const sy = Math.floor(py + dy);
-          if (sx >= 0 && sx < width && sy >= 0 && sy < height) {
-            darknessSum += (255 - grayscale[sy * width + sx]);
-          }
+      // Bilinear mapping using found marker positions
+      const topX = tl.x + (tr.x - tl.x) * normX;
+      const botX = bl.x + (br.x - bl.x) * normX;
+      const topY = tl.y + (tr.y - tl.y) * normX;
+      const botY = bl.y + (br.y - bl.y) * normX;
+
+      const px = topX + (botX - topX) * normY;
+      const py = topY + (botY - topY) * normY;
+
+      let blackCount = 0;
+      const r = Math.floor(width * 0.008); 
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          const sx = Math.floor(px + dx), sy = Math.floor(py + dy);
+          if (sx >= 0 && sx < width && sy >= 0 && sy < height && binary[sy * width + sx] === 1) blackCount++;
         }
       }
 
-      if (darknessSum > maxDarkness && darknessSum > 500) { // Threshold for "marked"
-        maxDarkness = darknessSum;
+      // Check if darkness is significant (at least 60% of bubble area)
+      if (blackCount > maxBlack && blackCount > (r * r * 2.0)) {
+        maxBlack = blackCount;
         bestOption = options[oIdx];
       }
     }
-
     results[qIdx] = bestOption;
-    if (bestOption === correctAnswers[qIdx].correctAnswer) {
-      scoreValue += qPoints;
-    }
+    if (bestOption === correctAnswers[qIdx].correctAnswer) scoreValue += qPoints;
   }
 
   return {
     studentName: decodedIdentity.name || "Não identificado",
-    studentClass: decodedIdentity.class,
+    studentClass: decodedIdentity.class || "Geral",
     answers: results,
     score: scoreValue,
     maxScore: maxPossible,

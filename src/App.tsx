@@ -1748,7 +1748,7 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
                     </div>
                   </div>
                 )}
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" capture="environment" />
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
               </div>
             </div>
 
@@ -1787,9 +1787,9 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
               setStudentName('');
               setManualAnswers({});
             }}
-            className="w-full bg-white text-[#22543d] py-2 rounded-md text-xs font-bold hover:bg-slate-50 transition-all border border-[#38a169]/20"
+            className="w-full bg-[#38a169] text-white py-3 rounded-md font-bold text-sm hover:bg-[#2f855a] transition-all shadow-md"
           >
-            Corrigir Próxima Prova
+            Digitalizar Próxima Prova
           </button>
         </motion.div>
       )}
