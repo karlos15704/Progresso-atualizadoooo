@@ -18,8 +18,11 @@ CREATE TABLE users (
     uid UUID UNIQUE NOT NULL, -- This matches auth.users.id
     email TEXT UNIQUE NOT NULL,
     display_name TEXT,
+    professional_name TEXT,
     role TEXT DEFAULT 'professor', -- 'admin' or 'professor'
     school_name TEXT DEFAULT 'Colégio Progresso Santista',
+    assigned_subjects JSONB DEFAULT '[]'::jsonb,
+    assigned_classes JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -36,6 +39,7 @@ CREATE TABLE exams (
     exam_date DATE,
     exam_time TIME,
     class_year TEXT,
+    bimester TEXT DEFAULT '1º Bimestre',
     content TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -46,6 +50,7 @@ CREATE TABLE results (
     exam_id UUID REFERENCES exams(id) ON DELETE CASCADE,
     student_name TEXT NOT NULL,
     student_class TEXT NOT NULL,
+    bimester TEXT DEFAULT '1º Bimestre',
     answers JSONB NOT NULL,
     score NUMERIC NOT NULL,
     max_score NUMERIC NOT NULL,

@@ -341,12 +341,22 @@ export default function App() {
             email: currentUser.email,
             display_name: currentUser.user_metadata?.displayName || currentUser.email?.split('@')[0],
             role: isUserAdmin ? 'admin' : 'professor',
-            school_name: 'Colégio Progresso Santista'
+            school_name: 'Colégio Progresso Santista',
+            professional_name: currentUser.user_metadata?.displayName || currentUser.email?.split('@')[0],
+            assigned_subjects: [],
+            assigned_classes: []
           };
           await supabase.from('users').insert(newProfile);
           setUserProfile(newProfile);
         } else {
-          setUserProfile(profile);
+          // Fill missing fields on old profiles
+          const updatedProfile = {
+             ...profile,
+             professional_name: profile.professional_name || profile.display_name,
+             assigned_subjects: profile.assigned_subjects || [],
+             assigned_classes: profile.assigned_classes || []
+          };
+          setUserProfile(updatedProfile);
         }
         
         setIsAdmin(isUserAdmin || profile?.role === 'admin');

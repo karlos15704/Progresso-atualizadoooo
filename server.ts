@@ -11,9 +11,21 @@ async function startServer() {
   app.use(express.json({ limit: '100mb' }));
   app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
+  // Debug logging for all requests
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+  });
+
+  // Health check
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", time: new Date().toISOString() });
+  });
+
   // Add error handler for Express parsing
   app.use((err: any, req: any, res: any, next: any) => {
     if (err.type === 'entity.too.large') {
+      console.error("Payload too large:", err);
       return res.status(413).json({ error: 'A imagem enviada é maior do que o limite permitido. Tente comprimir a foto ou reduzir a resolução.' });
     }
     if (err instanceof SyntaxError && (err as any).status === 400 && 'body' in err) {
@@ -59,7 +71,7 @@ async function startServer() {
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-1.5-flash",
         contents: [
           {
             parts: [
@@ -149,14 +161,22 @@ async function startServer() {
     }
   });
 
+  // Final fallback for missing routes before Vite
+  app.use('/api/*', (req, res) => {
+    console.warn(`API Route not found: ${req.method} ${req.url}`);
+    res.status(404).json({ error: `Rota de API não encontrada: ${req.method} ${req.url}` });
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    console.log("Starting server in DEVELOPMENT mode with Vite middleware...");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
+    console.log("Starting server in PRODUCTION mode...");
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
@@ -165,7 +185,8 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`🚀 EduGrade Server is strictly listening on http://0.0.0.0:${PORT}`);
+    console.log(`Endpoints: POST /api/correctExam, POST /api/generateGuide, GET /api/health`);
   });
 }
 
