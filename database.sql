@@ -58,7 +58,45 @@ CREATE TABLE results (
     professor_id UUID REFERENCES auth.users(id)
 );
 
+-- 5. Student Reports Table
+CREATE TABLE student_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_name TEXT NOT NULL,
+    student_class TEXT NOT NULL,
+    content TEXT NOT NULL,
+    bimester TEXT DEFAULT '1º Bimestre',
+    professor_id UUID REFERENCES auth.users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Row Level Security (RLS) Policies
+-- ... (existing enable commands)
+ALTER TABLE student_reports ENABLE ROW LEVEL SECURITY;
+
+-- ... (existing users/exams/results policies)
+
+-- 5. Student Reports Policies
+CREATE POLICY "Professors can see their own reports" ON student_reports
+    FOR SELECT USING (
+        professor_id = auth.uid() OR
+        EXISTS (SELECT 1 FROM users WHERE uid = auth.uid() AND role = 'admin')
+    );
+
+CREATE POLICY "Professors can insert their own reports" ON student_reports
+    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Owners or Admin can update reports" ON student_reports
+    FOR UPDATE USING (
+        professor_id = auth.uid() OR
+        EXISTS (SELECT 1 FROM users WHERE uid = auth.uid() AND role = 'admin')
+    );
+
+CREATE POLICY "Owners or Admin can delete reports" ON student_reports
+    FOR DELETE USING (
+        professor_id = auth.uid() OR
+        EXISTS (SELECT 1 FROM users WHERE uid = auth.uid() AND role = 'admin')
+    );
 
 -- Enable RLS on all tables
 ALTER TABLE allowed_professors ENABLE ROW LEVEL SECURITY;

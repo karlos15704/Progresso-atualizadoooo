@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Plus, 
   FileText, 
@@ -83,6 +83,17 @@ interface Result {
   feedback: string;
   answers?: any;
   correctedAt: any;
+}
+
+interface StudentReport {
+  id: string;
+  studentName: string;
+  studentClass: string;
+  content: string;
+  professorId: string;
+  bimester: string;
+  createdAt: any;
+  updatedAt: any;
 }
 
 const DEFAULT_SCHOOL_INFO = {
@@ -306,11 +317,14 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'dashboard' | 'create' | 'correct' | 'reports' | 'guides' | 'admin' | 'schedule' | 'print'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'create' | 'correct' | 'reports' | 'guides' | 'admin' | 'schedule' | 'print' | 'studentReports' | 'printReport'>('dashboard');
   const [selectedPrintExam, setSelectedPrintExam] = useState<Exam | null>(null);
+  const [selectedReportForPrint, setSelectedReportForPrint] = useState<StudentReport | null>(null);
+  const [multipleReportsToPrint, setMultipleReportsToPrint] = useState<StudentReport[]>([]);
   const [examToEdit, setExamToEdit] = useState<Exam | null>(null);
   const [exams, setExams] = useState<Exam[]>([]);
   const [results, setResults] = useState<Result[]>([]);
+  const [studentReports, setStudentReports] = useState<StudentReport[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -433,8 +447,29 @@ export default function App() {
       }
     };
 
+    const fetchStudentReports = async () => {
+      let query = supabase.from('student_reports').select('*').order('created_at', { ascending: false });
+      if (!isAdmin) {
+        query = query.eq('professor_id', user.id);
+      }
+      const { data } = await query;
+      if (data) {
+        setStudentReports(data.map(r => ({
+          id: r.id,
+          studentName: r.student_name,
+          studentClass: r.student_class,
+          content: r.content,
+          professorId: r.professor_id,
+          bimester: r.bimester,
+          createdAt: r.created_at,
+          updatedAt: r.updated_at
+        })));
+      }
+    };
+
     fetchExams();
     fetchResults();
+    fetchStudentReports();
 
     const examsFilter = isAdmin ? undefined : undefined; // Subscription for all exams to see global schedule updates
     
@@ -539,6 +574,12 @@ export default function App() {
               label="Relatórios de Turma" 
             />
             <NavButton 
+              active={view === 'studentReports'} 
+              onClick={() => { setView('studentReports'); setExamToEdit(null); }} 
+              icon={<UserIcon className="w-5 h-5" />} 
+              label="Relatório por Aluno" 
+            />
+            <NavButton 
               active={view === 'schedule'} 
               onClick={() => { setView('schedule'); setExamToEdit(null); }} 
               icon={<Calendar className="w-5 h-5" />} 
@@ -566,6 +607,8 @@ export default function App() {
             {view === 'correct' && <CorrectExamView user={user} exams={exams.filter(e => !e.answerKey?._metadata?.isExternal)} setView={setView} />}
             {view === 'guides' && <GuidesView exams={exams} />}
             {view === 'reports' && <ReportsView exams={exams} results={results} />}
+            {view === 'studentReports' && <StudentReportsView user={user} isAdmin={isAdmin} reports={studentReports} refresh={() => setRefreshTrigger(prev => prev + 1)} onPrint={(report) => { setSelectedReportForPrint(report); setView('printReport'); setMultipleReportsToPrint([]); }} onPrintAll={(reports) => { setMultipleReportsToPrint(reports); setSelectedReportForPrint(null); setView('printReport'); }} />}
+            {view === 'printReport' && (selectedReportForPrint || multipleReportsToPrint.length > 0) && <StudentReportPrintView reports={selectedReportForPrint ? [selectedReportForPrint] : multipleReportsToPrint} onBack={() => setView('studentReports')} />}
             {view === 'schedule' && <ScheduleView exams={exams} isAdmin={isAdmin} user={user} onExamSaved={() => setRefreshTrigger(prev => prev + 1)} />}
             {view === 'print' && selectedPrintExam && <ExamPrintView exam={selectedPrintExam} onBack={() => setView('dashboard')} />}
             {view === 'admin' && isAdmin && <AdminView user={user} />}
@@ -579,6 +622,7 @@ export default function App() {
         <MobileNavButton active={view === 'create'} onClick={() => setView('create')} icon={<Plus />} label="Provas" />
         <MobileNavButton active={view === 'correct'} onClick={() => setView('correct')} icon={<Camera />} label="Corrigir" />
         <MobileNavButton active={view === 'schedule'} onClick={() => setView('schedule')} icon={<Calendar />} label="Agenda" />
+        <MobileNavButton active={view === 'studentReports'} onClick={() => setView('studentReports')} icon={<UserIcon />} label="Relatórios" />
         <MobileNavButton active={view === 'guides'} onClick={() => setView('guides')} icon={<BookOpen />} label="Guias" />
         {isAdmin && <MobileNavButton active={view === 'admin'} onClick={() => setView('admin')} icon={<UserIcon />} label="Admin" />}
       </nav>
@@ -2917,6 +2961,317 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
                 <li>Não serão aceitas rasuras ou marcas duplas.</li>
                 <li>O preenchimento incorreto anulará a questão.</li>
               </ul>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StudentReportsView({ user, isAdmin, reports, refresh, onPrint, onPrintAll }: { 
+  user: User, 
+  isAdmin: boolean, 
+  reports: StudentReport[], 
+  refresh: () => void,
+  onPrint: (report: StudentReport) => void,
+  onPrintAll: (reports: StudentReport[]) => void
+}) {
+  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState('');
+  const [selectedBimester, setSelectedBimester] = useState('1º Bimestre');
+  const [content, setContent] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [schoolInfo] = useState(getSchoolInfo());
+
+  const studentsInClass = useMemo(() => {
+    if (!selectedClass) return [];
+    // Extract year like "6º" from "6º A"
+    const yearMatch = selectedClass.match(/^(\d+º)/);
+    if (!yearMatch) return [];
+    const yearKey = `${yearMatch[1]} ano`;
+    return (schoolInfo.studentsDB[yearKey] || []).filter((s: any) => s.classId === selectedClass);
+  }, [selectedClass, schoolInfo]);
+
+  const handleSave = async () => {
+    if (!selectedStudent || !content) {
+      alert("Preencha o nome do aluno e o conteúdo do relatório.");
+      return;
+    }
+    setSaving(true);
+    try {
+      if (editingId) {
+        const { error } = await supabase.from('student_reports').update({
+          content,
+          bimester: selectedBimester,
+          updated_at: new Date().toISOString()
+        }).eq('id', editingId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('student_reports').insert({
+          student_name: selectedStudent,
+          student_class: selectedClass,
+          content,
+          bimester: selectedBimester,
+          professor_id: user.id
+        });
+        if (error) throw error;
+      }
+      alert("Relatório salvo com sucesso!");
+      setContent('');
+      setSelectedStudent('');
+      setEditingId(null);
+      refresh();
+    } catch (err: any) {
+      alert("Erro ao salvar: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEdit = (report: StudentReport) => {
+    setEditingId(report.id);
+    setSelectedClass(report.studentClass);
+    setSelectedStudent(report.studentName);
+    setSelectedBimester(report.bimester);
+    setContent(report.content);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Deseja realmente excluir este relatório?")) return;
+    try {
+      const { error } = await supabase.from('student_reports').delete().eq('id', id);
+      if (error) throw error;
+      refresh();
+    } catch (err: any) {
+      alert("Erro ao excluir: " + err.message);
+    }
+  };
+
+  return (
+    <div className="space-y-8 max-w-5xl mx-auto pb-20">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-primary">Relatórios Individuais do Aluno</h2>
+        {isAdmin && (
+          <button 
+            onClick={() => onPrintAll(reports)} 
+            className="bg-accent text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-accent/90 shadow-sm"
+          >
+            <Printer className="w-4 h-4" />
+            Imprimir Todos ({reports.length})
+          </button>
+        )}
+      </div>
+
+      <div className="bg-white p-6 rounded-lg border border-border shadow-sm space-y-6">
+        <h3 className="text-sm font-bold text-primary uppercase tracking-wider">{editingId ? 'Editar Relatório' : 'Novo Relatório'}</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Turma / Sala</label>
+            <select 
+              value={selectedClass} 
+              onChange={e => { setSelectedClass(e.target.value); setSelectedStudent(''); }}
+              className="w-full px-4 py-2 border border-border rounded-md text-sm outline-none focus:border-accent bg-white"
+            >
+              <option value="">Selecione a turma...</option>
+              {schoolInfo.classes.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Aluno</label>
+            <select 
+              value={selectedStudent} 
+              onChange={e => setSelectedStudent(e.target.value)}
+              disabled={!selectedClass}
+              className="w-full px-4 py-2 border border-border rounded-md text-sm outline-none focus:border-accent bg-white disabled:bg-slate-50"
+            >
+              <option value="">Selecione o aluno...</option>
+              {studentsInClass.map((s: any) => <option key={s.name} value={s.name}>{s.name}</option>)}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Bimestre</label>
+            <select 
+              value={selectedBimester} 
+              onChange={e => setSelectedBimester(e.target.value)}
+              className="w-full px-4 py-2 border border-border rounded-md text-sm outline-none focus:border-accent bg-white"
+            >
+              <option value="1º Bimestre">1º Bimestre</option>
+              <option value="2º Bimestre">2º Bimestre</option>
+              <option value="3º Bimestre">3º Bimestre</option>
+              <option value="4º Bimestre">4º Bimestre</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Conteúdo do Relatório (Observações, Desempenho, Comportamento)</label>
+          <DefaultEditor 
+            value={content} 
+            onChange={e => setContent(e.target.value)}
+            className="w-full border border-border rounded-md min-h-[200px]"
+          />
+        </div>
+
+        <div className="flex justify-end gap-3">
+          {editingId && (
+            <button 
+              onClick={() => { setEditingId(null); setContent(''); setSelectedStudent(''); }}
+              className="px-6 py-2 rounded-md font-bold text-sm text-slate-500 hover:bg-slate-50"
+            >
+              Cancelar Edição
+            </button>
+          )}
+          <button 
+            onClick={handleSave}
+            disabled={saving}
+            className="bg-primary text-white px-8 py-2 rounded-md font-bold text-sm shadow-sm hover:bg-primary/90 transition-all flex items-center gap-2 disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="animate-spin w-4 h-4" /> : <Download className="w-4 h-4" />}
+            {editingId ? 'Salvar Alterações' : 'Salvar Relatório'}
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg border border-border overflow-hidden shadow-sm">
+        <div className="px-5 py-4 border-b border-border bg-slate-50">
+          <h3 className="text-base font-bold text-primary">Meus Relatórios Enviados</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm text-left">
+            <thead>
+              <tr className="bg-slate-50/50">
+                <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider">Aluno</th>
+                <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider">Turma</th>
+                <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider">Bimestre</th>
+                <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider">Data</th>
+                <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {reports.map(r => (
+                <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-5 py-4 font-bold text-slate-700">{r.studentName}</td>
+                  <td className="px-5 py-4 text-slate-600">{r.studentClass}</td>
+                  <td className="px-5 py-4">
+                    <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase">{r.bimester}</span>
+                  </td>
+                  <td className="px-5 py-4 text-slate-500">{new Date(r.createdAt).toLocaleDateString()}</td>
+                  <td className="px-5 py-4 flex items-center gap-4">
+                    <button onClick={() => onPrint(r)} className="text-accent font-bold hover:underline flex items-center gap-1">
+                      <Printer className="w-4 h-4" />
+                      Imprimir
+                    </button>
+                    <button onClick={() => handleEdit(r)} className="text-blue-600 font-bold hover:underline flex items-center gap-1">
+                      <Pencil className="w-4 h-4" />
+                      Editar
+                    </button>
+                    <button onClick={() => handleDelete(r.id)} className="text-red-400 font-bold hover:underline flex items-center gap-1">
+                      <Trash2 className="w-4 h-4" />
+                      Excluir
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {reports.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-5 py-10 text-center text-slate-400 italic">Nenhum relatório encontrado.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StudentReportPrintView({ reports, onBack }: { reports: StudentReport[], onBack: () => void }) {
+  useEffect(() => {
+    // Hidden browser title trick for clean prints
+    const originalTitle = document.title;
+    document.title = 'Relatorios-Alunos-CPS';
+    return () => { document.title = originalTitle; };
+  }, []);
+
+  return (
+    <div className="space-y-12">
+      <div className="flex items-center justify-between print:hidden p-8 border-b border-border bg-white sticky top-0 z-20">
+        <button onClick={onBack} className="text-slate-500 font-bold hover:text-primary flex items-center gap-2">
+          ← Voltar ao Sistema
+        </button>
+        <button 
+          onClick={() => window.print()}
+          className="bg-accent text-white px-6 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-accent/90 shadow-sm"
+        >
+          <Printer className="w-4 h-4" />
+          Imprimir Agora
+        </button>
+      </div>
+
+      <div className="print-content space-y-12 bg-slate-100 py-10 print:p-0 print:bg-white print:space-y-0">
+        {reports.map((report, idx) => (
+          <div 
+            key={report.id} 
+            className="bg-white p-16 border border-border max-w-[210mm] mx-auto min-h-[297mm] shadow-sm print:border-none print:shadow-none print:m-0 print:w-[210mm] print:break-after-page flex flex-col"
+          >
+            {/* Header */}
+            <div className="border-b-2 border-primary pb-8 mb-10 flex items-center justify-between">
+              <div className="flex items-center gap-6">
+                <img src={LOGO_VINHO} alt="Logo" className="w-16 h-16 object-contain" />
+                <div className="flex flex-col">
+                  <h1 className="text-2xl font-black text-primary uppercase tracking-tight">Colégio Progresso Santista</h1>
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-[3px] mt-1 border-t border-slate-100 pt-1">Educação por Excelência • Sistema COC</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="bg-primary text-white px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest">{report.bimester}</span>
+              </div>
+            </div>
+
+            <div className="text-center mb-12">
+              <h2 className="text-xl font-black text-slate-800 uppercase tracking-widest border-b-2 border-slate-100 inline-block pb-1">Relatório de Acompanhamento Escolar</h2>
+            </div>
+
+            {/* Student Info Box */}
+            <div className="grid grid-cols-2 gap-px bg-slate-200 border-2 border-slate-200 rounded-lg overflow-hidden mb-12 shadow-sm">
+              <div className="bg-white p-4">
+                <label className="block text-[10px] font-black text-primary uppercase mb-1">Nome do Aluno:</label>
+                <div className="font-bold text-slate-800 text-lg uppercase truncate">{report.studentName}</div>
+              </div>
+              <div className="bg-white p-4">
+                <label className="block text-[10px] font-black text-primary uppercase mb-1">Turma:</label>
+                <div className="font-black text-primary text-xl uppercase tracking-widest">{report.studentClass}</div>
+              </div>
+              <div className="bg-white p-4 col-span-2 border-t border-slate-100">
+                <label className="block text-[10px] font-black text-primary uppercase mb-1">Data da Emissão:</label>
+                <div className="text-sm font-bold text-slate-700">{new Date(report.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+              </div>
+            </div>
+
+            {/* Main Content */}
+            <div className="flex-1 space-y-6">
+              <h3 className="text-xs font-black text-primary uppercase border-l-4 border-primary pl-3 mb-4 tracking-wider">Desenvolvimento e Observações Pedagógicas:</h3>
+              <div 
+                className="text-base text-slate-800 leading-[1.8] text-justify font-medium q-text-html-container border border-slate-100 p-8 rounded-xl bg-slate-50/50"
+                dangerouslySetInnerHTML={{ __html: report.content }}
+              />
+            </div>
+
+            {/* Footer Signatures */}
+            <div className="mt-20 pt-16 grid grid-cols-2 gap-20">
+              <div className="border-t-2 border-slate-300 pt-4 text-center">
+                <div className="text-xs font-black text-slate-700 uppercase tracking-widest">Professor(a) Responsável</div>
+              </div>
+              <div className="border-t-2 border-slate-300 pt-4 text-center">
+                <div className="text-xs font-black text-slate-700 uppercase tracking-widest">Coordenação Pedagógica</div>
+              </div>
+            </div>
+
+            <div className="mt-auto pt-10 text-center">
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[4px]">Colégio Progresso Santista • Tecnologia EduGrade Pro</p>
             </div>
           </div>
         ))}
