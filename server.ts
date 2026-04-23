@@ -1,19 +1,27 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
+import fs from "fs";
 import { GoogleGenAI, Type } from "@google/genai";
+
+const LOG_FILE = path.join(process.cwd(), 'server-debug.log');
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Clear log on start
+  fs.writeFileSync(LOG_FILE, `Server initialized at ${new Date().toISOString()}\n`);
+
   // We need to support large payload sizes for base64 images
   app.use(express.json({ limit: '100mb' }));
   app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
-  // Debug logging for all requests
+  // Debug logging for all requests to a file we can read
   app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    const entry = `${new Date().toISOString()} - ${req.method} ${req.url} - Headers: ${JSON.stringify(req.headers['content-type'])}\n`;
+    fs.appendFileSync(LOG_FILE, entry);
+    console.log(entry.trim());
     next();
   });
 
@@ -35,9 +43,13 @@ async function startServer() {
   });
 
   // API Routes
-  app.post("/api/correctExam", async (req, res) => {
+  const apiRouter = express.Router();
+  
+  apiRouter.post("/correct", async (req, res) => {
+    console.log("Correction request received");
     try {
       const { imageBase64, mimeType, examTitle, questions } = req.body;
+      if (!imageBase64) throw new Error("Imagem não recebida no servidor.");
       
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey || apiKey === "undefined") {
@@ -132,7 +144,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/generateGuide", async (req, res) => {
+  apiRouter.post("/generateGuide", async (req, res) => {
     try {
       const { content } = req.body;
       
@@ -161,11 +173,7 @@ async function startServer() {
     }
   });
 
-  // Final fallback for missing routes before Vite
-  app.use('/api/*', (req, res) => {
-    console.warn(`API Route not found: ${req.method} ${req.url}`);
-    res.status(404).json({ error: `Rota de API não encontrada: ${req.method} ${req.url}` });
-  });
+  app.use("/api", apiRouter);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

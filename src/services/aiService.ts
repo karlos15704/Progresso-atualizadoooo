@@ -13,7 +13,9 @@ export async function correctExamFromImage(
   examTitle: string,
   questions: any[]
 ): Promise<CorrectionResult> {
-  const response = await fetch('/api/correctExam', {
+  const url = '/api/correct';
+  console.log(`Fetching ${url}...`);
+  const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ imageBase64, mimeType, examTitle, questions })
