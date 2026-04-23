@@ -72,9 +72,12 @@ interface Result {
   id: string;
   examId: string;
   studentName: string;
+  studentClass?: string;
+  professorId?: string;
   score: number;
   maxScore: number;
   feedback: string;
+  answers?: any;
   correctedAt: any;
 }
 
@@ -1895,11 +1898,31 @@ function AdminView({ user }: { user: User }) {
 }
 
 function ReportsView({ exams, results }: { exams: Exam[], results: Result[] }) {
-  const [selectedExamId, setSelectedExamId] = useState('');
-  
-  const filteredResults = selectedExamId 
-    ? results.filter(r => r.examId === selectedExamId)
-    : results;
+  const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedClass, setSelectedClass] = useState('');
+
+  // Extract unique subjects and classes from the available exams
+  const subjects = Array.from(new Set(exams.map(e => e.subject).filter(Boolean)));
+  const classes = Array.from(new Set(
+    exams.flatMap(e => (e.classYear || '').split(',').map(s => s.trim()).filter(Boolean))
+  ));
+
+  // Determine which exams are relevant based on filters
+  const filteredExams = exams.filter(e => {
+    if (selectedSubject && e.subject !== selectedSubject) return false;
+    if (selectedClass && !(e.classYear || '').includes(selectedClass)) return false;
+    return true;
+  });
+
+  const filteredExamIds = filteredExams.map(e => e.id);
+
+  const filteredResults = results.filter(r => {
+    // If we have exams filtered by subject, result must belong to one of them
+    if (selectedSubject && !filteredExamIds.includes(r.examId)) return false;
+    // If we have a class filter, the result's studentClass must match
+    if (selectedClass && r.studentClass !== selectedClass) return false;
+    return true;
+  });
 
   const averageScore = filteredResults.length 
     ? (filteredResults.reduce((acc, r) => acc + (r.score/r.maxScore), 0) / filteredResults.length * 10).toFixed(1)
@@ -1914,78 +1937,166 @@ function ReportsView({ exams, results }: { exams: Exam[], results: Result[] }) {
 
   const COLORS = ['#EF4444', '#F59E0B', '#3182ce', '#38a169'];
 
+  // Calculate most missed questions
+  const missedQuestionsMap: Record<string, { count: number, total: number, examTitle: string, questionText: string }> = {};
+  filteredResults.forEach(r => {
+    if (!r.answers) return;
+    const exam = exams.find(e => e.id === r.examId);
+    if (!exam || !exam.questions) return;
+
+    exam.questions.forEach((q, index) => {
+      const qNum = (index + 1).toString();
+      const studentAnswer = r.answers[qNum] || r.answers[q.id];
+      const isCorrect = studentAnswer && studentAnswer.toUpperCase() === q.correctAnswer?.toUpperCase();
+      
+      const key = `${exam.id}-${q.id}`;
+      if (!missedQuestionsMap[key]) {
+        missedQuestionsMap[key] = { count: 0, total: 0, examTitle: exam.title, questionText: q.prompt || `Questão ${qNum}` };
+      }
+      missedQuestionsMap[key].total++;
+      if (!isCorrect) {
+        missedQuestionsMap[key].count++;
+      }
+    });
+  });
+
+  const mostMissedQuestions = Object.values(missedQuestionsMap)
+    .sort((a, b) => b.count - a.count)
+    .filter(q => q.count > 0)
+    .slice(0, 5);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-primary">Relatórios de Desempenho</h2>
-        <select 
-          value={selectedExamId}
-          onChange={e => setSelectedExamId(e.target.value)}
-          className="bg-white border border-border px-4 py-2 rounded-md outline-none text-sm font-bold text-slate-600"
-        >
-          <option value="">Todas as Provas</option>
-          {exams.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
-        </select>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-primary">Relatórios de Desempenho</h2>
+          <p className="text-sm text-slate-500">Dados educacionais completos por sala e disciplina</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <select 
+            value={selectedSubject}
+            onChange={e => setSelectedSubject(e.target.value)}
+            className="bg-white border border-border px-4 py-2 rounded-md outline-none text-sm font-bold text-slate-600"
+          >
+            <option value="">Todas as Disciplinas</option>
+            {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select 
+            value={selectedClass}
+            onChange={e => setSelectedClass(e.target.value)}
+            className="bg-white border border-border px-4 py-2 rounded-md outline-none text-sm font-bold text-slate-600"
+          >
+            <option value="">Todas as Turmas</option>
+            {classes.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
         <StatCard label="Média da Turma" value={averageScore} icon={<BarChart3 />} color="" />
         <StatCard label="Total de Alunos" value={filteredResults.length} icon={<UserIcon />} color="" />
         <StatCard label="Taxa de Aprovação" value={filteredResults.length ? (filteredResults.filter(r => (r.score/r.maxScore) >= 0.6).length / filteredResults.length * 100).toFixed(0) + '%' : '0%'} icon={<CheckCircle2 />} color="" />
+        <div className="bg-white p-5 rounded-lg border border-border shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Maior Nota</p>
+            <h4 className="text-2xl font-black text-slate-700">
+              {filteredResults.length ? Math.max(...filteredResults.map(r => r.maxScore > 0 ? (r.score/r.maxScore)*10 : 0)).toFixed(1) : '0.0'}
+            </h4>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
+             <BarChart3 className="w-5 h-5" />
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-lg border border-border shadow-sm">
           <h3 className="text-base font-bold text-primary mb-6">Distribuição de Notas</h3>
           <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={scoreDistribution}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {scoreDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {filteredResults.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={scoreDistribution}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {scoreDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-sm text-slate-400">
+                Sem dados para exibir
+              </div>
+            )}
           </div>
           <div className="flex justify-center gap-4 mt-4">
             {scoreDistribution.map((d, i) => (
               <div key={i} className="flex items-center gap-2">
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i] }} />
-                <span className="text-[10px] text-slate-500 font-bold uppercase">{d.name}</span>
+                <span className="text-[10px] text-slate-500 font-bold uppercase">{d.name} ({d.value})</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg border border-border shadow-sm">
-          <h3 className="text-base font-bold text-primary mb-6">Lista de Resultados</h3>
-          <div className="space-y-3">
-            {filteredResults.map(result => (
-              <div key={result.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-100">
-                <div>
-                  <p className="font-bold text-slate-700 text-sm">{result.studentName}</p>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase">{new Date(result.correctedAt).toLocaleDateString()}</p>
+        <div className="bg-white p-6 rounded-lg border border-border shadow-sm flex flex-col h-[400px]">
+          <h3 className="text-base font-bold text-primary mb-6 shrink-0">Onde a Sala Errou Mais</h3>
+          <div className="space-y-4 overflow-y-auto pr-2 pb-4">
+            {mostMissedQuestions.map((q, idx) => (
+              <div key={idx} className="p-4 bg-red-50 border border-red-100 rounded-lg">
+                <div className="flex justify-between items-start gap-4 mb-2">
+                  <div className="text-sm font-bold text-slate-700 line-clamp-2" dangerouslySetInnerHTML={{ __html: q.questionText }}></div>
+                  <div className="shrink-0 px-2 py-1 bg-red-100 text-red-700 font-black text-xs rounded-full">
+                    {q.count} ERROS
+                  </div>
                 </div>
-                <div className={cn(
-                  "px-3 py-1 rounded-full font-bold text-xs",
-                  (result.score/result.maxScore) >= 0.6 ? "bg-[#c6f6d5] text-[#22543d]" : "bg-red-100 text-red-700"
-                )}>
-                  {result.score} / {result.maxScore}
+                <div className="flex items-center justify-between text-xs text-slate-500 font-bold">
+                  <span>Prova: {q.examTitle}</span>
+                  <span>{(q.count / q.total * 100).toFixed(0)}% de falha</span>
                 </div>
               </div>
             ))}
-            {filteredResults.length === 0 && <p className="text-center text-slate-400 py-10 text-sm">Nenhum resultado encontrado.</p>}
+            {mostMissedQuestions.length === 0 && <p className="text-center text-slate-400 py-10 text-sm">Dados insuficientes sobre erros.</p>}
           </div>
+        </div>
+      </div>
+      
+      <div className="bg-white p-6 rounded-lg border border-border shadow-sm">
+        <h3 className="text-base font-bold text-primary mb-6">Lista de Alunos e Desempenhos</h3>
+        <div className="space-y-3">
+          {filteredResults.map(result => (
+            <div key={result.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-100">
+              <div>
+                <p className="font-bold text-slate-700 text-sm">{result.studentName} <span className="text-slate-400 font-normal ml-2">{result.studentClass}</span></p>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-[10px] text-slate-500 font-bold uppercase">
+                    {exams.find(e => e.id === result.examId)?.title || 'Prova Desconhecida'} • {new Date(result.correctedAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                {result.feedback && (
+                   <span className="text-xs text-slate-500 hidden md:block max-w-[200px] truncate">{result.feedback}</span>
+                )}
+                <div className={cn(
+                  "px-3 py-1 rounded-full font-bold text-xs min-w-[70px] text-center",
+                  (result.score/result.maxScore) >= 0.6 ? "bg-[#c6f6d5] text-[#22543d]" : "bg-red-100 text-red-700"
+                )}>
+                  {result.maxScore > 0 ? ((result.score/result.maxScore)*10).toFixed(1) : 'S/N'}
+                </div>
+              </div>
+            </div>
+          ))}
+          {filteredResults.length === 0 && <p className="text-center text-slate-400 py-10 text-sm">Nenhum resultado encontrado. Não esqueça de corrigir as avaliações no painel principal ou aba Corrigir Prova.</p>}
         </div>
       </div>
     </div>
@@ -2097,7 +2208,7 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between print:hidden">
         <h2 className="text-xl font-bold text-primary">Cronograma de Provas</h2>
         <div className="flex gap-3">
           {true && (
@@ -2110,16 +2221,21 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
             </button>
           )}
           <button 
-            onClick={() => exportToPDF('schedule-container', 'Cronograma-Provas')}
+            onClick={() => {
+              const originalTitle = document.title;
+              document.title = 'Cronograma-Provas';
+              window.print();
+              document.title = originalTitle;
+            }}
             className="bg-accent text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-accent/90 shadow-sm"
           >
-            <Download className="w-4 h-4" />
+            <Printer className="w-4 h-4" />
             Imprimir Cronograma
           </button>
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-lg border border-border shadow-sm flex items-center gap-3">
+      <div className="bg-white p-4 rounded-lg border border-border shadow-sm flex items-center gap-3 print:hidden">
         <label className="text-sm font-bold text-slate-500 uppercase">Filtrar por Turma:</label>
         <select 
           value={filterClass} 
@@ -2145,7 +2261,7 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
         </div>
 
         {isAdding && (
-          <div className="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+          <div className="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-lg print:hidden">
             <h3 className="font-bold text-primary mb-4">Novo Agendamento</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               <div>
@@ -2233,7 +2349,7 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
                 {dateExams.map(exam => (
                   <div key={exam.id} className="p-4 bg-white hover:bg-slate-50 transition-colors">
                     {editingId === exam.id.split('-')[0] ? (
-                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-2">
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-2 print:hidden">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                           <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data</label>
@@ -2301,7 +2417,7 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
                           <div className="text-sm text-slate-600 whitespace-pre-wrap"><strong className="text-slate-500">Conteúdo:</strong> {exam.content || 'Nenhum conteúdo específico providenciado.'}</div>
                         </div>
                         {(isAdmin || exam.professorId === user.id) && (
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 print:hidden">
                             <button 
                               onClick={() => handleEditClick(exam)} 
                               className="p-1 px-2 text-slate-500 hover:text-primary hover:bg-slate-50 rounded transition-all flex items-center gap-1 text-[11px] font-bold"
@@ -2447,18 +2563,24 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
         </button>
         <div className="flex gap-3">
           <button 
-            onClick={handleStandardPrint}
+            onClick={() => {
+              alert("Dica: Na próxima tela, mude o destino (Impressora) para 'Salvar como PDF' caso queira o arquivo em PDF, ou selecione sua impressora para imprimir em papel.");
+              handleStandardPrint();
+            }}
             className="bg-primary text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-primary/90 shadow-sm disabled:opacity-50"
           >
-            <Download className="w-4 h-4" />
-            Imprimir Provas Preenchidas
+            <Printer className="w-4 h-4" />
+            Imprimir Provas
           </button>
           <button 
-            onClick={handlePrintGabaritos}
+            onClick={() => {
+              alert("Dica: Na próxima tela, mude o destino (Impressora) para 'Salvar como PDF' caso queira o arquivo em PDF, ou selecione sua impressora para imprimir em papel.");
+              handlePrintGabaritos();
+            }}
             className="bg-accent text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-accent/90 shadow-sm disabled:opacity-50"
           >
-            <Download className="w-4 h-4" />
-            Imprimir Cadernos de Resposta
+            <Printer className="w-4 h-4" />
+            Imprimir Gabaritos
           </button>
         </div>
       </div>
