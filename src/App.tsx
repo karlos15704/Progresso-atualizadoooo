@@ -1359,8 +1359,9 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
 
     setCorrecting(true);
     try {
+      const mimeType = image.split(',')[0].match(/:(.*?);/)?.[1] || "image/jpeg";
       const base64 = image.split(',')[1];
-      const correction = await correctExamFromImage(base64, exam.title, exam.questions);
+      const correction = await correctExamFromImage(base64, mimeType, exam.title, exam.questions);
       
       let identifiedClass = correction.studentClass;
       if (!identifiedClass || identifiedClass.trim() === '') {

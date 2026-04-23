@@ -8,12 +8,24 @@ async function startServer() {
   const PORT = 3000;
 
   // We need to support large payload sizes for base64 images
-  app.use(express.json({ limit: '50mb' }));
+  app.use(express.json({ limit: '100mb' }));
+  app.use(express.urlencoded({ limit: '100mb', extended: true }));
+
+  // Add error handler for Express parsing
+  app.use((err: any, req: any, res: any, next: any) => {
+    if (err.type === 'entity.too.large') {
+      return res.status(413).json({ error: 'A imagem enviada é maior do que o limite permitido. Tente comprimir a foto ou reduzir a resolução.' });
+    }
+    if (err instanceof SyntaxError && (err as any).status === 400 && 'body' in err) {
+      return res.status(400).json({ error: 'JSON malformado.' });
+    }
+    next();
+  });
 
   // API Routes
   app.post("/api/correctExam", async (req, res) => {
     try {
-      const { imageBase64, examTitle, questions } = req.body;
+      const { imageBase64, mimeType, examTitle, questions } = req.body;
       
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey || apiKey === "undefined") {
@@ -47,14 +59,14 @@ async function startServer() {
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-2.5-flash",
         contents: [
           {
             parts: [
               { text: prompt },
               {
                 inlineData: {
-                  mimeType: "image/jpeg",
+                  mimeType: mimeType || "image/jpeg",
                   data: imageBase64,
                 },
               },
@@ -82,12 +94,28 @@ async function startServer() {
       });
 
       if (!response.text) {
-        throw new Error("Falha ao processar a imagem da prova. Verifique se a foto está nítida.");
+        console.error("Gemini returned empty text or was blocked by safety filters.");
+        throw new Error("A Inteligência Artificial não retornou uma resposta válida para esta imagem. Tente com uma foto mais nítida.");
       }
 
-      res.json(JSON.parse(response.text));
+      let responseText = response.text.trim();
+      if (responseText.startsWith("```json")) {
+        responseText = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
+      } else if (responseText.startsWith("```")) {
+        responseText = responseText.replace(/```/g, "").trim();
+      }
+
+      let parsedResult;
+      try {
+        parsedResult = JSON.parse(responseText);
+      } catch (parseError: any) {
+        console.error("Failed to parse Gemini response:", responseText);
+        throw new Error("O resultado da IA não estava no formato correto. Resposta: " + responseText.substring(0, 100) + "...");
+      }
+
+      res.json(parsedResult);
     } catch (error: any) {
-      console.error(error);
+      console.error("Internal Server Error in /api/correctExam:", error);
       res.status(500).json({ error: error.message || "Erro interno no servidor." });
     }
   });

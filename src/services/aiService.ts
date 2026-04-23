@@ -9,18 +9,25 @@ export interface CorrectionResult {
 
 export async function correctExamFromImage(
   imageBase64: string,
+  mimeType: string,
   examTitle: string,
   questions: any[]
 ): Promise<CorrectionResult> {
   const response = await fetch('/api/correctExam', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ imageBase64, examTitle, questions })
+    body: JSON.stringify({ imageBase64, mimeType, examTitle, questions })
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || "Falha ao processar a imagem da prova. Verifique se a foto está nítida.");
+    let errorMsg = "Erro na requisição. Resposta não é OK.";
+    try {
+      const errorData = await response.json();
+      errorMsg = errorData.error || errorMsg;
+    } catch (e) {
+      errorMsg = `Erro do Servidor HTTP: ${response.status} ${response.statusText}`;
+    }
+    throw new Error(errorMsg);
   }
 
   return response.json();
