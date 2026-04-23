@@ -16,7 +16,8 @@ import {
   User as UserIcon,
   School,
   Clock,
-  Calendar
+  Calendar,
+  Printer
 } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
