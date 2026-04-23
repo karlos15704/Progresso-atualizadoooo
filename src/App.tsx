@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { scanBubbleSheet, generatePrintableAnswerSheet } from './lib/omrEngine';
+import QRCode from 'qrcode';
+import confetti from 'canvas-confetti';
 import { 
   Plus, 
   FileText, 
@@ -317,7 +320,7 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'dashboard' | 'create' | 'correct' | 'reports' | 'guides' | 'admin' | 'schedule' | 'print' | 'studentReports' | 'printReport'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'create' | 'correct' | 'reports' | 'guides' | 'admin' | 'schedule' | 'print' | 'studentReports' | 'printReport' | 'boletim'>('dashboard');
   const [selectedPrintExam, setSelectedPrintExam] = useState<Exam | null>(null);
   const [selectedReportForPrint, setSelectedReportForPrint] = useState<StudentReport | null>(null);
   const [multipleReportsToPrint, setMultipleReportsToPrint] = useState<StudentReport[]>([]);
@@ -580,6 +583,12 @@ export default function App() {
               label="Relatório por Aluno" 
             />
             <NavButton 
+              active={view === 'boletim'} 
+              onClick={() => { setView('boletim'); setExamToEdit(null); }} 
+              icon={<FileText className="w-5 h-5" />} 
+              label="Boletim Escolar" 
+            />
+            <NavButton 
               active={view === 'schedule'} 
               onClick={() => { setView('schedule'); setExamToEdit(null); }} 
               icon={<Calendar className="w-5 h-5" />} 
@@ -612,6 +621,7 @@ export default function App() {
             {view === 'schedule' && <ScheduleView exams={exams} isAdmin={isAdmin} user={user} onExamSaved={() => setRefreshTrigger(prev => prev + 1)} />}
             {view === 'print' && selectedPrintExam && <ExamPrintView exam={selectedPrintExam} onBack={() => setView('dashboard')} />}
             {view === 'admin' && isAdmin && <AdminView user={user} />}
+            {view === 'boletim' && <BoletimView results={results} exams={exams} isAdmin={isAdmin} user={user} />}
           </AnimatePresence>
         </main>
       </div>
@@ -623,6 +633,7 @@ export default function App() {
         <MobileNavButton active={view === 'correct'} onClick={() => setView('correct')} icon={<Camera />} label="Corrigir" />
         <MobileNavButton active={view === 'schedule'} onClick={() => setView('schedule')} icon={<Calendar />} label="Agenda" />
         <MobileNavButton active={view === 'studentReports'} onClick={() => setView('studentReports')} icon={<UserIcon />} label="Relatórios" />
+        <MobileNavButton active={view === 'boletim'} onClick={() => setView('boletim')} icon={<FileText />} label="Boletim" />
         <MobileNavButton active={view === 'guides'} onClick={() => setView('guides')} icon={<BookOpen />} label="Guias" />
         {isAdmin && <MobileNavButton active={view === 'admin'} onClick={() => setView('admin')} icon={<UserIcon />} label="Admin" />}
       </nav>
@@ -862,10 +873,18 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                                 setView('print');
                               }}
                               className="text-accent font-bold hover:underline flex items-center gap-1"
-                              title="Imprimir Prova"
+                              title="Imprimir Prova + Gabarito"
                             >
-                              <FileText className="w-4 h-4" />
+                              <Printer className="w-4 h-4" />
                               <span className="hidden xl:inline">Imprimir</span>
+                            </button>
+                            <button 
+                              onClick={() => generatePrintableAnswerSheet(exam, LOGO_VINHO, [""])}
+                              className="text-blue-500 font-bold hover:underline flex items-center gap-1"
+                              title="Baixar Gabarito OMR"
+                            >
+                              <Download className="w-4 h-4" />
+                              <span className="hidden xl:inline">Gabarito</span>
                             </button>
                             {(isAdmin || exam.professorId === user.id) && (
                               <>
@@ -910,9 +929,11 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
             + Criar Nova Prova
           </button>
           <button 
-            className="bg-white text-primary border border-primary p-3 rounded-md font-bold text-sm hover:bg-primary hover:text-white transition-all shadow-sm"
+            onClick={() => setView('correct')}
+            className="bg-white text-primary border border-primary p-3 rounded-md font-bold text-sm hover:bg-primary hover:text-white transition-all shadow-sm flex items-center justify-center gap-2"
           >
-            Exportar Caderno (Gabarito)
+            <Download className="w-4 h-4" />
+            Baixar Folhas de Resposta
           </button>
           
           <div className="bg-[#edf2f7] p-4 rounded-lg border-l-4 border-primary text-[13px] leading-relaxed">
@@ -1393,7 +1414,25 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
   const [image, setImage] = useState<string | null>(null);
   const [correcting, setCorrecting] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [mode, setMode] = useState<'ai' | 'manual'>('manual');
+  const [manualAnswers, setManualAnswers] = useState<Record<number, string>>({});
+  const [studentName, setStudentName] = useState('');
+  const [studentClass, setStudentClass] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const selectedExam = useMemo(() => exams.find(e => e.id === selectedExamId), [exams, selectedExamId]);
+
+  const [batchNames, setBatchNames] = useState('');
+  const [showBatchModal, setShowBatchModal] = useState(false);
+
+  const downloadSheetTemplate = (names: string[] = [""]) => {
+    if (selectedExam) {
+      generatePrintableAnswerSheet(selectedExam, LOGO_VINHO, names);
+    } else {
+      alert("Selecione uma prova primeiro.");
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1406,44 +1445,100 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
     }
   };
 
-  const handleCorrect = async () => {
-    if (!selectedExamId || !image) return;
-    const exam = exams.find(e => e.id === selectedExamId);
-    if (!exam) return;
+  const handleManualCorrect = async () => {
+    if (!selectedExam || !studentName) {
+      alert("Por favor, preencha o nome do aluno e selecione a prova.");
+      return;
+    }
 
     setCorrecting(true);
     try {
-      const mimeType = image.split(',')[0].match(/:(.*?);/)?.[1] || "image/jpeg";
-      const base64 = image.split(',')[1];
-      const correction = await correctExamFromImage(base64, mimeType, exam.title, exam.questions);
+      let score = 0;
+      let maxScore = 0;
       
-      let identifiedClass = correction.studentClass;
-      if (!identifiedClass || identifiedClass.trim() === '') {
-         // Fallback to exam's classYear. If multiple, we just use the string or prompt the user. 
-         // Since we can't block here easily, we fallback to exactly what is in the exam.
-         identifiedClass = exam.classYear || ''; 
-      }
+      selectedExam.questions.forEach((q, idx) => {
+        const questionPoints = parseFloat(String(q.points || 1));
+        maxScore += questionPoints;
+        if (manualAnswers[idx] === q.correctAnswer) {
+          score += questionPoints;
+        }
+      });
 
       const resultData = {
         exam_id: selectedExamId,
         professor_id: user.id,
-        student_name: correction.studentName,
-        score: correction.score,
-        max_score: correction.maxScore,
-        feedback: correction.feedback,
+        student_name: studentName,
+        score: score,
+        max_score: maxScore,
+        feedback: score === maxScore ? "Parabéns! Você gabaritou a prova!" : (score / maxScore > 0.6 ? "Bom desempenho." : "Continue estudando."),
         corrected_at: new Date().toISOString(),
-        answers: correction.answers || {}, // Ensure required fields from SQL
-        student_class: identifiedClass, // Extracted by AI or fallback to exam's classes
-        bimester: exam.bimester
+        answers: manualAnswers,
+        student_class: studentClass || selectedExam.classYear || '',
+        bimester: selectedExam.bimester
       };
 
       const { error } = await supabase.from('results').insert(resultData);
       if (error) throw error;
       
-      setResult(correction);
+      setResult({
+        studentName,
+        score,
+        maxScore,
+        feedback: resultData.feedback
+      });
+
+      if (score / maxScore >= 0.7) {
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+      }
+    } catch (err: any) {
+      alert("Erro ao salvar: " + err.message);
+    } finally {
+      setCorrecting(false);
+    }
+  };
+
+  const handleScannerCorrect = async () => {
+    if (!selectedExamId || !image || !selectedExam) return;
+
+    setCorrecting(true);
+    try {
+      const img = new Image();
+      img.src = image;
+      await new Promise(resolve => img.onload = resolve);
+
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0);
+
+      const scanResult = await scanBubbleSheet(canvas, selectedExam.questions);
+      
+      const resultData = {
+        exam_id: selectedExamId,
+        professor_id: user.id,
+        student_name: scanResult.studentName || "Scanner Digital",
+        score: scanResult.score,
+        max_score: scanResult.maxScore,
+        feedback: scanResult.score / scanResult.maxScore >= 0.6 ? `Excelente resultado, ${scanResult.studentName}!` : `Resultado processado para ${scanResult.studentName}.`,
+        corrected_at: new Date().toISOString(),
+        answers: scanResult.answers || {},
+        student_class: scanResult.studentClass || selectedExam.classYear || '',
+        bimester: selectedExam.bimester
+      };
+
+      const { error } = await supabase.from('results').insert(resultData);
+      if (error) throw error;
+      
+      setResult(scanResult);
+
+      if (scanResult.score / scanResult.maxScore >= 0.7) {
+        confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+      }
     } catch (err: any) {
       console.error(err);
-      alert("Falha ao corrigir prova: " + (err.message || 'Erro desconhecido. Verifique o console.'));
+      alert("O scanner não conseguiu ler o gabarito. Certifique-se de usar a folha padrão e que a foto esteja bem iluminada.");
     } finally {
       setCorrecting(false);
     }
@@ -1453,85 +1548,227 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-2xl mx-auto space-y-6"
+      className="max-w-2xl mx-auto space-y-6 pb-20"
     >
-      <h2 className="text-xl font-bold text-primary">Correção Automática</h2>
+      <canvas ref={canvasRef} className="hidden" />
+
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-primary">Correção</h2>
+        <div className="flex bg-slate-100 p-1 rounded-lg">
+          <button 
+            onClick={() => setMode('manual')}
+            className={cn("px-4 py-1.5 rounded-md text-xs font-bold transition-all", mode === 'manual' ? "bg-white text-accent shadow-sm" : "text-slate-500")}
+          >
+            Manual (Teclado)
+          </button>
+          <button 
+            onClick={() => setMode('ai')}
+            className={cn("px-4 py-1.5 rounded-md text-xs font-bold transition-all", mode === 'ai' ? "bg-white text-accent shadow-sm" : "text-slate-500")}
+          >
+            Digital Scan (Foto)
+          </button>
+        </div>
+      </div>
       
       <div className="bg-white p-6 rounded-lg border border-border shadow-sm space-y-6">
-        <div className="space-y-2">
-          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Selecione a Prova</label>
-          <select 
-            value={selectedExamId}
-            onChange={e => setSelectedExamId(e.target.value)}
-            className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none text-sm"
-          >
-            <option value="">Escolha uma prova...</option>
-            {exams.map(e => (
-              <option key={e.id} value={e.id}>{e.title} ({e.examType})</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Foto do Gabarito</label>
-          <div 
-            onClick={() => fileInputRef.current?.click()}
-            className={cn(
-              "border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-all",
-              image ? "border-accent/20 bg-accent/5" : "border-border hover:border-accent/40 hover:bg-slate-50"
-            )}
-          >
-            {image ? (
-              <div className="space-y-4">
-                <img src={image} className="max-h-[250px] mx-auto rounded-md shadow-md" alt="Preview" />
-                <p className="text-accent font-bold text-sm">Clique para trocar a foto</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="bg-slate-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto">
-                  <Camera className="text-slate-400 w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-primary font-bold text-sm">Tirar foto ou Upload</p>
-                  <p className="text-slate-500 text-[12px]">Envie a foto do gabarito preenchido pelo aluno.</p>
-                </div>
-              </div>
-            )}
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleFileChange} 
-              accept="image/*" 
-              className="hidden" 
-              capture="environment"
-            />
+        <div className="flex flex-col md:flex-row md:items-end gap-4">
+          <div className="flex-1 space-y-2">
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Selecione a Prova</label>
+            <select 
+              value={selectedExamId}
+              onChange={e => {
+                setSelectedExamId(e.target.value);
+                setResult(null);
+                setManualAnswers({});
+              }}
+              className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none text-sm"
+            >
+              <option value="">Escolha uma prova...</option>
+              {exams.map(e => (
+                <option key={e.id} value={e.id}>{e.title} ({e.examType})</option>
+              ))}
+            </select>
           </div>
+          
+          {selectedExam && (
+            <div className="flex gap-2">
+              <button 
+                onClick={() => downloadSheetTemplate()}
+                className="flex items-center justify-center gap-2 px-4 py-2 border border-slate-300 text-slate-600 rounded-md text-xs font-bold hover:bg-slate-50 transition-all"
+                title="Gera uma folha em branco"
+              >
+                <Download className="w-4 h-4" />
+                Folha em Branco
+              </button>
+              <button 
+                onClick={() => setShowBatchModal(true)}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-accent text-white rounded-md text-xs font-bold hover:bg-accent/90 transition-all shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Gerar com Nomes (Lote)
+              </button>
+            </div>
+          )}
         </div>
 
-        <button 
-          onClick={handleCorrect}
-          disabled={!image || !selectedExamId || correcting}
-          className="w-full bg-accent text-white py-3 rounded-md font-bold text-sm flex items-center justify-center gap-3 hover:bg-accent/90 transition-all shadow-sm disabled:opacity-50"
-        >
-          {correcting ? (
-            <>
-              <Loader2 className="animate-spin w-5 h-5" />
-              Analisando com IA...
-            </>
-          ) : (
-            <>
-              <CheckCircle2 className="w-5 h-5" />
-              Corrigir Agora
-            </>
-          )}
-        </button>
+        {showBatchModal && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="bg-accent/5 border border-accent/20 p-4 rounded-lg space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-accent uppercase tracking-wider">Gerar Folhas em Lote</h4>
+              <button onClick={() => setShowBatchModal(false)} className="text-slate-400 hover:text-slate-600">
+                <Plus className="w-4 h-4 rotate-45" />
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-500">Cole a lista de nomes dos alunos abaixo (um por linha) para gerar uma folha personalizada para cada um com o logo da escola.</p>
+            <textarea 
+              value={batchNames}
+              onChange={e => setBatchNames(e.target.value)}
+              placeholder="João Silva&#10;Maria Oliveira&#10;..."
+              className="w-full h-32 p-3 text-sm border border-border rounded-md outline-none focus:border-accent"
+            />
+            <button 
+              onClick={() => {
+                const names = batchNames.split('\n').map(n => n.trim()).filter(n => n !== '');
+                if (names.length === 0) {
+                  alert("Por favor, insira pelo menos um nome.");
+                  return;
+                }
+                downloadSheetTemplate(names);
+                setShowBatchModal(false);
+              }}
+              className="w-full bg-accent text-white py-2 rounded-md text-xs font-bold hover:bg-accent/90 transition-all"
+            >
+              Gerar PDF com {batchNames.split('\n').filter(n => n.trim() !== '').length} Folhas
+            </button>
+          </motion.div>
+        )}
+
+        {mode === 'manual' ? (
+          <div className="space-y-6 text-left">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Nome do Aluno</label>
+                <input 
+                  value={studentName}
+                  onChange={e => setStudentName(e.target.value)}
+                  placeholder="Nome do aluno"
+                  className="w-full px-4 py-2 rounded-md border border-border outline-none text-sm focus:border-accent"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Turma</label>
+                <input 
+                  value={studentClass}
+                  onChange={e => setStudentClass(e.target.value)}
+                  placeholder="Ex: 9A"
+                  className="w-full px-4 py-2 rounded-md border border-border outline-none text-sm focus:border-accent"
+                />
+              </div>
+            </div>
+
+            {selectedExam && (
+              <div className="space-y-4 pt-4 border-t border-slate-100">
+                <h3 className="text-sm font-bold text-slate-700">Respostas do Aluno:</h3>
+                <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2">
+                  {selectedExam.questions.map((q, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                         <span className="w-6 h-6 bg-primary text-white text-[10px] rounded-full flex items-center justify-center font-bold">{idx + 1}</span>
+                         <span className="text-xs font-bold text-slate-500 truncate max-w-[150px] text-left">{q.text}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        {['A', 'B', 'C', 'D', 'E'].map(opt => (
+                          <button
+                            key={opt}
+                            onClick={() => setManualAnswers({...manualAnswers, [idx]: opt})}
+                            className={cn(
+                              "w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold transition-all",
+                              manualAnswers[idx] === opt ? "bg-accent border-accent text-white" : "bg-white border-border text-slate-400"
+                            )}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button 
+              onClick={handleManualCorrect}
+              disabled={!selectedExamId || !studentName || correcting}
+              className="w-full bg-accent text-white py-3 rounded-md font-bold text-sm flex items-center justify-center gap-3 hover:bg-accent/90 transition-all shadow-sm disabled:opacity-50"
+            >
+              {correcting ? <Loader2 className="animate-spin w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
+              Salvar Nota
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex gap-3 text-left">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+              <div className="text-[12px] text-amber-800 leading-relaxed">
+                <p className="font-bold">Como usar o Scanner Digital:</p>
+                <ol className="list-decimal ml-4 mt-1 space-y-1">
+                  <li>Clique em "Baixar Folha de Respostas" acima e imprima.</li>
+                  <li>O aluno deve preencher as bolinhas com caneta preta ou azul escura.</li>
+                  <li>Tire uma foto bem de cima, garantindo que os 4 quadrados nos cantos estejam visíveis.</li>
+                </ol>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-left">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Foto do Gabarito</label>
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className={cn(
+                  "border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-all",
+                  image ? "border-accent/20 bg-accent/5" : "border-border hover:border-accent/40 hover:bg-slate-50"
+                )}
+              >
+                {image ? (
+                  <div className="space-y-4">
+                    <img src={image} className="max-h-[250px] mx-auto rounded-md shadow-md" alt="Preview" />
+                    <p className="text-accent font-bold text-sm text-center">Trocar foto</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="bg-slate-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto">
+                      <Camera className="text-slate-400 w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-primary font-bold text-sm text-center">Tirar foto ou Upload</p>
+                      <p className="text-slate-500 text-[12px] text-center">Use a foto do gabarito padrão para leitura local.</p>
+                    </div>
+                  </div>
+                )}
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" capture="environment" />
+              </div>
+            </div>
+
+            <button 
+              onClick={handleScannerCorrect}
+              disabled={!image || !selectedExamId || correcting}
+              className="w-full bg-accent text-white py-3 rounded-md font-bold text-sm flex items-center justify-center gap-3 hover:bg-accent/90 transition-all shadow-sm disabled:opacity-50"
+            >
+              {correcting ? <Loader2 className="animate-spin w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
+              Escanear Agora (Local)
+            </button>
+          </>
+        )}
       </div>
 
       {result && (
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-[#c6f6d5] border border-[#38a169]/20 p-6 rounded-lg space-y-4"
+          className="bg-[#c6f6d5] border border-[#38a169]/20 p-6 rounded-lg space-y-4 shadow-sm"
         >
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold text-[#22543d]">Resultado da Correção</h3>
@@ -1547,10 +1784,12 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
             onClick={() => {
               setResult(null);
               setImage(null);
+              setStudentName('');
+              setManualAnswers({});
             }}
-            className="text-[#22543d] font-bold text-[12px] hover:underline"
+            className="w-full bg-white text-[#22543d] py-2 rounded-md text-xs font-bold hover:bg-slate-50 transition-all border border-[#38a169]/20"
           >
-            Corrigir próxima prova
+            Corrigir Próxima Prova
           </button>
         </motion.div>
       )}
@@ -2567,6 +2806,19 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
   );
 }
 
+function QRCodeImage({ data }: { data: string }) {
+  const [url, setUrl] = useState('');
+
+  useEffect(() => {
+    QRCode.toDataURL(data, { margin: 0, width: 200, color: { dark: '#000000', light: '#ffffff' } })
+      .then(setUrl)
+      .catch(console.error);
+  }, [data]);
+
+  if (!url) return <div className="w-16 h-16 bg-slate-100 flex items-center justify-center text-[8px] text-slate-400">QR</div>;
+  return <img src={url} alt="QR Code" className="w-16 h-16 mix-blend-multiply" />;
+}
+
 function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState("");
@@ -2629,16 +2881,12 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
   };
 
   const handleStandardPrint = () => {
-    // Hide the answer sheets temporarily if needed, but for now we trust the user knows what they are printing. 
-    // Actually we will print everything visible. We should separate "Imprimir Provas" and "Imprimir Gabaritos" 
-    // by triggering window.print() but using CSS to hide the irrelevant section during print.
     const sheets = document.getElementById('answer-sheets-container');
     const exams = document.getElementById('exams-container');
     if (sheets && exams) {
-      sheets.classList.add('print:hidden');
+      sheets.classList.remove('print:hidden');
       exams.classList.remove('print:hidden');
       window.print();
-      sheets.classList.remove('print:hidden');
     }
   };
 
@@ -2905,11 +3153,31 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
         ))}
       </div>
 
-      {/* Answer Sheets Container (hidden by default unless printing) */}
-      <div id="answer-sheets-container" className="space-y-12 print:hidden">
+      {/* Answer Sheets Container (OMR Compatible) */}
+      <div id="answer-sheets-container" className="space-y-12">
         {studentsToRender.map((student, sIdx) => (
-          <div key={`sheet-${sIdx}`} className="answer-sheet-page bg-white p-12 border border-border max-w-[210mm] mx-auto mt-10 print:border-none print:shadow-none print:mt-0 print:max-w-none print:w-[210mm] print:break-after-page">
-            <div className="text-center border-b-2 border-primary pb-6 mb-8">
+          <div 
+            key={`sheet-${sIdx}`} 
+            className="answer-sheet-page bg-white p-12 border border-border max-w-[210mm] mx-auto mt-10 print:border-none print:shadow-none print:mt-0 print:max-w-none print:w-[210mm] print:h-[297mm] print:break-after-page relative overflow-hidden"
+          >
+            {/* OMR Markers */}
+            <div className="absolute top-4 left-4 w-6 h-6 bg-black"></div>
+            <div className="absolute top-4 right-4 w-6 h-6 bg-black"></div>
+            <div className="absolute bottom-4 left-4 w-6 h-6 bg-black"></div>
+            <div className="absolute bottom-4 right-4 w-6 h-6 bg-black"></div>
+
+            {/* Identity QR Code */}
+            {student.name && (
+              <div className="absolute top-6 right-12 z-10 border-2 border-black/5 p-1 bg-white">
+                <QRCodeImage data={`${student.name}|${student.classId || exam.classYear || ''}`} />
+                <div className="text-[6px] text-center font-black mt-0.5 opacity-50 uppercase">ID DIGITAL</div>
+              </div>
+            )}
+
+            <div className="text-center border-b-2 border-primary pb-6 mb-8 mt-4">
+              <div className="flex justify-center mb-2">
+                <img src={LOGO_VINHO} alt="Logo" className="h-10 object-contain" />
+              </div>
               <h2 className="text-lg font-black text-primary uppercase">Caderno de Respostas • Folha Óptica</h2>
               <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">
                 {(exam.title || '').replace(/[-–]?\s*\(?\b(PII|PIII)\b\)?\s*/gi, '').replace(/\(\s*\)/g, '').trim()} • {exam.subject}
@@ -2935,12 +3203,12 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-y-8 gap-x-12 p-6 border-2 border-slate-100 rounded-xl">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-12 p-6 border-2 border-slate-100 rounded-xl">
               {exam.questions.map((q, idx) => (
                 <div key={q.id} className="flex items-center gap-4">
                   <span className="w-8 font-black text-primary text-sm">{String(idx + 1).padStart(2, '0')}</span>
                   <div className="flex gap-2">
-                    {['A', 'B', 'C', 'D'].map(letter => (
+                    {['A', 'B', 'C', 'D', 'E'].map(letter => (
                       <div 
                         key={letter}
                         className="w-10 h-10 rounded-full border-2 border-slate-300 flex items-center justify-center text-xs font-black text-slate-400"
@@ -2953,14 +3221,22 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
               ))}
             </div>
 
-            <div className="mt-12 bg-slate-50 p-6 rounded-lg border border-slate-200">
-              <h3 className="text-xs font-black text-primary uppercase mb-4">Instruções de Preenchimento:</h3>
-              <ul className="text-[10px] text-slate-600 space-y-2 list-disc ml-4 font-bold">
-                <li>Utilize apenas caneta esferográfica azul ou preta.</li>
-                <li>Preencha completamente o círculo da resposta escolhida.</li>
-                <li>Não serão aceitas rasuras ou marcas duplas.</li>
-                <li>O preenchimento incorreto anulará a questão.</li>
-              </ul>
+            <div className="mt-8 bg-slate-50 p-6 rounded-lg border border-slate-200">
+              <h3 className="text-xs font-black text-primary uppercase mb-4 text-center">Instruções de Preenchimento:</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <ul className="text-[10px] text-slate-600 space-y-2 list-disc ml-4 font-bold">
+                  <li>Utilize caneta azul ou preta.</li>
+                  <li>Preencha totalmente o círculo.</li>
+                </ul>
+                <ul className="text-[10px] text-slate-600 space-y-2 list-disc ml-4 font-bold">
+                  <li>Não rasure os quadrados pretos nos cantos.</li>
+                  <li>O scanner não lerá marcas duplas.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="absolute bottom-10 left-0 right-0 text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+              EduGrade Pro • Processamento Óptico Local
             </div>
           </div>
         ))}
@@ -3277,6 +3553,169 @@ function StudentReportPrintView({ reports, onBack }: { reports: StudentReport[],
         ))}
       </div>
     </div>
+  );
+}
+
+function BoletimView({ results, exams, isAdmin, user }: { results: Result[], exams: Exam[], isAdmin: boolean, user: User }) {
+  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedBimester, setSelectedBimester] = useState('1º Bimestre');
+
+  const classes = Array.from(new Set(results.map(r => r.studentClass).filter(Boolean))).sort();
+  const bimesters = ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'];
+
+  const filteredResults = results.filter(r => 
+    (selectedClass === '' || r.studentClass === selectedClass) &&
+    (selectedBimester === '' || r.bimester === selectedBimester)
+  );
+
+  const students = Array.from(new Set(filteredResults.map(r => r.studentName))).sort();
+
+  const studentGrades = students.map(studentName => {
+    const studentResults = filteredResults.filter(r => r.studentName === studentName);
+    const grades: Record<string, number> = {};
+    studentResults.forEach(r => {
+      const exam = exams.find(e => e.id === r.examId);
+      if (exam) {
+        grades[exam.title] = (r.score / r.maxScore) * 10;
+      }
+    });
+
+    const average = studentResults.length > 0 
+      ? studentResults.reduce((acc, r) => acc + (r.score / r.maxScore) * 10, 0) / studentResults.length 
+      : 0;
+
+    return {
+      name: studentName,
+      class: studentResults[0]?.studentClass,
+      grades,
+      average
+    };
+  });
+
+  const availableExams = Array.from(new Set(filteredResults.map(r => exams.find(e => e.id === r.examId)?.title).filter(Boolean)));
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-6"
+    >
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="print:hidden">
+          <h2 className="text-2xl font-bold text-primary tracking-tight">Boletim Escolar</h2>
+          <p className="text-slate-500 text-sm italic">Notas consolidadas a partir das correções realizadas.</p>
+        </div>
+
+        {/* Title for Print only */}
+        <div className="hidden print:block text-center w-full mb-10">
+           <div className="flex justify-center mb-4">
+              <img src={LOGO_VINHO} alt="Logo" className="h-16" />
+           </div>
+           <h1 className="text-2xl font-black text-primary uppercase">Quadro Geral de Avaliações</h1>
+           <div className="flex justify-center gap-4 text-sm font-bold text-slate-500 mt-2">
+              <span>TURMA: {selectedClass || 'TODAS'}</span>
+              <span>•</span>
+              <span>{selectedBimester}</span>
+           </div>
+        </div>
+        
+        <div className="flex flex-wrap gap-3 print:hidden">
+          <select 
+            value={selectedClass}
+            onChange={e => setSelectedClass(e.target.value)}
+            className="px-4 py-2 rounded-md border border-border focus:border-accent outline-none text-sm bg-white shadow-sm"
+          >
+            <option value="">Todas as Turmas</option>
+            {classes.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          
+          <select 
+            value={selectedBimester}
+            onChange={e => setSelectedBimester(e.target.value)}
+            className="px-4 py-2 rounded-md border border-border focus:border-accent outline-none text-sm bg-white shadow-sm"
+          >
+            {bimesters.map(b => <option key={b} value={b}>{b}</option>)}
+          </select>
+
+          <button 
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-md text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
+          >
+            <Printer className="w-4 h-4" />
+            Imprimir Quadro
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg border border-border shadow-sm overflow-hidden overflow-x-auto print:border-none print:shadow-none">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-50 border-b border-border">
+              <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap bg-slate-50 sticky left-0 z-10">Aluno</th>
+              <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Turma</th>
+              {availableExams.map(title => (
+                <th key={title} className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest min-w-[120px] max-w-[200px]">
+                   <p className="line-clamp-2">{title}</p>
+                </th>
+              ))}
+              <th className="px-6 py-4 text-[11px] font-black text-accent uppercase tracking-widest whitespace-nowrap text-center">Média</th>
+            </tr>
+          </thead>
+          <tbody>
+            {studentGrades.length === 0 ? (
+              <tr>
+                <td colSpan={availableExams.length + 3} className="px-6 py-12 text-center text-slate-400 italic">
+                  Nenhum registro encontrado para os filtros selecionados.
+                </td>
+              </tr>
+            ) : (
+              studentGrades.map((student, idx) => (
+                <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                  <td className="px-6 py-4 bg-white sticky left-0 z-10 border-r border-slate-50">
+                    <span className="text-sm font-bold text-slate-700">{student.name}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-xs font-medium text-slate-500 uppercase tracking-tighter">{student.class}</span>
+                  </td>
+                  {availableExams.map(title => (
+                    <td key={title} className="px-6 py-4">
+                      {student.grades[title!] !== undefined ? (
+                        <span className={cn(
+                          "text-sm font-black",
+                          student.grades[title!] >= 6 ? "text-green-600" : "text-red-500"
+                        )}>
+                          {student.grades[title!].toFixed(1).replace('.', ',')}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300">-</span>
+                      )}
+                    </td>
+                  ))}
+                  <td className="px-6 py-4 text-center">
+                    <div className={cn(
+                      "inline-flex items-center justify-center w-10 h-10 rounded-full font-black text-sm border-2",
+                      student.average >= 6 
+                        ? "bg-green-50 text-green-700 border-green-200" 
+                        : "bg-red-50 text-red-700 border-red-200"
+                    )}>
+                      {student.average.toFixed(1).replace('.', ',')}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex gap-3 print:hidden">
+        <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+        <p className="text-[12px] text-amber-800 leading-relaxed">
+          <strong>Lembrete:</strong> Este boletim é consolidado eletronicamente. 
+          As médias são atualizadas em tempo real a cada nova correção salva.
+        </p>
+      </div>
+    </motion.div>
   );
 }
 
