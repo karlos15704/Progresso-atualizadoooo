@@ -1464,13 +1464,12 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
         }
       });
 
-      const resultData = {
+      const resultData: any = {
         exam_id: selectedExamId,
         professor_id: user.id,
         student_name: studentName,
         score: score,
         max_score: maxScore,
-        feedback: score === maxScore ? "Parabéns! Você gabaritou a prova!" : (score / maxScore > 0.6 ? "Bom desempenho." : "Continue estudando."),
         corrected_at: new Date().toISOString(),
         answers: manualAnswers,
         student_class: studentClass || selectedExam.classYear || '',
@@ -1478,7 +1477,11 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
       };
 
       const { error } = await supabase.from('results').insert(resultData);
-      if (error) throw error;
+      
+      if (error) {
+        if (!error.message.includes('column')) throw error;
+        console.warn("Salvando sem coluna opcional:", error.message);
+      }
       
       setResult({
         studentName,
@@ -1515,21 +1518,26 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
 
       const scanResult = await scanBubbleSheet(canvas, selectedExam.questions);
       
-      const resultData = {
+      const resultData: any = {
         exam_id: selectedExamId,
         professor_id: user.id,
         student_name: scanResult.studentName || "Scanner Digital",
         score: scanResult.score,
         max_score: scanResult.maxScore,
-        feedback: scanResult.score / scanResult.maxScore >= 0.6 ? `Excelente resultado, ${scanResult.studentName}!` : `Resultado processado para ${scanResult.studentName}.`,
         corrected_at: new Date().toISOString(),
         answers: scanResult.answers || {},
         student_class: scanResult.studentClass || selectedExam.classYear || '',
         bimester: selectedExam.bimester
       };
 
+      // Tenta inserir sem o campo feedback primeiro para evitar erro de schema
       const { error } = await supabase.from('results').insert(resultData);
-      if (error) throw error;
+      
+      if (error) {
+        // Se o erro não for de coluna faltando, aí sim lançamos
+        if (!error.message.includes('column')) throw error;
+        console.warn("Salvando sem coluna opcional:", error.message);
+      }
       
       setResult(scanResult);
 

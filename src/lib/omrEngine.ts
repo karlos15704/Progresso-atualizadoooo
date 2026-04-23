@@ -50,8 +50,8 @@ export async function scanBubbleSheet(
   // 3. Find Markers (4 black squares)
   // We search in the corners (30% margin) for the most solid black squares
   const findMarker = (quad: 'tl' | 'tr' | 'bl' | 'br') => {
-    const marginW = width * 0.3;
-    const marginH = height * 0.3;
+    const marginW = width * 0.35;
+    const marginH = height * 0.35;
     let startX = 0, startY = 0, endX = marginW, endY = marginH;
 
     if (quad === 'tr') { startX = width - marginW; endX = width; }
@@ -59,17 +59,16 @@ export async function scanBubbleSheet(
     if (quad === 'br') { startX = width - marginW; endX = width; startY = height - marginH; endY = height; }
 
     let bestMarker = { x: 0, y: 0, area: 0 };
-    const step = Math.max(2, Math.floor(width / 600)); 
-    const winSize = Math.floor(width * 0.03); // Approximate marker size search window
+    const step = Math.max(1, Math.floor(width / 800)); 
+    const winSize = Math.floor(width * 0.04); 
 
-    for (let y = Math.floor(startY + winSize); y < Math.floor(endY - winSize); y += step * 2) {
-      for (let x = Math.floor(startX + winSize); x < Math.floor(endX - winSize); x += step * 2) {
+    for (let y = Math.floor(startY); y < Math.floor(endY); y += step * 3) {
+      for (let x = Math.floor(startX); x < Math.floor(endX); x += step * 3) {
         if (binary[y * width + x] === 1) {
-          // Check density around this point
           let density = 0;
           const s = Math.floor(winSize / 2);
-          for (let dy = -s; dy <= s; dy += step) {
-            for (let dx = -s; dx <= s; dx += step) {
+          for (let dy = -s; dy <= s; dy += step * 2) {
+            for (let dx = -s; dx <= s; dx += step * 2) {
               const sx = x + dx, sy = y + dy;
               if (sx >= 0 && sx < width && sy >= 0 && sy < height && binary[sy * width + sx] === 1) density++;
             }
@@ -88,8 +87,8 @@ export async function scanBubbleSheet(
   const bl = findMarker('bl');
   const br = findMarker('br');
 
-  if (tl.area < 5 || tr.area < 5 || bl.area < 5 || br.area < 5) {
-    throw new Error("Marcadores não encontrados. Tente tirar a foto mais de cima, focando nos 4 quadrados pretos dos cantos.");
+  if (tl.area < 3 || tr.area < 3 || bl.area < 3 || br.area < 3) {
+    throw new Error("Marcadores não encontrados. Verifique se os 4 quadrados pretos nos cantos estão visíveis e a iluminação está uniforme.");
   }
 
   // 4. QR Identity
@@ -120,13 +119,12 @@ export async function scanBubbleSheet(
     let maxBlack = -1;
 
     for (let oIdx = 0; oIdx < 5; oIdx++) {
-      // PDF Template coordinates (mm):
-      // Markers at 15mm centers (distance 180x270)
-      // Bubble centers: X = 60 + oIdx*20, Y = 110 + qIdx*8
-      const normX = ((60 + (oIdx * 20)) - 15) / 180;
-      const normY = ((110 + (qIdx * 8)) - 15) / 270;
-
-      // Bilinear mapping using found marker positions
+      // PDF Template coordinates (assuming markers are at roughly 4% from edges)
+      // We map the range [0, 1] between markers
+      const normX = 0.25 + (oIdx * 0.10); // Bubbles at ~25%, 35%, 45%...
+      const normY = 0.35 + (qIdx * 0.027); // First question row at ~35%
+      
+      // Bilinear interpolation
       const topX = tl.x + (tr.x - tl.x) * normX;
       const botX = bl.x + (br.x - bl.x) * normX;
       const topY = tl.y + (tr.y - tl.y) * normX;
@@ -136,7 +134,7 @@ export async function scanBubbleSheet(
       const py = topY + (botY - topY) * normY;
 
       let blackCount = 0;
-      const r = Math.floor(width * 0.012); // Bubble sampling radius (slightly increased)
+      const r = Math.floor(width * 0.010); 
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
           const sx = Math.floor(px + dx), sy = Math.floor(py + dy);
@@ -144,9 +142,7 @@ export async function scanBubbleSheet(
         }
       }
 
-      // If at least 25% of pixels in the search circle are dark, consider it marked
-      const minDarkness = (Math.PI * r * r) * 0.25;
-      if (blackCount > maxBlack && blackCount > minDarkness) {
+      if (blackCount > maxBlack && blackCount > (r * r * 0.8)) {
         maxBlack = blackCount;
         bestOption = options[oIdx];
       }
