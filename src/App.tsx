@@ -613,7 +613,7 @@ export default function App() {
           <AnimatePresence mode="wait">
             {view === 'dashboard' && <DashboardView user={user} isAdmin={isAdmin} exams={exams} results={results} setView={setView} onSelectPrintExam={setSelectedPrintExam} onEditExam={e => { setExamToEdit(e); setView('create'); }} onDeleteExam={handleDeleteExam} />}
             {view === 'create' && <CreateExamView user={user} userProfile={userProfile} setView={(v) => { setView(v); setExamToEdit(null); }} examToEdit={examToEdit} onExamSaved={() => setRefreshTrigger(prev => prev + 1)} />}
-            {view === 'correct' && <CorrectExamView user={user} exams={exams.filter(e => !e.answerKey?._metadata?.isExternal)} setView={setView} />}
+            {view === 'correct' && <CorrectExamView user={user} exams={exams.filter(e => !e.answerKey?._metadata?.isExternal)} setView={setView} setRefreshTrigger={setRefreshTrigger} />}
             {view === 'guides' && <GuidesView exams={exams} />}
             {view === 'reports' && <ReportsView exams={exams} results={results} />}
             {view === 'studentReports' && <StudentReportsView user={user} isAdmin={isAdmin} reports={studentReports} refresh={() => setRefreshTrigger(prev => prev + 1)} onPrint={(report) => { setSelectedReportForPrint(report); setView('printReport'); setMultipleReportsToPrint([]); }} onPrintAll={(reports) => { setMultipleReportsToPrint(reports); setSelectedReportForPrint(null); setView('printReport'); }} />}
@@ -1409,9 +1409,11 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
   );
 }
 
-function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], setView: (v: any) => void }) {
+function CorrectExamView({ user, exams, setView, setRefreshTrigger }: { user: User, exams: Exam[], setView: (v: any) => void, setRefreshTrigger: React.Dispatch<React.SetStateAction<number>> }) {
   const [selectedExamId, setSelectedExamId] = useState('');
-  const [image, setImage] = useState<string | null>(null);
+  const [images, setImages] = useState<string[]>([]);
+  const [currentProcessingIndex, setCurrentProcessingIndex] = useState<number>(-1);
+  const [batchResults, setBatchResults] = useState<any[]>([]);
   const [correcting, setCorrecting] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [mode, setMode] = useState<'ai' | 'manual'>('manual');
@@ -1435,14 +1437,22 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    const files: File[] = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const loaders = files.map((file: File) => {
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => resolve(ev.target?.result as string);
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(loaders).then(results => {
+      setImages(prev => [...prev, ...results]);
+      setResult(null);
+      setBatchResults([]);
+    });
   };
 
   const handleManualCorrect = async () => {
@@ -1487,8 +1497,9 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
         studentName,
         score,
         maxScore,
-        feedback: resultData.feedback
+        answers: manualAnswers
       });
+      setRefreshTrigger(prev => prev + 1); // Atualiza os dados (Boletim)
 
       if (score / maxScore >= 0.7) {
         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
@@ -1501,54 +1512,65 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
   };
 
   const handleScannerCorrect = async () => {
-    if (!selectedExamId || !image || !selectedExam) return;
+    if (!selectedExamId || images.length === 0 || !selectedExam) return;
 
     setCorrecting(true);
+    setBatchResults([]);
+    const newResults = [];
+
     try {
-      const img = new Image();
-      img.src = image;
-      await new Promise(resolve => img.onload = resolve);
+      for (let i = 0; i < images.length; i++) {
+        setCurrentProcessingIndex(i);
+        const imgData = images[i];
+        
+        const img = new Image();
+        img.src = imgData;
+        await new Promise(resolve => img.onload = resolve);
 
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx?.drawImage(img, 0, 0);
+        const canvas = canvasRef.current;
+        if (!canvas) continue;
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx?.drawImage(img, 0, 0);
 
-      const scanResult = await scanBubbleSheet(canvas, selectedExam.questions);
-      
-      const resultData: any = {
-        exam_id: selectedExamId,
-        professor_id: user.id,
-        student_name: scanResult.studentName || "Scanner Digital",
-        score: scanResult.score,
-        max_score: scanResult.maxScore,
-        corrected_at: new Date().toISOString(),
-        answers: scanResult.answers || {},
-        student_class: scanResult.studentClass || selectedExam.classYear || '',
-        bimester: selectedExam.bimester
-      };
+        try {
+          const scanResult = await scanBubbleSheet(canvas, selectedExam.questions);
+          
+          const resultData: any = {
+            exam_id: selectedExamId,
+            professor_id: user.id,
+            student_name: scanResult.studentName || `Aluno ${newResults.length + 1}`,
+            score: scanResult.score,
+            max_score: scanResult.maxScore,
+            corrected_at: new Date().toISOString(),
+            answers: scanResult.answers || {},
+            student_class: scanResult.studentClass || selectedExam.classYear || '',
+            bimester: selectedExam.bimester
+          };
 
-      // Tenta inserir sem o campo feedback primeiro para evitar erro de schema
-      const { error } = await supabase.from('results').insert(resultData);
-      
-      if (error) {
-        // Se o erro não for de coluna faltando, aí sim lançamos
-        if (!error.message.includes('column')) throw error;
-        console.warn("Salvando sem coluna opcional:", error.message);
+          const { error } = await supabase.from('results').insert(resultData);
+          if (error && !error.message.includes('column')) throw error;
+          
+          newResults.push(scanResult);
+        } catch (err: any) {
+          console.error(`Erro na imagem ${i + 1}:`, err);
+          newResults.push({ error: err.message || "Erro de leitura", studentName: `Imagem ${i + 1}` });
+        }
       }
-      
-      setResult(scanResult);
 
-      if (scanResult.score / scanResult.maxScore >= 0.7) {
+      setBatchResults(newResults);
+      setRefreshTrigger(prev => prev + 1);
+      
+      const successCount = newResults.filter(r => !r.error).length;
+      if (successCount > 0) {
         confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
       }
     } catch (err: any) {
-      console.error(err);
-      alert(err.message || "O scanner não conseguiu ler o gabarito. Certifique-se de usar a folha padrão e que a foto esteja bem iluminada.");
+      alert(err.message || "Erro no processamento em lote.");
     } finally {
       setCorrecting(false);
+      setCurrentProcessingIndex(-1);
     }
   };
 
@@ -1726,78 +1748,164 @@ function CorrectExamView({ user, exams, setView }: { user: User, exams: Exam[], 
                 <ol className="list-decimal ml-4 mt-1 space-y-1">
                   <li>Clique em "Baixar Folha de Respostas" acima e imprima.</li>
                   <li>O aluno deve preencher as bolinhas com caneta preta ou azul escura.</li>
-                  <li>Tire uma foto bem de cima, garantindo que os 4 quadrados nos cantos estejam visíveis.</li>
+                  <li>Tira uma foto bem de cima, focando nos 4 quadrados pretos.</li>
                 </ol>
               </div>
             </div>
 
             <div className="space-y-2 text-left">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Foto do Gabarito</label>
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Fotos dos Gabaritos ({images.length})</label>
               <div 
                 onClick={() => fileInputRef.current?.click()}
                 className={cn(
-                  "border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-all",
-                  image ? "border-accent/20 bg-accent/5" : "border-border hover:border-accent/40 hover:bg-slate-50"
+                  "border-2 border-dashed border-slate-200 rounded-xl p-8 transition-all hover:border-accent cursor-pointer bg-slate-50",
+                  images.length > 0 && "p-4"
                 )}
               >
-                {image ? (
-                  <div className="space-y-4">
-                    <img src={image} className="max-h-[250px] mx-auto rounded-md shadow-md" alt="Preview" />
-                    <p className="text-accent font-bold text-sm text-center">Trocar foto</p>
+                {images.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto">
+                    {images.map((img, idx) => (
+                      <div key={idx} className="relative group aspect-square">
+                        <img src={img} className="w-full h-full object-cover rounded-md shadow-sm border border-slate-200" alt={`Preview ${idx}`} />
+                        <button 
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            setImages(prev => prev.filter((_, i) => i !== idx));
+                          }}
+                          className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Plus className="w-3 h-3 rotate-45" />
+                        </button>
+                      </div>
+                    ))}
+                    <div className="aspect-square border-2 border-dashed border-slate-300 rounded-md flex flex-col items-center justify-center text-slate-400 hover:text-accent hover:border-accent transition-colors">
+                      <Plus className="w-5 h-5" />
+                      <span className="text-[10px] font-bold mt-1">Mais</span>
+                    </div>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <div className="bg-slate-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto">
+                  <div className="space-y-4 text-center">
+                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm">
                       <Camera className="text-slate-400 w-6 h-6" />
                     </div>
                     <div>
-                      <p className="text-primary font-bold text-sm text-center">Tirar foto ou Upload</p>
-                      <p className="text-slate-500 text-[12px] text-center">Use a foto do gabarito padrão para leitura local.</p>
+                      <p className="text-primary font-bold text-sm">Tirar fotos ou Upload</p>
+                      <p className="text-slate-500 text-[12px]">Selecione várias fotos de uma vez se desejar.</p>
                     </div>
                   </div>
                 )}
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" multiple />
               </div>
             </div>
 
             <button 
               onClick={handleScannerCorrect}
-              disabled={!image || !selectedExamId || correcting}
+              disabled={images.length === 0 || !selectedExamId || correcting}
               className="w-full bg-accent text-white py-3 rounded-md font-bold text-sm flex items-center justify-center gap-3 hover:bg-accent/90 transition-all shadow-sm disabled:opacity-50"
             >
-              {correcting ? <Loader2 className="animate-spin w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
-              Escanear Agora (Local)
+              {correcting ? (
+                <>
+                  <Loader2 className="animate-spin w-5 h-5" />
+                  Corrigindo ({currentProcessingIndex + 1}/{images.length})...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-5 h-5" />
+                  Escanear Lote ({images.length} fotos)
+                </>
+              )}
             </button>
           </>
         )}
       </div>
 
-      {result && (
+      {result && !correcting && batchResults.length === 0 && (
         <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
+          initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-[#c6f6d5] border border-[#38a169]/20 p-6 rounded-lg space-y-4 shadow-sm"
+          className="p-6 bg-[#f0fff4] border border-[#38a169]/30 rounded-xl space-y-4 shadow-sm text-left"
         >
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-[#22543d]">Resultado da Correção</h3>
-            <span className="bg-[#38a169] text-white px-3 py-1 rounded-full text-sm font-bold">
-              Nota: {result.score} / {result.maxScore}
-            </span>
+            <div>
+              <h3 className="text-lg font-black text-[#22543d] flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-[#38a169]" />
+                Correção Finalizada
+              </h3>
+              <p className="text-sm font-bold text-[#2f855a] uppercase">{result.studentName}</p>
+            </div>
+            <div className="text-right">
+              <span className="text-3xl font-black text-[#38a169]">
+                {((result.score / result.maxScore) * 10).toFixed(1).replace('.', ',')}
+              </span>
+              <p className="text-[10px] font-bold text-[#2f855a] uppercase">Nota 0-10</p>
+            </div>
           </div>
-          <div className="space-y-1">
-            <p className="text-[#22543d] font-bold text-sm">Aluno: {result.studentName}</p>
-            <p className="text-[#22543d]/80 italic text-sm">"{result.feedback}"</p>
-          </div>
+          
           <button 
             onClick={() => {
               setResult(null);
-              setImage(null);
+              setImages([]);
               setStudentName('');
               setManualAnswers({});
             }}
             className="w-full bg-[#38a169] text-white py-3 rounded-md font-bold text-sm hover:bg-[#2f855a] transition-all shadow-md"
           >
             Digitalizar Próxima Prova
+          </button>
+        </motion.div>
+      )}
+
+      {batchResults.length > 0 && !correcting && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-4 text-left"
+        >
+          <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-accent" />
+            Resultados do Lote ({batchResults.length})
+          </h3>
+          <div className="bg-white border border-border rounded-xl divide-y divide-slate-100 overflow-hidden shadow-sm">
+            {batchResults.map((res, idx) => (
+              <div key={idx} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shadow-sm",
+                    res.error ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"
+                  )}>
+                    {idx + 1}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-700">{res.studentName}</p>
+                    {res.error ? (
+                      <p className="text-[10px] text-red-500 font-bold uppercase">{res.error}</p>
+                    ) : (
+                      <p className="text-[10px] text-slate-500 font-bold uppercase">Nota: {((res.score / res.maxScore) * 10).toFixed(1)}</p>
+                    )}
+                  </div>
+                </div>
+                {!res.error && (
+                  <div className="text-right">
+                     <span className={cn(
+                       "text-sm font-black",
+                       (res.score / res.maxScore) >= 0.6 ? "text-green-600" : "text-red-500"
+                     )}>
+                       {res.score}/{res.maxScore}
+                     </span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <button 
+            onClick={() => {
+              setBatchResults([]);
+              setImages([]);
+              setResult(null);
+            }}
+            className="w-full bg-accent text-white py-3 rounded-md font-bold text-sm hover:bg-accent/90 transition-all shadow-md"
+          >
+            Iniciar Nova Correção
           </button>
         </motion.div>
       )}
