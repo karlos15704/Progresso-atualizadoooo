@@ -56,3 +56,9 @@ DROP POLICY IF EXISTS "Gestão total de autorizados para admins" ON allowed_prof
 CREATE POLICY "Gestão total de autorizados para admins" ON allowed_professors FOR ALL USING (
     public.is_admin() OR auth.jwt() ->> 'email' = 'cps@cps.local'
 );
+
+-- ATUALIZAR POLÍTICAS DA TABELA USERS
+DROP POLICY IF EXISTS "Admin manage users" ON users;
+CREATE POLICY "Admin manage users" ON users FOR ALL USING (
+    public.is_admin() OR auth.jwt() ->> 'email' = 'cps@cps.local'
+);

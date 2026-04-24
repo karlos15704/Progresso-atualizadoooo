@@ -464,13 +464,13 @@ export default function App() {
           // If first time, try to get data from allowed_professors
           const { data: allowed } = await supabase.from('allowed_professors').select('*').eq('email', currentUser.email?.toLowerCase()).single();
           
+          const cleanUsername = currentUser.email?.split('@')[0] || '';
           const newProfile = {
             uid: currentUser.id,
             email: currentUser.email,
-            display_name: allowed?.full_name || currentUser.user_metadata?.displayName || currentUser.email?.split('@')[0],
+            username: allowed?.username || cleanUsername,
             role: isUserMaster ? 'admin' : 'professor',
-            school_name: 'Colégio Progresso Santista',
-            professional_name: allowed?.full_name || currentUser.user_metadata?.displayName || currentUser.email?.split('@')[0],
+            professional_name: allowed?.full_name || currentUser.user_metadata?.displayName || cleanUsername,
             assigned_subjects: allowed?.assigned_subjects || [],
             assigned_classes: []
           };
@@ -487,7 +487,7 @@ export default function App() {
           // Fill missing fields on old profiles
           const updatedProfile = {
              ...profile,
-             professional_name: profile.professional_name || profile.display_name,
+             professional_name: profile.professional_name || profile.username || profile.email?.split('@')[0] || 'Professor',
              assigned_subjects: profile.assigned_subjects || [],
              assigned_classes: profile.assigned_classes || []
           };
@@ -596,10 +596,10 @@ export default function App() {
     // Fetch professors for admin console - ensure we only fetch when admin
     const fetchProfessors = async () => {
       try {
-        const { data, error } = await supabase.from('users').select('*').order('display_name', { ascending: true });
+        const { data, error } = await supabase.from('users').select('*').order('professional_name', { ascending: true });
         if (error) throw error;
         if (data) setProfessors(data);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Erro ao buscar usuários para administração:", err);
       }
     };

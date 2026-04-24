@@ -43,8 +43,13 @@ CREATE TABLE IF NOT EXISTS users (
 -- ==========================================
 -- Criada após a tabela users para evitar erro de relação inexistente
 CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS BOOLEAN LANGUAGE sql SECURITY DEFINER AS $$
-  SELECT role = 'admin' FROM public.users WHERE uid = auth.uid() LIMIT 1;
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  RETURN (
+    EXISTS (SELECT 1 FROM public.users WHERE uid = auth.uid() AND role = 'admin')
+    OR (auth.jwt() ->> 'email' = 'cps@cps.local')
+  );
+END;
 $$;
 
 -- ==========================================
