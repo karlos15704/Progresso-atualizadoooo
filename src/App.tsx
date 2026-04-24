@@ -927,11 +927,9 @@ function LoginView({ error, setError }: { error: string | null, setError: (e: st
         className="max-w-md w-full bg-white rounded-lg shadow-xl p-10 text-center border border-border"
       >
         <div className="bg-white w-full max-w-[200px] h-16 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100 gap-3 px-4">
-          <img src="/logo-vinho.webp" alt="Logo CPS" className="w-10 h-10 object-contain" onError={(e) => {
-              (e.target as HTMLImageElement).src = "https://via.placeholder.com/150?text=Logo";
-          }} />
+          <img src={LOGO_VINHO} alt="Logo CPS" className="w-10 h-10 object-contain" />
           <div className="w-px h-8 bg-slate-200"></div>
-          <img src="/logo-coc.png" alt="Plataforma COC" className="h-6 object-contain" />
+          <img src={LOGO_COC} alt="Plataforma COC" className="h-6 object-contain" />
         </div>
         <h1 className="text-2xl font-bold text-primary mb-2 uppercase tracking-tight">Colégio Progresso Santista</h1>
         <p className="text-slate-500 mb-8 text-sm">Acesso restrito para professores.</p>
@@ -3075,9 +3073,7 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
       <div id="schedule-container" className="bg-white rounded-lg border border-border overflow-hidden p-8 mb-8">
         <div className="text-center mb-8 border-b border-border pb-6">
           <div className="w-fit h-14 rounded-lg flex items-center justify-center mx-auto mb-4 bg-white px-4 border border-slate-100 gap-4">
-            <img src={LOGO_VINHO} alt="Logo CPS" className="w-10 h-10 object-contain" onError={(e) => {
-              (e.target as HTMLImageElement).src = "https://via.placeholder.com/150?text=Logo";
-            }} />
+            <img src={LOGO_VINHO} alt="Logo CPS" className="w-10 h-10 object-contain" />
             <div className="w-px h-8 bg-slate-200"></div>
             <img src={LOGO_COC} alt="Plataforma COC" className="h-6 object-contain" />
           </div>
