@@ -3561,7 +3561,7 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
                     </ul>
                   </div>
                   <div className="flex-1 flex flex-col justify-between items-center text-center px-0 py-0">
-                    <div className="w-full border-b-[3px] border-black border-dashed pb-1 pt-1 h-[65%] flex items-center justify-center font-bold uppercase text-[10px]">
+                    <div className="w-full border-b-[3px] border-black border-dashed pb-1 pt-0.5 h-[65%] flex items-start justify-center font-bold uppercase text-[10px]">
                       Ass. do professor
                     </div>
                     <div className="h-[35%] flex items-center justify-center text-[10px] uppercase font-bold px-1">
