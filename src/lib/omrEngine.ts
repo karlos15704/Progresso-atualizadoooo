@@ -111,18 +111,26 @@ export async function scanBubbleSheet(
   let maxPossible = 0;
   const options = ['A', 'B', 'C', 'D', 'E'];
 
+  let bubbleIdx = 0; // The actual row index in the printed sheet
   for (let qIdx = 0; qIdx < rowCount; qIdx++) {
     const qPoints = parseFloat(String(correctAnswers[qIdx].points || 1));
     maxPossible += qPoints;
+
+    const isEssay = correctAnswers[qIdx].correctAnswer === '__ESSAY__';
+
+    if (isEssay) {
+      results[qIdx] = ''; // No bubble for essay
+      // Score will be 0 initially for essay questions, to be corrected manually
+      continue;
+    }
 
     let bestOption = "";
     let maxBlack = -1;
 
     for (let oIdx = 0; oIdx < 5; oIdx++) {
-      // PDF Template coordinates (assuming markers are at roughly 4% from edges)
-      // We map the range [0, 1] between markers
-      const normX = 0.25 + (oIdx * 0.10); // Bubbles at ~25%, 35%, 45%...
-      const normY = 0.35 + (qIdx * 0.027); // First question row at ~35%
+      // PDF Template coordinates
+      const normX = 0.25 + (oIdx * 0.10); 
+      const normY = 0.35 + (bubbleIdx * 0.027); // Use bubbleIdx instead of qIdx
       
       // Bilinear interpolation
       const topX = tl.x + (tr.x - tl.x) * normX;
@@ -149,6 +157,7 @@ export async function scanBubbleSheet(
     }
     results[qIdx] = bestOption;
     if (bestOption === correctAnswers[qIdx].correctAnswer) scoreValue += qPoints;
+    bubbleIdx++;
   }
 
   return {
@@ -240,8 +249,11 @@ export async function generatePrintableAnswerSheet(exam: any, logoBase64?: strin
     const colWidth = 10;
     doc.setTextColor(0, 0, 0);
 
+    let printedIdx = 0;
     exam.questions.forEach((q: any, i: number) => {
-      const y = startY + (i * rowHeight);
+      if (q.type === 'essay' || q.correctAnswer === '__ESSAY__') return;
+
+      const y = startY + (printedIdx * rowHeight);
       
       doc.setFontSize(10);
       doc.setFont("helvetica", "bold");
@@ -260,6 +272,7 @@ export async function generatePrintableAnswerSheet(exam: any, logoBase64?: strin
         doc.setFont("helvetica", "normal");
         doc.text(opt, x - 1, y);
       });
+      printedIdx++;
     });
     
     // Footnote

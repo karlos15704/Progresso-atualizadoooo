@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { scanBubbleSheet, generatePrintableAnswerSheet } from './lib/omrEngine';
 import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
+import { Editor, EditorProvider, Toolbar, BtnBold, BtnItalic, BtnUnderline, BtnStrikeThrough, BtnNumberedList, BtnBulletList, BtnClearFormatting, BtnStyles, Separator } from 'react-simple-wysiwyg';
 import { 
   Plus, 
   FileText, 
@@ -15,12 +16,24 @@ import {
   AlertCircle,
   Loader2,
   ChevronRight,
+  ChevronLeft,
   Pencil,
   User as UserIcon,
   School,
   Clock,
   Calendar,
-  Printer
+  Printer,
+  X,
+  Users,
+  List,
+  CheckSquare,
+  LayoutList,
+  Edit2,
+  Search,
+  Mail,
+  ExternalLink,
+  Copy,
+  RotateCcw
 } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
@@ -46,6 +59,7 @@ import { cn } from './lib/utils';
 // Types
 interface Question {
   id: number;
+  type?: 'objective' | 'essay';
   text: string;
   image?: string;
   imageSize?: number;
@@ -85,7 +99,27 @@ interface Result {
   maxScore: number;
   feedback: string;
   answers?: any;
+  manuallyReviewed?: boolean;
   correctedAt: any;
+}
+
+interface Lesson {
+  id: string;
+  professor_id: string;
+  class_id: string;
+  subject: string;
+  bimester: string;
+  date: string;
+  content: string;
+  lesson_count: number;
+  created_at: string;
+}
+
+interface Attendance {
+  id: string;
+  lesson_id: string;
+  student_name: string;
+  status: 'present' | 'absent';
 }
 
 interface StudentReport {
@@ -97,6 +131,11 @@ interface StudentReport {
   bimester: string;
   createdAt: any;
   updatedAt: any;
+}
+
+interface Student {
+  name: string;
+  classId: string;
 }
 
 const DEFAULT_SCHOOL_INFO = {
@@ -291,10 +330,67 @@ const DEFAULT_SCHOOL_INFO = {
       { classId: '9º B', name: 'VITÓRIA ALONSO SODRÉ' },
       { classId: '9º B', name: 'WILLER INÁCIO ALVES DOS SANTOS' },
     ]
-  } as Record<string, { classId: string, name: string }[]>
+  } as Record<string, Student[]>
 };
 
-function getSchoolInfo(): { subjects: string[], classes: string[], studentsDB: Record<string, { classId: string, name: string }[]> } {
+// Editor fonts for reference if needed
+const EDITOR_FONTS = [
+  'Inter', 
+  'Arial', 
+  'Times New Roman', 
+  'Courier New', 
+  'Georgia', 
+  'Verdana'
+];
+
+const ProfessionalEditor = ({ value, onChange, placeholder, className, style }: { 
+  value: string, 
+  onChange: (val: string) => void, 
+  placeholder?: string,
+  className?: string,
+  style?: React.CSSProperties
+}) => {
+  return (
+    <div className={cn("professional-editor-wrapper", className)} style={style}>
+      <EditorProvider>
+        <Editor 
+          value={value} 
+          onChange={(e) => onChange(e.target.value)} 
+          placeholder={placeholder}
+          className="bg-white rounded-md overflow-hidden min-h-[150px]"
+        >
+          <Toolbar>
+            <BtnBold />
+            <BtnItalic />
+            <BtnUnderline />
+            <BtnStrikeThrough />
+            <Separator />
+            <BtnNumberedList />
+            <BtnBulletList />
+            <Separator />
+            <BtnClearFormatting />
+            <Separator />
+            <BtnStyles />
+          </Toolbar>
+        </Editor>
+      </EditorProvider>
+      <style>{`
+        .professional-editor-wrapper .rsw-ce {
+          min-height: 150px;
+          padding: 12px;
+          outline: none;
+        }
+        .professional-editor-wrapper .rsw-toolbar {
+          background: #f8fafc;
+          border-bottom: 1px solid #e2e8f0;
+          padding: 4px;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+function getSchoolInfo(): { subjects: string[], classes: string[], studentsDB: Record<string, Student[]> } {
   const saved = localStorage.getItem('schoolInfo');
   if (saved) {
     try {
@@ -320,7 +416,7 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'dashboard' | 'create' | 'correct' | 'reports' | 'guides' | 'admin' | 'schedule' | 'print' | 'studentReports' | 'printReport' | 'boletim'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'create' | 'correct' | 'reports' | 'guides' | 'admin' | 'schedule' | 'print' | 'studentReports' | 'printReport' | 'boletim' | 'diary'>('dashboard');
   const [selectedPrintExam, setSelectedPrintExam] = useState<Exam | null>(null);
   const [selectedReportForPrint, setSelectedReportForPrint] = useState<StudentReport | null>(null);
   const [multipleReportsToPrint, setMultipleReportsToPrint] = useState<StudentReport[]>([]);
@@ -544,55 +640,31 @@ export default function App() {
 
       <div className="flex flex-1 overflow-hidden print:overflow-visible print:block">
         {/* Sidebar */}
-        <aside className="w-[240px] bg-primary text-white flex flex-col hidden lg:flex print:hidden">
-          <div className="py-6 flex flex-col gap-1">
+        <aside className="w-[240px] bg-slate-900 text-white flex flex-col hidden lg:flex print:hidden shadow-xl z-20">
+          <div className="py-6 px-3 flex flex-col gap-2">
             <NavButton 
               active={view === 'dashboard'} 
               onClick={() => { setView('dashboard'); setExamToEdit(null); }} 
               icon={<BarChart3 className="w-5 h-5" />} 
-              label="Painel Geral" 
+              label="Visão Geral" 
             />
             <NavButton 
-              active={view === 'create'} 
-              onClick={() => { setView('create'); setExamToEdit(null); }} 
-              icon={<Plus className="w-5 h-5" />} 
-              label="Banco de Provas" 
-            />
-            <NavButton 
-              active={view === 'correct'} 
-              onClick={() => { setView('correct'); setExamToEdit(null); }} 
-              icon={<Camera className="w-5 h-5" />} 
-              label="Correção Automática" 
-            />
-            <NavButton 
-              active={view === 'guides'} 
-              onClick={() => { setView('guides'); setExamToEdit(null); }} 
+              active={view === 'diary'} 
+              onClick={() => { setView('diary'); setExamToEdit(null); }} 
               icon={<BookOpen className="w-5 h-5" />} 
-              label="Guia de Estudos" 
-            />
-            <NavButton 
-              active={view === 'reports'} 
-              onClick={() => { setView('reports'); setExamToEdit(null); }} 
-              icon={<FileText className="w-5 h-5" />} 
-              label="Relatórios de Turma" 
-            />
-            <NavButton 
-              active={view === 'studentReports'} 
-              onClick={() => { setView('studentReports'); setExamToEdit(null); }} 
-              icon={<UserIcon className="w-5 h-5" />} 
-              label="Relatório por Aluno" 
+              label="Diário & Notas" 
             />
             <NavButton 
               active={view === 'boletim'} 
               onClick={() => { setView('boletim'); setExamToEdit(null); }} 
               icon={<FileText className="w-5 h-5" />} 
-              label="Boletim Escolar" 
+              label="Boletim Consolidado" 
             />
             <NavButton 
-              active={view === 'schedule'} 
-              onClick={() => { setView('schedule'); setExamToEdit(null); }} 
-              icon={<Calendar className="w-5 h-5" />} 
-              label="Cronograma" 
+              active={view === 'studentReports'} 
+              onClick={() => { setView('studentReports'); setExamToEdit(null); }} 
+              icon={<UserIcon className="w-5 h-5" />} 
+              label="Observações Individuais" 
             />
             {isAdmin && (
               <NavButton 
@@ -603,39 +675,34 @@ export default function App() {
               />
             )}
           </div>
-          <div className="mt-auto p-6 text-[10px] uppercase tracking-widest opacity-40 font-bold">
-            v2.4.0 Colégio Progresso Santista
+          <div className="mt-auto p-6 text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+            v3.0.0 Colégio Progresso
           </div>
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-[25px] print:overflow-visible print:p-0">
+        <main className="flex-1 overflow-y-auto p-4 md:p-[25px] bg-[#f8fafc] print:overflow-visible print:p-0">
           <AnimatePresence mode="wait">
             {view === 'dashboard' && <DashboardView user={user} isAdmin={isAdmin} exams={exams} results={results} setView={setView} onSelectPrintExam={setSelectedPrintExam} onEditExam={e => { setExamToEdit(e); setView('create'); }} onDeleteExam={handleDeleteExam} />}
-            {view === 'create' && <CreateExamView user={user} userProfile={userProfile} setView={(v) => { setView(v); setExamToEdit(null); }} examToEdit={examToEdit} onExamSaved={() => setRefreshTrigger(prev => prev + 1)} />}
-            {view === 'correct' && <CorrectExamView user={user} exams={exams.filter(e => !e.answerKey?._metadata?.isExternal)} setView={setView} setRefreshTrigger={setRefreshTrigger} />}
+            {view === 'create' && <CreateExamView user={user} userProfile={userProfile} setView={setView} examToEdit={examToEdit} onExamSaved={() => { setExamToEdit(null); setRefreshTrigger(prev => prev + 1); setView('dashboard'); }} />}
+            {view === 'correct' && <CorrectExamView user={user} exams={exams} setView={setView} setRefreshTrigger={setRefreshTrigger} />}
             {view === 'guides' && <GuidesView exams={exams} />}
-            {view === 'reports' && <ReportsView exams={exams} results={results} />}
             {view === 'studentReports' && <StudentReportsView user={user} isAdmin={isAdmin} reports={studentReports} refresh={() => setRefreshTrigger(prev => prev + 1)} onPrint={(report) => { setSelectedReportForPrint(report); setView('printReport'); setMultipleReportsToPrint([]); }} onPrintAll={(reports) => { setMultipleReportsToPrint(reports); setSelectedReportForPrint(null); setView('printReport'); }} />}
             {view === 'printReport' && (selectedReportForPrint || multipleReportsToPrint.length > 0) && <StudentReportPrintView reports={selectedReportForPrint ? [selectedReportForPrint] : multipleReportsToPrint} onBack={() => setView('studentReports')} />}
-            {view === 'schedule' && <ScheduleView exams={exams} isAdmin={isAdmin} user={user} onExamSaved={() => setRefreshTrigger(prev => prev + 1)} />}
             {view === 'print' && selectedPrintExam && <ExamPrintView exam={selectedPrintExam} onBack={() => setView('dashboard')} />}
             {view === 'admin' && isAdmin && <AdminView user={user} />}
-            {view === 'boletim' && <BoletimView results={results} exams={exams} isAdmin={isAdmin} user={user} />}
+            {view === 'diary' && <DigitalDiaryView user={user} isAdmin={isAdmin} userProfile={userProfile} />}
+            {view === 'boletim' && <BoletimView results={results} exams={exams} isAdmin={isAdmin} user={user} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
           </AnimatePresence>
         </main>
       </div>
 
       {/* Mobile Nav */}
-      <nav className="lg:hidden bg-white border-t border-slate-200 px-2 py-2 flex justify-between overflow-x-auto gap-1 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-50 print:hidden">
+      <nav className="lg:hidden bg-white border-t border-slate-200 px-1 py-2 flex justify-between overflow-x-auto gap-1 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-50 print:hidden text-slate-600">
         <MobileNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<BarChart3 />} label="Início" />
-        <MobileNavButton active={view === 'create'} onClick={() => setView('create')} icon={<Plus />} label="Provas" />
-        <MobileNavButton active={view === 'correct'} onClick={() => setView('correct')} icon={<Camera />} label="Corrigir" />
-        <MobileNavButton active={view === 'schedule'} onClick={() => setView('schedule')} icon={<Calendar />} label="Agenda" />
-        <MobileNavButton active={view === 'studentReports'} onClick={() => setView('studentReports')} icon={<UserIcon />} label="Relatórios" />
+        <MobileNavButton active={view === 'diary'} onClick={() => setView('diary')} icon={<BookOpen />} label="Diário" />
         <MobileNavButton active={view === 'boletim'} onClick={() => setView('boletim')} icon={<FileText />} label="Boletim" />
-        <MobileNavButton active={view === 'guides'} onClick={() => setView('guides')} icon={<BookOpen />} label="Guias" />
-        {isAdmin && <MobileNavButton active={view === 'admin'} onClick={() => setView('admin')} icon={<UserIcon />} label="Admin" />}
+        <MobileNavButton active={view === 'studentReports'} onClick={() => setView('studentReports')} icon={<UserIcon />} label="Relatórios" />
       </nav>
     </div>
   );
@@ -949,7 +1016,16 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
 
           <div className="bg-[#ebf8ff] p-4 rounded-lg border-l-4 border-accent text-[13px] leading-relaxed">
             <h4 className="font-bold text-primary mb-2">📈 Desempenho</h4>
-            <p className="text-slate-600">A evolução média subiu 12% em relação à PII anterior. Continue monitorando os resultados.</p>
+            {results.length > 0 ? (
+               <p className="text-slate-600">
+                 Registramos <b>{results.length}</b> resultados. Média atual:{' '}
+                 <b>{((results.reduce((acc, r) => acc + (r.points / Math.max(1, r.totalPoints)), 0) / results.length) * 100).toFixed(1)}%</b>. Continue monitorando os resultados dos alunos.
+               </p>
+            ) : (
+               <p className="text-slate-600">
+                 A evolução da turma será calculada após as correções da primeira prova. Realize correções para ver os dados.
+               </p>
+            )}
           </div>
         </div>
       </div>
@@ -991,12 +1067,13 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
   const [validationError, setValidationError] = useState('');
   const [isExternal, setIsExternal] = useState(examToEdit?.answerKey?._metadata?.isExternal || false);
 
-  const addQuestion = () => {
+  const addQuestion = (type: 'objective' | 'essay' = 'objective') => {
     setQuestions([...questions, {
       id: questions.length + 1,
+      type: type,
       text: '',
-      options: ['', '', '', ''],
-      correctAnswer: 'A',
+      options: type === 'objective' ? ['', '', '', ''] : [],
+      correctAnswer: type === 'objective' ? 'A' : '',
       points: 1,
       imageSize: 100,
       imageAlign: 'center'
@@ -1013,6 +1090,13 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
     setValidationError('');
     setSaving(true);
     try {
+      // Re-sort questions: objective first, essay last
+      const sortedQuestions = [...questions].sort((a, b) => {
+        if (a.type === 'essay' && b.type !== 'essay') return 1;
+        if (a.type !== 'essay' && b.type === 'essay') return -1;
+        return (a.id || 0) - (b.id || 0);
+      }).map((q, idx) => ({ ...q, id: idx + 1 })); // Re-assign IDs for clarity
+
       const answerKey: Record<string, any> = {
         _metadata: {
           classYear,
@@ -1028,24 +1112,26 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
       
       let guide = examToEdit?.studyGuide || '';
       if (!isExternal) {
-        questions.forEach(q => {
-          answerKey[q.id] = q.correctAnswer;
+        sortedQuestions.forEach(q => {
+          if (q.type === 'objective') {
+            answerKey[q.id] = q.correctAnswer;
+          } else {
+            answerKey[q.id] = '__ESSAY__'; // Marker for essay questions
+          }
         });
 
-        // Generate study guide automatically if not an external test
+        // Generate study guide
         const promptText = content 
-          ? `${title} - ${subject} (${classYear}). Conteúdo programático: ${content}. Baseado nisso e nas questões: ${questions.map(q => q.text).join(', ')}` 
-          : `${title} - ${subject}: ${questions.map(q => q.text).join(', ')}`;
+          ? `${title} - ${subject} (${classYear}). Conteúdo programático: ${content}. Baseado nisso e nas questões: ${sortedQuestions.map(q => q.text).join(', ')}` 
+          : `${title} - ${subject}: ${sortedQuestions.map(q => q.text).join(', ')}`;
         
-        // Only regenerate if questions or content changed? We'll just regenerate unless it fails.
-        // To save time, if we're editing and guide exists, we'll keep it unless user wants. But it's fine.
         guide = await generateStudyGuide(promptText);
       }
 
       const examData = {
         title,
         subject,
-        questions: isExternal ? [] : questions,
+        questions: isExternal ? [] : sortedQuestions,
         answer_key: answerKey,
         study_guide: guide,
         professor_id: user.id,
@@ -1192,16 +1278,13 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
                 className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm"
               />
               <datalist id="exam-types">
-                <option value="PI" />
-                <option value="PII" />
-                <option value="PIII" />
-                <option value="AP1" />
-                <option value="AP2" />
-                <option value="AP3" />
-                <option value="Recuperação Mensal" />
+                <option value="P2" />
+                <option value="P3" />
+                <option value="Simulado" />
+                <option value="Atividade" />
+                <option value="Trabalho" />
                 <option value="Recuperação Bimestral" />
                 <option value="Recuperação Final" />
-                <option value="Simulado" />
               </datalist>
             </div>
           </div>
@@ -1226,12 +1309,11 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
         </div>
 
         <div className="space-y-2">
-          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Conteúdo Programático</label>
-          <DefaultEditor 
+          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider text-left block">Conteúdo Programático</label>
+          <ProfessionalEditor 
             value={content}
-            onChange={e => setContent(e.target.value)}
-            className="w-full rounded-md border border-border focus:border-accent outline-none transition-all min-h-[80px]"
-            style={{ fontFamily: fontFamily, fontSize: `${fontSize}px` }}
+            onChange={setContent}
+            placeholder="Digite o conteúdo que será cobrado nesta prova..."
           />
         </div>
 
@@ -1270,19 +1352,40 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold text-primary">Questões</h3>
-            <button 
-              onClick={addQuestion}
-              className="text-accent font-bold text-sm flex items-center gap-2 hover:underline"
-            >
-              <Plus className="w-4 h-4" />
-              Adicionar Questão
-            </button>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => addQuestion('objective')}
+                className="text-accent font-bold text-sm flex items-center gap-2 hover:underline"
+              >
+                <Plus className="w-4 h-4" />
+                + Objetiva
+              </button>
+              <button 
+                onClick={() => addQuestion('essay')}
+                className="text-primary font-bold text-sm flex items-center gap-2 hover:underline"
+              >
+                <Plus className="w-4 h-4" />
+                + Dissertativa
+              </button>
+            </div>
           </div>
 
-          {questions.map((q, idx) => (
-            <div key={idx} className="bg-white p-6 rounded-lg border border-border shadow-sm space-y-4">
+          {[...questions].sort((a, b) => {
+            if (a.type === 'essay' && b.type !== 'essay') return 1;
+            if (a.type !== 'essay' && b.type === 'essay') return -1;
+            return (a.id || 0) - (b.id || 0);
+          }).map((q, idx) => (
+            <div key={idx} className="bg-white p-6 rounded-lg border border-border shadow-sm space-y-4 text-left">
               <div className="flex items-center justify-between">
-                <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[11px] font-bold uppercase tracking-wider">Questão {q.id}</span>
+                <div className="flex items-center gap-3">
+                  <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[11px] font-bold uppercase tracking-wider">Questão {idx + 1}</span>
+                  <span className={cn(
+                    "text-[10px] font-black uppercase px-2 py-0.5 rounded-full",
+                    q.type === 'essay' ? "bg-blue-100 text-blue-600" : "bg-green-100 text-green-600"
+                  )}>
+                    {q.type === 'essay' ? 'Dissertativa' : 'Objetiva'}
+                  </span>
+                </div>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
                     <label className="text-xs font-bold text-slate-500">Pontuação:</label>
@@ -1293,29 +1396,35 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
                       value={q.points || 1}
                       onChange={e => {
                         const newQs = [...questions];
-                        newQs[idx].points = e.target.value;
-                        setQuestions(newQs);
+                        const realIdx = questions.findIndex(origQ => origQ.id === q.id);
+                        if (realIdx !== -1) {
+                          newQs[realIdx].points = e.target.value;
+                          setQuestions(newQs);
+                        }
                       }}
                       className="w-16 px-2 py-1 rounded border border-border focus:border-accent text-sm outline-none bg-slate-50 text-center"
                     />
                   </div>
                   <button 
-                    onClick={() => setQuestions(questions.filter((_, i) => i !== idx))}
+                    onClick={() => setQuestions(questions.filter(origQ => origQ.id !== q.id))}
                     className="text-red-400 hover:text-red-600"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
-              <DefaultEditor 
+
+              <ProfessionalEditor 
                 value={q.text}
-                onChange={e => {
+                onChange={(val) => {
                   const newQs = [...questions];
-                  newQs[idx].text = e.target.value;
-                  setQuestions(newQs);
+                  const realIdx = questions.findIndex(origQ => origQ.id === q.id);
+                  if (realIdx !== -1) {
+                    newQs[realIdx].text = val;
+                    setQuestions(newQs);
+                  }
                 }}
-                className="w-full rounded-md border border-border focus:border-accent outline-none transition-all min-h-[80px]"
-                style={{ fontFamily: fontFamily, fontSize: `${fontSize}px` }}
+                placeholder={q.type === 'essay' ? "Escreva o enunciado da questão dissertativa..." : "Digite o enunciado da questão objetiva..."}
               />
               
               <div className="flex flex-col gap-2">
@@ -1358,8 +1467,11 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
                             const resizedBase64 = canvas.toDataURL('image/jpeg', 0.8);
 
                             const newQs = [...questions];
-                            newQs[idx].text = (newQs[idx].text || '') + `<br/><br/><div style="text-align: center;"><img src="${resizedBase64}" style="max-width: 100%; display: inline-block;" /></div><br/>`;
-                            setQuestions(newQs);
+                            const realIdx = questions.findIndex(origQ => origQ.id === q.id);
+                            if (realIdx !== -1) {
+                              newQs[realIdx].text = (newQs[realIdx].text || '') + `<br/><br/><div style="text-align: center;"><img src="${resizedBase64}" style="max-width: 100%; display: inline-block;" /></div><br/>`;
+                              setQuestions(newQs);
+                            }
                           };
                           img.src = reader.result as string;
                         };
@@ -1370,37 +1482,51 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
                 </label>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {['A', 'B', 'C', 'D'].map((opt, optIdx) => (
-                  <div key={opt} className="flex items-center gap-3">
-                    <button 
-                      onClick={() => {
-                        const newQs = [...questions];
-                        newQs[idx].correctAnswer = opt;
-                        setQuestions(newQs);
-                      }}
-                      className={cn(
-                        "w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-xs transition-all",
-                        q.correctAnswer === opt 
-                          ? "bg-primary border-primary text-white" 
-                          : "border-border text-slate-400 hover:border-slate-300"
-                      )}
-                    >
-                      {opt}
-                    </button>
-                    <input 
-                      value={q.options[optIdx]}
-                      onChange={e => {
-                        const newQs = [...questions];
-                        newQs[idx].options[optIdx] = e.target.value;
-                        setQuestions(newQs);
-                      }}
-                      placeholder={`Opção ${opt}`}
-                      className="flex-1 px-3 py-1.5 rounded border border-slate-100 focus:border-accent outline-none text-sm"
-                    />
-                  </div>
-                ))}
-              </div>
+              {q.type !== 'essay' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  {['A', 'B', 'C', 'D'].map((opt, optIdx) => (
+                    <div key={opt} className="flex items-center gap-3">
+                      <button 
+                        onClick={() => {
+                          const newQs = [...questions];
+                          const realIdx = questions.findIndex(origQ => origQ.id === q.id);
+                          if (realIdx !== -1) {
+                            newQs[realIdx].correctAnswer = opt;
+                            setQuestions(newQs);
+                          }
+                        }}
+                        className={cn(
+                          "w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-xs transition-all",
+                          q.correctAnswer === opt 
+                            ? "bg-primary border-primary text-white" 
+                            : "border-border text-slate-400 hover:border-slate-300"
+                        )}
+                      >
+                        {opt}
+                      </button>
+                      <input 
+                        value={q.options[optIdx]}
+                        onChange={e => {
+                          const newQs = [...questions];
+                          const realIdx = questions.findIndex(origQ => origQ.id === q.id);
+                          if (realIdx !== -1) {
+                            newQs[realIdx].options[optIdx] = e.target.value;
+                            setQuestions(newQs);
+                          }
+                        }}
+                        placeholder={`Opção ${opt}`}
+                        className="flex-1 px-3 py-1.5 rounded border border-slate-100 focus:border-accent outline-none text-sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {q.type === 'essay' && (
+                <div className="bg-slate-50 p-4 rounded-md border border-dashed border-slate-200">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Espaço para resposta dissertativa aparecerá na prova impressa</p>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -2023,6 +2149,10 @@ function AdminView({ user }: { user: User }) {
   const handleAddSubject = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSubject.trim()) return;
+    if (schoolInfo.subjects.includes(newSubject.trim())) {
+      alert("Esta disciplina já existe.");
+      return;
+    }
     saveInfo({ ...schoolInfo, subjects: [...schoolInfo.subjects, newSubject.trim()] });
     setNewSubject('');
   };
@@ -2034,6 +2164,10 @@ function AdminView({ user }: { user: User }) {
   const handleAddClass = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newClass.trim()) return;
+    if (schoolInfo.classes.includes(newClass.trim())) {
+      alert("Esta turma já existe.");
+      return;
+    }
     saveInfo({ ...schoolInfo, classes: [...schoolInfo.classes, newClass.trim()] });
     setNewClass('');
   };
@@ -2169,8 +2303,8 @@ function AdminView({ user }: { user: User }) {
           <div className="bg-white p-6 rounded-lg border border-border shadow-sm">
             <h3 className="text-base font-bold text-primary mb-4">Professores Autorizados ({allowedUsers.length})</h3>
             <div className="space-y-2">
-              {allowedUsers.map(item => (
-                <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-100">
+              {allowedUsers.map((item, idx) => (
+                <div key={item.id || `allowed-${idx}`} className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-100">
                   <span className="font-medium text-slate-700 text-sm">{item.username}</span>
                   <button 
                     onClick={() => handleRemoveUser(item.id)}
@@ -2189,8 +2323,8 @@ function AdminView({ user }: { user: User }) {
           <div className="bg-white p-6 rounded-lg border border-border shadow-sm">
             <h3 className="text-base font-bold text-primary mb-4">Controle de Hierarquia dos Registrados ({networkUsers.length})</h3>
             <div className="space-y-2">
-              {networkUsers.map(item => (
-                <div key={item.uid} className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-100">
+              {networkUsers.map((item, idx) => (
+                <div key={item.uid || `user-${idx}`} className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-100">
                   <div className="flex flex-col">
                     <span className="font-bold text-slate-700 text-sm">{item.email}</span>
                     <span className="text-xs text-slate-500">Patente atual: <span className="uppercase font-bold">{item.role}</span></span>
@@ -2956,9 +3090,9 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
   const totalValue = exam.questions.reduce((acc, q) => acc + (parseFloat(q.points as string) || 0), 0);
   
   // Get all registered students
-  const allStudents = Object.values(schoolInfo.studentsDB).flat();
+  const allStudents: Student[] = Object.values(schoolInfo.studentsDB).flat();
   // Get all available classes sorted
-  const availableClasses = Array.from(new Set(allStudents.map(s => s.classId))).sort();
+  const availableClasses: string[] = Array.from(new Set(allStudents.map((s: Student) => s.classId))).sort();
 
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [selectedStudentNames, setSelectedStudentNames] = useState<string[]>([]);
@@ -2981,7 +3115,7 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
 
   useEffect(() => {
     if (selectedClassId) {
-      const studsForClass = allStudents.filter(s => s.classId === selectedClassId).map(s => s.name);
+      const studsForClass = allStudents.filter((s: Student) => s.classId === selectedClassId).map((s: Student) => s.name);
       setSelectedStudentNames(studsForClass);
     } else {
       setSelectedStudentNames([]);
@@ -3018,8 +3152,8 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
   };
 
   // Determine students to render (minimum 1 blank if none selected)
-  let studentsToRender = selectedStudentNames.length > 0 
-    ? allStudents.filter(s => selectedStudentNames.includes(s.name) && s.classId === selectedClassId)
+  let studentsToRender: Student[] = selectedStudentNames.length > 0 
+    ? allStudents.filter((s: Student) => selectedStudentNames.includes(s.name) && s.classId === selectedClassId)
     : [];
 
   if (studentsToRender.length === 0 && !includeBlank) {
@@ -3099,10 +3233,10 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
               Alunos Selecionados ({selectedStudentNames.length})
             </label>
             <div className="border border-border rounded-md h-48 overflow-y-auto p-3 bg-slate-50 space-y-1">
-              {allStudents.filter(s => s.classId === selectedClassId).length === 0 && (
+              {allStudents.filter((s: Student) => s.classId === selectedClassId).length === 0 && (
                 <div className="text-sm text-slate-400 italic">Por favor selecione uma turma...</div>
               )}
-              {allStudents.filter(s => s.classId === selectedClassId).map(student => (
+              {allStudents.filter((s: Student) => s.classId === selectedClassId).map((student: Student) => (
                 <label key={student.name} className="flex items-center gap-3 p-2 hover:bg-slate-100 rounded cursor-pointer transition-colors">
                   <input 
                     type="checkbox" 
@@ -3219,10 +3353,10 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
             <div className="space-y-10">
               {exam.questions.map((q, idx) => (
                 <div key={q.id} className="space-y-4 break-inside-avoid">
-                  <div className="w-full text-center px-4 flex items-start justify-center gap-1">
-                    <span className="font-bold text-sm">{idx + 1}.</span>
+                  <div className="w-full text-left px-4 flex items-start justify-start gap-1">
+                    <span className="font-bold text-sm min-w-[20px]">{idx + 1}.</span>
                     <span 
-                      className="text-sm font-bold leading-relaxed q-text-html-container" 
+                      className="text-sm font-bold leading-relaxed q-text-html-container flex-1" 
                       dangerouslySetInnerHTML={{ __html: q.text }} 
                     />
                   </div>
@@ -3241,14 +3375,22 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
                     </div>
                   )}
 
-                  <div className="flex flex-col items-start w-fit mx-auto space-y-1">
-                    {['a', 'b', 'c', 'd'].map((letter, i) => (
-                      <div key={letter} className="flex gap-2">
-                        <span className="text-sm">{letter})</span>
-                        <span className="text-sm">{q.options[i]}</span>
-                      </div>
-                    ))}
-                  </div>
+                  {q.type === 'essay' ? (
+                    <div className="px-8 space-y-4 pt-2">
+                       {Array.from({ length: 5 }).map((_, i) => (
+                         <div key={i} className="border-b border-black/30 h-8"></div>
+                       ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-start w-fit mx-auto space-y-1">
+                      {['a', 'b', 'c', 'd'].map((letter, i) => (
+                        <div key={letter} className="flex gap-2">
+                          <span className="text-sm font-bold">{letter})</span>
+                          <span className="text-sm">{q.options[i]}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -3320,7 +3462,7 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-12 p-6 border-2 border-slate-100 rounded-xl">
-              {exam.questions.map((q, idx) => (
+              {exam.questions.filter(q => q.type !== 'essay').map((q, idx) => (
                 <div key={q.id} className="flex items-center gap-4">
                   <span className="w-8 font-black text-primary text-sm">{String(idx + 1).padStart(2, '0')}</span>
                   <div className="flex gap-2">
@@ -3672,165 +3814,1178 @@ function StudentReportPrintView({ reports, onBack }: { reports: StudentReport[],
   );
 }
 
-function BoletimView({ results, exams, isAdmin, user }: { results: Result[], exams: Exam[], isAdmin: boolean, user: User }) {
+// --- DIGITAL DIARY VIEW (PROESC STYLE) ---
+function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin: boolean, userProfile: any }) {
   const [selectedClass, setSelectedClass] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedBimester, setSelectedBimester] = useState('1º Bimestre');
+  
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [results, setResults] = useState<Result[]>([]);
+  
+  const [loading, setLoading] = useState(false);
+  const [showAddLesson, setShowAddLesson] = useState(false);
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  
+  const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newContent, setNewContent] = useState('');
+  const [newCount, setNewCount] = useState(2);
+  const [isHoliday, setIsHoliday] = useState(false);
 
-  const classes = Array.from(new Set(results.map(r => r.studentClass).filter(Boolean))).sort();
-  const bimesters = ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'];
+  // Generator State
+  const [showCronogramaGenerator, setShowCronogramaGenerator] = useState(false);
+  const [generatorStartDate, setGeneratorStartDate] = useState('');
+  const [generatorEndDate, setGeneratorEndDate] = useState('');
+  const [generatorDays, setGeneratorDays] = useState<Record<number, number>>({
+    0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0
+  });
+  
+  const [viewingAttendance, setViewingAttendance] = useState<Lesson | null>(null);
+  const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([]);
+  const [savingAttendance, setSavingAttendance] = useState(false);
+  const [launchingGradesFor, setLaunchingGradesFor] = useState<Exam | null>(null);
+  const [gradeInputs, setGradeInputs] = useState<{[key: string]: number}>({});
+  const [savingGrades, setSavingGrades] = useState(false);
 
-  const filteredResults = results.filter(r => 
-    (selectedClass === '' || r.studentClass === selectedClass) &&
-    (selectedBimester === '' || r.bimester === selectedBimester)
-  );
+  const schoolInfo = getSchoolInfo();
+  const subjects = schoolInfo.subjects;
+  const classes = schoolInfo.classes;
+  const bimesters = [
+    '1º Bimestre', 
+    '2º Bimestre', 
+    '3º Bimestre', 
+    '4º Bimestre', 
+    'Conselho de Classe', 
+    'Prova Final', 
+    'Recuperação'
+  ];
 
-  const students = Array.from(new Set(filteredResults.map(r => r.studentName))).sort();
+  const [newExamTitle, setNewExamTitle] = useState('');
+  const [newExamDate, setNewExamDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newExamType, setNewExamType] = useState('PROVA I');
+  const [showAddExam, setShowAddExam] = useState(false);
+  const [savingExam, setSavingExam] = useState(false);
 
-  const studentGrades = students.map(studentName => {
-    const studentResults = filteredResults.filter(r => r.studentName === studentName);
-    const grades: Record<string, number> = {};
-    studentResults.forEach(r => {
-      const exam = exams.find(e => e.id === r.examId);
-      if (exam) {
-        grades[exam.title] = (r.score / r.maxScore) * 10;
+  // -- Duplicate Exam --
+  const handleDuplicateExam = async (exam: Exam) => {
+    if (!window.confirm("Deseja duplicar esta prova?")) return;
+    try {
+      const { error } = await supabase.from('exams').insert({
+        professor_id: user.id,
+        title: `${exam.title} (Cópia)`,
+        subject: exam.subject,
+        exam_type: exam.examType,
+        exam_date: new Date().toISOString().split('T')[0],
+        class_year: exam.classYear,
+        bimester: exam.bimester,
+        questions: exam.questions || [],
+        answer_key: exam.answerKey || { _metadata: { isExternal: true, bimester: exam.bimester, examType: exam.examType } }
+      });
+      if (error) throw error;
+      fetchData();
+      alert("Avaliação duplicada com sucesso!");
+    } catch (err: any) {
+      alert("Erro ao duplicar: " + err.message);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedClass && selectedSubject && selectedBimester) {
+      fetchData();
+    }
+  }, [selectedClass, selectedSubject, selectedBimester]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // Fetch Lessons
+      const { data: lessonData } = await supabase
+        .from('lessons')
+        .select('*')
+        .eq('class_id', selectedClass)
+        .eq('subject', selectedSubject)
+        .eq('bimester', selectedBimester)
+        .order('date', { ascending: false });
+      
+      setLessons(lessonData || []);
+
+      // Fetch Exams for this class/subject
+      const { data: examData } = await supabase
+        .from('exams')
+        .select('*')
+        .eq('class_year', selectedClass)
+        .eq('subject', selectedSubject)
+        .eq('bimester', selectedBimester);
+      
+      setExams(examData || []);
+
+      // Fetch Results
+      const { data: resultData } = await supabase
+        .from('results')
+        .select('*')
+        .eq('student_class', selectedClass)
+        .eq('bimester', selectedBimester);
+      
+      setResults(resultData || []);
+
+      // Filter Students
+      const allStudentsFiltered = Object.values(schoolInfo.studentsDB).flat();
+      const classStudents = allStudentsFiltered.filter((s: any) => s.classId === selectedClass);
+      setStudents(classStudents);
+
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveLesson = async () => {
+    if (!newContent) return;
+    try {
+      if (editingLesson) {
+         const { error } = await supabase.from('lessons').update({
+           date: newDate,
+           content: isHoliday ? "FERIADO NACIONAL / RECESSO" : newContent,
+           lesson_count: isHoliday ? 0 : newCount
+         }).eq('id', editingLesson.id);
+         if (error) throw error;
+      } else {
+         const { error } = await supabase.from('lessons').insert({
+           professor_id: user.id,
+           class_id: selectedClass,
+           subject: selectedSubject,
+           bimester: selectedBimester,
+           date: newDate,
+           content: isHoliday ? "FERIADO NACIONAL / RECESSO" : newContent,
+           lesson_count: isHoliday ? 0 : newCount
+         });
+         if (error) throw error;
       }
+      setShowAddLesson(false);
+      setEditingLesson(null);
+      setNewContent('');
+      setIsHoliday(false);
+      fetchData();
+    } catch (err: any) {
+      alert("Erro ao salvar aula: " + err.message);
+    }
+  };
+
+  const handleGenerateCronograma = async () => {
+    if (!generatorStartDate || !generatorEndDate) return;
+    
+    const start = new Date(generatorStartDate + 'T00:00:00');
+    const end = new Date(generatorEndDate + 'T00:00:00');
+    
+    if (start > end) {
+      alert("A data de início deve ser menor que a data final.");
+      return;
+    }
+
+    const lessonsToInsert = [];
+    
+    let currentDate = new Date(start);
+    while (currentDate <= end) {
+      // 0 is Sunday, 1 is Monday ... 6 is Saturday
+      const dayOfWeek = currentDate.getDay(); 
+      const lessonCount = generatorDays[dayOfWeek] || 0;
+      
+      if (lessonCount > 0) {
+        lessonsToInsert.push({
+          professor_id: user.id,
+          class_id: selectedClass,
+          subject: selectedSubject,
+          bimester: selectedBimester,
+          date: currentDate.toISOString().split('T')[0],
+          content: 'Conteúdo a definir (Editar para alterar)',
+          lesson_count: lessonCount
+        });
+      }
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    if(lessonsToInsert.length === 0) {
+       alert("Nenhuma aula gerada para os dias selecionados no período.");
+       return;
+    }
+    
+    try {
+      const { error } = await supabase.from('lessons').insert(lessonsToInsert);
+      if (error) throw error;
+      
+      setShowCronogramaGenerator(false);
+      fetchData();
+      alert(`Foram geradas ${lessonsToInsert.length} aulas no cronograma!`);
+    } catch (err: any) {
+      alert("Erro ao gerar cronograma: " + err.message);
+    }
+  };
+
+  const openAttendance = async (lesson: Lesson) => {
+    setViewingAttendance(lesson);
+    setLoading(true);
+    try {
+      const { data: existing, error } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('lesson_id', lesson.id);
+      
+      if (error) throw error;
+
+      if (!existing || existing.length === 0) {
+        setAttendanceRecords(students.map((s: any) => ({
+          id: '',
+          lesson_id: lesson.id,
+          student_name: s.name,
+          status: 'present' as const
+        })));
+      } else {
+        setAttendanceRecords(existing);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleAttendance = (index: number) => {
+    const newRecords = [...attendanceRecords];
+    newRecords[index].status = newRecords[index].status === 'present' ? 'absent' : 'present';
+    setAttendanceRecords(newRecords);
+  };
+
+  const saveAttendance = async () => {
+    if (!viewingAttendance) return;
+    setSavingAttendance(true);
+    try {
+      await supabase.from('attendance').delete().eq('lesson_id', viewingAttendance.id);
+      const { error } = await supabase.from('attendance').insert(attendanceRecords.map(r => ({
+        lesson_id: viewingAttendance.id,
+        student_name: r.student_name,
+        status: r.status
+      })));
+      if (error) throw error;
+      setViewingAttendance(null);
+      alert("Frequência salva com sucesso!");
+    } catch (err: any) {
+      alert("Erro ao salvar frequência: " + err.message);
+    } finally {
+      setSavingAttendance(false);
+    }
+  };
+
+  const handleSaveExam = async () => {
+    if (!newExamTitle || !selectedClass || !selectedSubject) return;
+    setSavingExam(true);
+    try {
+      const { error } = await supabase.from('exams').insert({
+        professor_id: user.id,
+        title: newExamTitle.toUpperCase(),
+        subject: selectedSubject,
+        exam_type: newExamType,
+        exam_date: newExamDate,
+        class_year: selectedClass,
+        bimester: selectedBimester,
+        questions: [],
+        answer_key: { _metadata: { isExternal: true, bimester: selectedBimester, examType: newExamType } }
+      });
+
+      if (error) throw error;
+      setShowAddExam(false);
+      setNewExamTitle('');
+      fetchData();
+      alert("Avaliação criada com sucesso!");
+    } catch (err: any) {
+      alert("Erro ao criar avaliação: " + err.message);
+    } finally {
+      setSavingExam(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    let csv = "Aluno;";
+    exams.forEach(exam => {
+      csv += `${exam.title};`;
+    });
+    csv += "Media\n";
+
+    students.forEach(student => {
+      let row = `${student.name};`;
+      const studentResults = results.filter(r => r.studentName === student.name);
+      let total = 0;
+      exams.forEach(exam => {
+        const res = studentResults.find(r => r.examId === exam.id);
+        if (res) {
+          const score = (res.score / res.maxScore) * 10;
+          row += `${score.toFixed(1).replace('.', ',')};`;
+          total += score;
+        } else {
+          row += "-;";
+        }
+      });
+      const avg = studentResults.length > 0 ? (total / studentResults.length).toFixed(1).replace('.', ',') : "0,0";
+      row += `${avg}\n`;
+      csv += row;
     });
 
-    const average = studentResults.length > 0 
-      ? studentResults.reduce((acc, r) => acc + (r.score / r.maxScore) * 10, 0) / studentResults.length 
-      : 0;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Notas_${selectedClass}_${selectedSubject}.csv`;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
-    return {
-      name: studentName,
-      class: studentResults[0]?.studentClass,
-      grades,
-      average
-    };
-  });
+  const showStudentDetails = (studentName: string) => {
+     const studentResults = results.filter(r => r.studentName === studentName);
+     alert(`Histórico de ${studentName}\nAvaliações concluídas: ${studentResults.length}`);
+  };
 
-  const availableExams = Array.from(new Set(filteredResults.map(r => exams.find(e => e.id === r.examId)?.title).filter(Boolean)));
+  const handleDeleteExamLocal = async (id: string) => {
+    if (!window.confirm("Deseja realmente excluir esta avaliação?")) return;
+    try {
+      const { error } = await supabase.from('exams').delete().eq('id', id);
+      if (error) throw error;
+      fetchData();
+    } catch (err: any) {
+      alert("Erro ao excluir: " + err.message);
+    }
+  };
+
+  const startLaunchingGrades = (exam: Exam) => {
+    setLaunchingGradesFor(exam);
+    const existingGrades: {[key: string]: number} = {};
+    results.filter(r => r.examId === exam.id).forEach(r => {
+      existingGrades[r.studentName] = r.score;
+    });
+    setGradeInputs(existingGrades);
+  };
+
+  const handleSaveGrades = async () => {
+    if (!launchingGradesFor) return;
+    setSavingGrades(true);
+    try {
+      const payloads = students.map(student => ({
+        exam_id: launchingGradesFor.id,
+        exam_type: launchingGradesFor.exam_type,
+        student_name: student.name,
+        student_class: selectedClass,
+        subject: selectedSubject,
+        bimester: selectedBimester,
+        score: gradeInputs[student.name] || 0,
+        max_score: 10,
+        professor_id: user.id
+      }));
+
+      // Upsert results
+      for (const payload of payloads) {
+        await supabase.from('results').upsert(payload, { 
+          onConflict: 'exam_id,student_name' 
+        });
+      }
+      
+      setLaunchingGradesFor(null);
+      fetchData();
+      alert("Notas salvas com sucesso!");
+    } catch (err: any) {
+      alert("Erro ao salvar notas: " + err.message);
+    } finally {
+      setSavingGrades(false);
+    }
+  };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
-    >
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="print:hidden">
-          <h2 className="text-2xl font-bold text-primary tracking-tight">Boletim Escolar</h2>
-          <p className="text-slate-500 text-sm italic">Notas consolidadas a partir das correções realizadas.</p>
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-20 text-left bg-white min-h-screen text-slate-800 font-sans">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mt-3 gap-4 border-b border-slate-200 pb-4">
+        <div>
+          <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Diário & Correção de Avaliações</h1>
+          <p className="text-sm text-slate-500 font-medium">Gestão unificada do planejamento, provas, gabaritos e notas.</p>
         </div>
-
-        {/* Title for Print only */}
-        <div className="hidden print:block text-center w-full mb-10">
-           <div className="flex justify-center mb-4">
-              <img src={LOGO_VINHO} alt="Logo" className="h-16" />
-           </div>
-           <h1 className="text-2xl font-black text-primary uppercase">Quadro Geral de Avaliações</h1>
-           <div className="flex justify-center gap-4 text-sm font-bold text-slate-500 mt-2">
-              <span>TURMA: {selectedClass || 'TODAS'}</span>
-              <span>•</span>
-              <span>{selectedBimester}</span>
-           </div>
-        </div>
-        
-        <div className="flex flex-wrap gap-3 print:hidden">
+        <div className="flex items-center gap-3 w-full md:w-auto">
           <select 
-            value={selectedClass}
+            value={selectedClass} 
             onChange={e => setSelectedClass(e.target.value)}
-            className="px-4 py-2 rounded-md border border-border focus:border-accent outline-none text-sm bg-white shadow-sm"
+            className="flex-1 md:w-40 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
           >
-            <option value="">Todas as Turmas</option>
+            <option value="">Selecione a Turma</option>
             {classes.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          
           <select 
-            value={selectedBimester}
+            value={selectedSubject} 
+            onChange={e => setSelectedSubject(e.target.value)}
+            className="flex-1 md:w-48 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
+          >
+            <option value="">Selecione a Disciplina</option>
+            {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select 
+            value={selectedBimester} 
             onChange={e => setSelectedBimester(e.target.value)}
-            className="px-4 py-2 rounded-md border border-border focus:border-accent outline-none text-sm bg-white shadow-sm"
+            className="flex-1 md:w-40 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
           >
             {bimesters.map(b => <option key={b} value={b}>{b}</option>)}
           </select>
-
-          <button 
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-md text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
-          >
-            <Printer className="w-4 h-4" />
-            Imprimir Quadro
-          </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-border shadow-sm overflow-hidden overflow-x-auto print:border-none print:shadow-none">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 border-b border-border">
-              <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap bg-slate-50 sticky left-0 z-10">Aluno</th>
-              <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Turma</th>
-              {availableExams.map(title => (
-                <th key={title} className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest min-w-[120px] max-w-[200px]">
-                   <p className="line-clamp-2">{title}</p>
-                </th>
-              ))}
-              <th className="px-6 py-4 text-[11px] font-black text-accent uppercase tracking-widest whitespace-nowrap text-center">Média</th>
-            </tr>
-          </thead>
-          <tbody>
-            {studentGrades.length === 0 ? (
-              <tr>
-                <td colSpan={availableExams.length + 3} className="px-6 py-12 text-center text-slate-400 italic">
-                  Nenhum registro encontrado para os filtros selecionados.
-                </td>
-              </tr>
-            ) : (
-              studentGrades.map((student, idx) => (
-                <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4 bg-white sticky left-0 z-10 border-r border-slate-50">
-                    <span className="text-sm font-bold text-slate-700">{student.name}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-xs font-medium text-slate-500 uppercase tracking-tighter">{student.class}</span>
-                  </td>
-                  {availableExams.map(title => (
-                    <td key={title} className="px-6 py-4">
-                      {student.grades[title!] !== undefined ? (
-                        <span className={cn(
-                          "text-sm font-black",
-                          student.grades[title!] >= 6 ? "text-green-600" : "text-red-500"
-                        )}>
-                          {student.grades[title!].toFixed(1).replace('.', ',')}
-                        </span>
-                      ) : (
-                        <span className="text-slate-300">-</span>
+      {(!selectedClass || !selectedSubject) ? (
+        <div className="flex flex-col items-center justify-center py-32 text-center bg-slate-50 border border-slate-200 border-dashed rounded-2xl">
+          <BookOpen className="w-16 h-16 text-slate-300 mb-4" />
+          <h2 className="text-xl font-black text-slate-400 uppercase tracking-widest">Nenhuma turma selecionada</h2>
+          <p className="text-slate-500 text-sm mt-2 max-w-sm">Utilize os filtros acima para selecionar a turma, disciplina e visualização do diário.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+          
+          {/* LEFT COLUMN: Cronograma & Frequência (4 cols wide on desktop) */}
+          <div className="xl:col-span-4 space-y-6">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+              <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0 gap-2">
+                <h3 className="font-black text-slate-800 text-sm tracking-widest uppercase">Cronograma & Aulas</h3>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setShowCronogramaGenerator(true)}
+                    className="bg-primary text-white p-2 rounded-lg hover:bg-opacity-90 transition-colors shadow-sm flex items-center gap-1 text-[10px] font-bold uppercase"
+                    title="Gerador de Cronograma (Período)"
+                  >
+                    <Calendar className="w-4 h-4" /> Gerar Período
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setEditingLesson(null);
+                      setNewDate(new Date().toISOString().split('T')[0]);
+                      setNewContent('');
+                      setNewCount(2);
+                      setIsHoliday(false);
+                      setShowAddLesson(true);
+                    }}
+                    className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm text-[10px] items-center gap-1 uppercase font-bold"
+                    title="Novo Registro de Aula"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-0 overflow-y-auto max-h-[600px]">
+                {lessons.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400 text-sm font-medium">Nenhuma aula gravada neste bimestre.</div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {lessons.map(lesson => (
+                      <div key={lesson.id} className="p-4 hover:bg-slate-50 transition-colors group">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-1 rounded inline-block mb-2">
+                              {new Date(lesson.date).toLocaleDateString('pt-BR')} ({lesson.lesson_count} h/a)
+                            </span>
+                            <p className="text-sm font-medium text-slate-700 leading-relaxed mb-3">
+                              {lesson.content}
+                            </p>
+                            <div className="flex gap-2">
+                              <button 
+                                onClick={() => openAttendance(lesson)}
+                                className="text-[11px] font-bold text-slate-500 border border-slate-200 py-1.5 px-3 rounded hover:bg-slate-100 transition-colors flex items-center gap-1.5"
+                              >
+                                <Users className="w-3.5 h-3.5" /> Lançar/Ver Frequência
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  setEditingLesson(lesson);
+                                  setNewDate(lesson.date);
+                                  setNewContent(lesson.content);
+                                  setNewCount(lesson.lesson_count);
+                                  setIsHoliday(lesson.lesson_count === 0 || lesson.content.includes("FERIADO"));
+                                  setShowAddLesson(true);
+                                }}
+                                className="text-[11px] font-bold text-slate-500 border border-slate-200 py-1.5 px-3 rounded hover:bg-slate-100 transition-colors flex items-center gap-1.5"
+                              >
+                                Edit / Feriado
+                              </button>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={async () => {
+                              if(window.confirm("Deseja deletar esta aula?")) {
+                                await supabase.from('lessons').delete().eq('id', lesson.id);
+                                fetchData();
+                              }
+                            }}
+                            className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Quick Summary Block */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-slate-100 rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col justify-center">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Aulas dadas</span>
+                <span className="text-2xl font-black text-slate-800">{lessons.length}</span>
+              </div>
+              <div className="bg-slate-100 rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col justify-center">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Média Geral</span>
+                <span className="text-2xl font-black text-slate-800">
+                  {results.length > 0 ? (results.reduce((acc, r) => acc + (r.score/r.maxScore*10), 0) / results.length).toFixed(1).replace('.', ',') : '0,0'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN: Avaliações, Correção e Gabaritos (8 cols wide on desktop) */}
+          <div className="xl:col-span-8 space-y-6">
+            
+            <div className="bg-white border text-left border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+              <div className="p-5 border-b border-slate-100 bg-[#3b5998] text-white flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="w-5 h-5 opacity-80" />
+                  <h3 className="font-black text-white text-sm tracking-widest uppercase">Criação & Lançamento de Provas</h3>
+                </div>
+              </div>
+              
+              {/* Form Inline Avaliações */}
+              <div className="p-5 bg-blue-50/30 border-b border-slate-100">
+                <div className="flex flex-col md:flex-row items-end gap-4">
+                  <div className="w-full md:flex-1 space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Título da Avaliação</label>
+                    <input 
+                      type="text" 
+                      value={newExamTitle}
+                      onChange={e => setNewExamTitle(e.target.value)}
+                      placeholder="EX: PROVA MENSAL"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-blue-500 transition-all shadow-sm"
+                    />
+                  </div>
+                  <div className="w-full md:w-36 space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Data Prevista</label>
+                    <input 
+                      type="date" 
+                      value={newExamDate} 
+                      onChange={e => setNewExamDate(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-blue-500 transition-all shadow-sm"
+                    />
+                  </div>
+                  <div className="w-full md:w-48 space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Tipo Padrão</label>
+                    <select 
+                      value={newExamType}
+                      onChange={e => setNewExamType(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-blue-500 transition-all shadow-sm"
+                    >
+                      <option value="PROVA I">PROVA I (10.0)</option>
+                      <option value="PROVA II">PROVA II (10.0)</option>
+                      <option value="PROVA III">PROVA III (10.0)</option>
+                      <option value="PROVA IV">PROVA IV (10.0)</option>
+                      <option value="PROVA V">PROVA V (10.0)</option>
+                      <option value="TRABALHO">TRABALHO (10.0)</option>
+                      <option value="SIMULADO">SIMULADO (10.0)</option>
+                    </select>
+                  </div>
+                  <button 
+                    onClick={handleSaveExam}
+                    disabled={savingExam || !newExamTitle}
+                    className="w-full md:w-auto bg-[#3b5998] text-white px-6 py-2.5 rounded-lg text-sm font-black shadow-sm hover:bg-opacity-90 disabled:opacity-50 transition-all"
+                  >
+                    {savingExam ? 'Salvando...' : 'Adicionar Prova'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Listagem Avaliações criadas neste bimestre */}
+              <div className="p-0">
+                {exams.length === 0 ? (
+                  <div className="p-8 text-center text-slate-500 text-sm">Ainda não há avaliações criadas para este bimestre.</div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {exams.map(exam => (
+                      <div key={exam.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase">{exam.examType}</span>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase">{new Date(exam.examDate || new Date().toISOString()).toLocaleDateString('pt-BR')}</span>
+                          </div>
+                          <h4 className="font-bold text-sm text-slate-800 uppercase">{exam.title}</h4>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => handleDuplicateExam(exam)}
+                            className="bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase hover:bg-slate-50 shadow-sm flex items-center gap-1"
+                          >
+                            <Copy className="w-3.5 h-3.5" /> Duplicar
+                          </button>
+                          <button 
+                            onClick={() => startLaunchingGrades(exam)}
+                            className="bg-green-600 text-white px-3 py-1.5 rounded-md text-[10px] font-black uppercase hover:bg-green-700 shadow-sm flex items-center gap-1"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" /> Lançar/Corrigir Notas
+                          </button>
+                          <button onClick={() => handleDeleteExamLocal(exam.id)} className="text-slate-300 hover:text-red-500 p-2 transition-colors ml-2">
+                             <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quadro de Notas Consolidado */}
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <h3 className="font-black text-slate-800 text-sm tracking-widest uppercase">Quadro Consolidado (Boletim Prévia)</h3>
+                <button 
+                  onClick={handleExportCSV}
+                  className="bg-white border border-slate-300 text-slate-600 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase hover:bg-slate-50 shadow-sm flex items-center gap-1.5 transition-all"
+                >
+                   <Download className="w-3.5 h-3.5" /> Planilha
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-white border-b border-slate-200">
+                      <th className="p-4 text-[10px] font-black text-slate-400 text-left uppercase sticky left-0 bg-white z-10 w-64 border-r border-slate-100 shadow-[1px_0_0_rgba(0,0,0,0.05)]">Aluno</th>
+                      {exams.map(exam => (
+                         <th key={exam.id} className="p-4 text-[10px] font-black text-slate-400 text-center uppercase min-w-[100px]">
+                           {exam.title.split(' ')[0]} {/* short title */}
+                         </th>
+                      ))}
+                      <th className="p-4 text-[10px] font-black text-[#3b5998] text-center uppercase border-l border-slate-100 bg-blue-50/30">Média Bimestral</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {students.map(student => {
+                      const studentResults = results.filter(r => r.studentName === student.name);
+                      const avg = studentResults.length > 0 
+                        ? (studentResults.reduce((acc, r) => acc + (Number(r.score) / r.maxScore * 10), 0) / studentResults.length).toFixed(1)
+                        : '0.0';
+                      
+                      return (
+                        <tr key={student.name} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-4 font-bold text-slate-700 text-xs uppercase sticky left-0 bg-white border-r border-slate-100 shadow-[1px_0_0_rgba(0,0,0,0.05)] flex justify-between items-center group">
+                            <span className="truncate pr-2">{student.name}</span>
+                            <button onClick={() => showStudentDetails(student.name)} className="text-slate-300 hover:text-blue-500 transition-colors hidden group-hover:block" title="Histórico">
+                              <Search className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                          {exams.map(exam => {
+                              const res = studentResults.find(r => r.examId === exam.id);
+                              const normalizedScore = res ? (res.score / res.maxScore * 10) : null;
+                              return (
+                                <td key={exam.id} className="p-4 text-center text-[13px] font-black">
+                                  <span className={normalizedScore !== null ? (normalizedScore >= 6 ? 'text-blue-600' : 'text-red-500') : 'text-slate-300 font-medium'}>
+                                    {normalizedScore !== null ? normalizedScore.toFixed(1).replace('.', ',') : '-'}
+                                  </span>
+                                </td>
+                              );
+                          })}
+                          <td className="p-4 text-center text-[13px] font-black border-l border-slate-100 bg-blue-50/30">
+                            <span className={Number(avg) >= 6 ? 'text-blue-700' : 'text-red-600'}>
+                              {avg.replace('.', ',')}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+
+      {/* Modal Novo Lançamento de Notas (Collective Entry) */}
+      <AnimatePresence>
+        {launchingGradesFor && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 text-left">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden text-left">
+              <div className="p-6 border-b border-slate-100 bg-[#3b5998] text-white flex items-center justify-between">
+                <div>
+                  <h3 className="font-black text-lg uppercase tracking-tight">Lançar Notas: {launchingGradesFor.title}</h3>
+                  <p className="text-[10px] font-bold text-white/80 uppercase">{selectedClass} - {selectedSubject}</p>
+                </div>
+                <button onClick={() => setLaunchingGradesFor(null)} className="text-white/60 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
+              </div>
+              <div className="max-h-[500px] overflow-y-auto p-4 space-y-2">
+                <table className="w-full border-collapse">
+                  <thead className="bg-slate-50 sticky top-0 z-10">
+                    <tr>
+                      <th className="p-3 text-[10px] font-bold text-slate-500 uppercase text-left">Aluno</th>
+                      <th className="p-3 text-[10px] font-bold text-slate-500 uppercase text-center w-32">Nota (0-10)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {students.map((student) => (
+                      <tr key={student.name} className="border-b border-slate-100">
+                        <td className="p-3 text-xs font-bold text-slate-700 uppercase">{student.name}</td>
+                        <td className="p-3">
+                          <input 
+                            type="number" 
+                            step="0.1"
+                            min="0"
+                            max="10"
+                            value={gradeInputs[student.name] || ''}
+                            onChange={e => setGradeInputs({...gradeInputs, [student.name]: parseFloat(e.target.value) || 0})}
+                            className="w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-center text-sm font-black outline-none focus:border-blue-400"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="p-6 border-t border-slate-100 flex gap-3">
+                <button 
+                  onClick={() => setLaunchingGradesFor(null)}
+                  className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold text-sm uppercase tracking-widest transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleSaveGrades}
+                  disabled={savingGrades}
+                  className="flex-2 bg-[#3b5998] text-white py-3 rounded-xl font-black text-sm uppercase tracking-widest shadow-lg hover:shadow-blue-500/40 transition-all disabled:opacity-50"
+                >
+                  {savingGrades ? 'Salvando...' : 'Salvar Todas'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Modal Lançar/Editar Aula */}
+      <AnimatePresence>
+        {showAddLesson && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 text-left">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden text-left">
+              <div className="p-6 border-b border-slate-100 bg-primary text-white flex items-center justify-between">
+                <h3 className="font-black text-lg uppercase tracking-tight">{editingLesson ? "Editar Registro de Aula" : "Novo Registro de Aula"}</h3>
+                <button onClick={() => setShowAddLesson(false)} className="text-white/60 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
+              </div>
+              <div className="p-6 space-y-5 text-left text-slate-700">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</label>
+                    <input 
+                      type="date" 
+                      value={newDate} 
+                      onChange={e => setNewDate(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold text-left outline-none focus:border-accent"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Qtd. Aulas (Horas)</label>
+                    <input 
+                      type="number" 
+                      value={newCount} 
+                      onChange={e => setNewCount(parseInt(e.target.value))}
+                      disabled={isHoliday}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold text-left outline-none focus:border-accent disabled:opacity-50"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 mt-4 p-3 border border-amber-200 bg-amber-50 rounded-lg">
+                  <input 
+                    type="checkbox" 
+                    id="isHolidayToggle"
+                    checked={isHoliday}
+                    onChange={(e) => setIsHoliday(e.target.checked)}
+                    className="w-4 h-4 cursor-pointer"
+                  />
+                  <label htmlFor="isHolidayToggle" className="text-sm font-bold text-amber-800 cursor-pointer select-none">
+                    Marcar dia como FERIADO / RECESSO
+                  </label>
+                </div>
+
+                {!isHoliday && (
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Conteúdo Ministrado</label>
+                    <textarea 
+                      rows={4}
+                      value={newContent}
+                      onChange={e => setNewContent(e.target.value)}
+                      placeholder="Descreva o que foi trabalhado em aula..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-accent resize-none text-left"
+                    />
+                  </div>
+                )}
+                <button 
+                  onClick={handleSaveLesson}
+                  disabled={!isHoliday && !newContent}
+                  className="w-full bg-accent text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest shadow-lg hover:shadow-accent/40 transition-all disabled:opacity-50"
+                >
+                  Confirmar Registro
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Gerador de Cronograma */}
+      <AnimatePresence>
+        {showCronogramaGenerator && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 text-left">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden text-left">
+              <div className="p-6 border-b border-slate-100 bg-primary text-white flex items-center justify-between">
+                <div>
+                  <h3 className="font-black text-lg uppercase tracking-tight">Gerador de Aula/Cronograma</h3>
+                  <p className="text-xs font-bold text-slate-300">Crie os dias letivos no período</p>
+                </div>
+                <button onClick={() => setShowCronogramaGenerator(false)} className="text-white/60 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
+              </div>
+              <div className="p-6 space-y-6 text-left text-slate-700">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data Inicial</label>
+                    <input 
+                      type="date" 
+                      value={generatorStartDate} 
+                      onChange={e => setGeneratorStartDate(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold text-left outline-none focus:border-accent"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data Final</label>
+                    <input 
+                      type="date" 
+                      value={generatorEndDate} 
+                      onChange={e => setGeneratorEndDate(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold text-left outline-none focus:border-accent"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Quantas aulas por dia da semana?</label>
+                  <p className="text-xs text-slate-500 mb-2 leading-relaxed">Em cada dia marcado, o sistema criará o número de aulas (horas/aula) preenchido. Deixe vazio ou 0 para dias em que você não leciona.</p>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                      { idx: 1, label: 'Segunda-feira' },
+                      { idx: 2, label: 'Terça-feira' },
+                      { idx: 3, label: 'Quarta-feira' },
+                      { idx: 4, label: 'Quinta-feira' },
+                      { idx: 5, label: 'Sexta-feira' },
+                      { idx: 6, label: 'Sábado' }
+                    ].map(day => (
+                      <div key={day.idx} className="bg-slate-50 border border-slate-200 rounded p-2 flex flex-col justify-center items-center gap-1">
+                        <span className="text-[10px] font-bold text-slate-600 uppercase">{day.label}</span>
+                        <input
+                           type="number"
+                           min="0"
+                           max="10"
+                           value={generatorDays[day.idx] || ''}
+                           onChange={(e) => setGeneratorDays(prev => ({ ...prev, [day.idx]: parseInt(e.target.value) || 0 }))}
+                           className="w-16 text-center border border-slate-200 rounded px-2 py-1 text-sm font-bold"
+                           placeholder="0"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button 
+                    onClick={handleGenerateCronograma}
+                    className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 hover:bg-blue-700"
+                  >
+                    <Calendar className="w-5 h-5" /> Gerar Cronograma
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Frequência */}
+      <AnimatePresence>
+        {viewingAttendance && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 text-left">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden text-left">
+              <div className="p-6 border-b border-slate-100 bg-red-600 text-white flex items-center justify-between">
+                <div>
+                  <h3 className="font-black text-lg uppercase tracking-tight">Lançamento de Frequência</h3>
+                  <p className="text-[10px] font-bold text-white/80 uppercase">Aula do dia {new Date(viewingAttendance.date).toLocaleDateString('pt-BR')}</p>
+                </div>
+                <button onClick={() => setViewingAttendance(null)} className="text-white/60 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
+              </div>
+              <div className="max-h-[400px] overflow-y-auto p-4 space-y-2">
+                {attendanceRecords.map((record, idx) => (
+                  <div key={record.student_name} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
+                    <span className="font-black text-slate-700 text-xs uppercase">{record.student_name}</span>
+                    <button 
+                      onClick={() => toggleAttendance(idx)}
+                      className={cn(
+                        "px-4 py-1.5 rounded font-black text-[10px] uppercase tracking-wider transition-all",
+                        record.status === 'present' 
+                          ? 'bg-green-100 text-green-700 border border-green-200' 
+                          : 'bg-red-100 text-red-700 border border-red-200'
                       )}
+                    >
+                      {record.status === 'present' ? 'Presente' : 'Faltou'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="p-6 border-t border-slate-100 text-left">
+                <button 
+                  onClick={saveAttendance}
+                  disabled={savingAttendance}
+                  className="w-full bg-red-600 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest shadow-lg hover:shadow-red-500/40 transition-all disabled:opacity-50"
+                >
+                  {savingAttendance ? 'Salvando...' : 'Salvar Lista de Chamada'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+function BoletimView({ results, exams, user }: { results: Result[], exams: Exam[], isAdmin: boolean, user: User, onRefresh: () => void }) {
+  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
+  
+  const schoolInfo = getSchoolInfo();
+  const classes = schoolInfo.classes;
+  const bimesters = ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'];
+
+  const allPossibleStudents = Object.values(schoolInfo.studentsDB).flat();
+  const students = selectedClass 
+    ? allPossibleStudents.filter((s: any) => s.classId === selectedClass).map(s => s.name).sort()
+    : [];
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handlePrintAll = () => {
+    setSelectedStudent("TODOS");
+    setTimeout(() => window.print(), 500);
+  };
+
+  const renderBoletim = (studentName: string, isLast: boolean = false) => {
+    const studentResults = results.filter(r => r.studentName === studentName);
+    const subjects = Array.from(new Set(exams.map(e => e.subject)));
+
+    return (
+      <div key={studentName} className={cn("bg-white border text-black border-slate-300 print:border-none p-8 md:p-12 print:p-0 w-full max-w-5xl mx-auto shadow-sm print:shadow-none min-h-[800px]", isLast ? "" : "print:break-after-page mb-8")}>
+        {/* HEADER BOLETIM MEK */}
+        <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
+           <div className="flex items-center gap-4">
+             <div className="w-16 h-16 bg-slate-200 rounded flex flex-col items-center justify-center font-black text-[10px] text-slate-400 overflow-hidden print:border print:border-black">
+                <img src={LOGO_VINHO} alt="Logo" className="w-full h-full object-contain" />
+             </div>
+             <div>
+               <h1 className="text-xl font-black uppercase tracking-tighter">Boletim Escolar</h1>
+               <p className="text-[10px] font-bold uppercase text-slate-600">Ensino Fundamental II e Médio - Padrão MEC</p>
+             </div>
+           </div>
+           <div className="text-right">
+             <p className="text-sm font-black uppercase">Ano Letivo: 2026</p>
+             <p className="text-xs font-bold uppercase text-slate-600">Emissão: {new Date().toLocaleDateString('pt-BR')}</p>
+           </div>
+        </div>
+
+        {/* INFO ALUNO */}
+        <div className="flex flex-col gap-2 mb-8">
+           <div className="flex items-stretch border border-black rounded-sm overflow-hidden">
+             <div className="bg-slate-100 border-r border-black px-3 py-1.5 min-w-[120px]">
+                <span className="text-[9px] font-black uppercase tracking-widest">Aluno(a)</span>
+             </div>
+             <div className="px-3 py-1.5 flex-1 bg-white">
+                <span className="text-sm font-black uppercase tracking-tight">{studentName}</span>
+             </div>
+           </div>
+           <div className="flex items-stretch border border-black rounded-sm overflow-hidden">
+             <div className="bg-slate-100 border-r border-black px-3 py-1.5 min-w-[120px]">
+                <span className="text-[9px] font-black uppercase tracking-widest">Turma</span>
+             </div>
+             <div className="px-3 py-1.5 flex-1 bg-white">
+                <span className="text-sm font-black uppercase tracking-tight">{selectedClass || 'NÃO DEFINIDA'}</span>
+             </div>
+           </div>
+        </div>
+
+        {/* QUADRO DE NOTAS */}
+        <div className="border-2 border-black rounded-sm overflow-hidden">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b border-black">
+                <th className="border-r border-black p-2 text-left text-[11px] font-black uppercase w-1/3 bg-slate-100">Disciplinas</th>
+                <th className="border-r border-black p-2 text-center text-[10px] font-black uppercase">1º Bim</th>
+                <th className="border-r border-black p-2 text-center text-[10px] font-black uppercase">2º Bim</th>
+                <th className="border-r border-black p-2 text-center text-[10px] font-black uppercase">3º Bim</th>
+                <th className="border-r border-black p-2 text-center text-[10px] font-black uppercase">4º Bim</th>
+                <th className="border-black p-2 text-center text-[11px] font-black uppercase bg-slate-100">Média Final</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-black">
+              {subjects.length === 0 && (
+                 <tr><td colSpan={6} className="p-4 text-center text-xs italic">Nenhuma disciplina avaliada.</td></tr>
+              )}
+              {subjects.map(subject => {
+                const rowBim = bimesters.map(bim => {
+                  const resultsSubjectPath = studentResults.filter(r => r.bimester === bim);
+                  const bimScoresObj = resultsSubjectPath.filter(r => {
+                     const ex = exams.find(e => e.id === r.examId);
+                     return ex && ex.subject === subject;
+                  });
+                  
+                  if (bimScoresObj.length === 0) return null;
+                  const bimAvg = bimScoresObj.reduce((acc, r) => acc + ((r.score / r.maxScore) * 10), 0) / bimScoresObj.length;
+                  return bimAvg;
+                });
+
+                const bimsComNota = rowBim.filter(b => b !== null) as number[];
+                const mediaFinal = bimsComNota.length > 0 
+                  ? bimsComNota.reduce((acc, curr) => acc + curr, 0) / 4 // MEC usually divides by 4 for the final average
+                  : 0;
+
+                return (
+                  <tr key={subject}>
+                    <td className="border-r border-black p-2 pl-3 text-[11px] font-black uppercase">{subject}</td>
+                    {rowBim.map((avg, i) => (
+                      <td key={i} className="border-r border-black p-2 text-center text-[13px] font-bold">
+                         {avg !== null ? (
+                           <span>{avg.toFixed(1).replace('.', ',')}</span>
+                         ) : '-'}
+                      </td>
+                    ))}
+                    <td className="border-black p-2 text-center text-[14px] font-black bg-slate-50">
+                      {bimsComNota.length > 0 ? (
+                         <span>{mediaFinal.toFixed(1).replace('.', ',')}</span>
+                      ) : '-'}
                     </td>
-                  ))}
-                  <td className="px-6 py-4 text-center">
-                    <div className={cn(
-                      "inline-flex items-center justify-center w-10 h-10 rounded-full font-black text-sm border-2",
-                      student.average >= 6 
-                        ? "bg-green-50 text-green-700 border-green-200" 
-                        : "bg-red-50 text-red-700 border-red-200"
-                    )}>
-                      {student.average.toFixed(1).replace('.', ',')}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* REGRAS */}
+        <div className="mt-4 border border-black p-3 text-[9px] uppercase font-bold text-slate-700 rounded-sm">
+           <p>Critério de Aprovação: Média Final igual ou superior a 6,0 (seis).</p>
+           <p>Cálculo da Média: Soma-se a média dos 4 bimestres e divide-se por 4.</p>
+        </div>
+
+        {/* FOOTER ASSINATURAS */}
+        <div className="grid grid-cols-2 gap-16 mt-32 px-10">
+           <div className="border-t border-black pt-2 text-center">
+             <p className="text-[10px] font-black uppercase">Assinatura da Coordenação</p>
+           </div>
+           <div className="border-t border-black pt-2 text-center">
+             <p className="text-[10px] font-black uppercase">Assinatura do(a) Responsável</p>
+           </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Se nenhum aluno selecionado, mostra a lista para escolher
+  if (!selectedStudent) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-4xl mx-auto print:hidden">
+         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+           <div className="flex items-center justify-between mb-6">
+             <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+               <FileText className="w-5 h-5 text-[#3b5998]" />
+               Boletim Escolar (Padrão MEC)
+             </h2>
+             {selectedClass && students.length > 0 && (
+               <button 
+                 onClick={handlePrintAll}
+                 className="flex items-center gap-2 px-4 py-2 bg-[#3b5998] text-white rounded-lg text-sm font-bold hover:bg-opacity-90 transition-all shadow-sm mb-4 md:mb-0"
+               >
+                 <Printer className="w-4 h-4" /> Baixar Boletins da Turma
+               </button>
+             )}
+           </div>
+           
+           <div className="mb-6">
+             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Selecione a Turma</label>
+             <select 
+               value={selectedClass}
+               onChange={e => setSelectedClass(e.target.value)}
+               className="w-full md:w-1/2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-[#3b5998] font-bold text-slate-700"
+             >
+               <option value="">Todas as Turmas (Filtro)</option>
+               {classes.map(c => <option key={c} value={c}>{c}</option>)}
+             </select>
+           </div>
+
+           {selectedClass ? (
+             <div className="grid grid-cols-1 justify-items-stretch md:grid-cols-2 lg:grid-cols-3 gap-3">
+               {students.map(studentName => (
+                 <button 
+                   key={studentName}
+                   onClick={() => setSelectedStudent(studentName)}
+                   className="p-4 text-left border border-slate-200 rounded-xl hover:border-[#3b5998] hover:bg-blue-50 transition-all group"
+                 >
+                   <p className="text-sm font-black text-slate-700 uppercase group-hover:text-[#3b5998]">{studentName}</p>
+                   <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 flex items-center gap-1"><Search className="w-3 h-3" /> Ver Boletim</p>
+                 </button>
+               ))}
+             </div>
+           ) : (
+             <div className="text-center py-20 bg-slate-50 border border-slate-200 border-dashed rounded-xl">
+                 <p className="text-slate-400 text-sm font-bold uppercase tracking-widest">Nenhuma turma selecionada</p>
+             </div>
+           )}
+         </div>
+      </motion.div>
+    );
+  }
+
+  // Visualização do Boletim Múltiplo ou Individual
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-20 print:space-y-0 print:pb-0">
+      <div className="print:hidden flex items-center justify-between mb-4">
+        <button 
+          onClick={() => setSelectedStudent(null)}
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
+        >
+          <ChevronLeft className="w-4 h-4" /> Voltar à lista
+        </button>
+        <button 
+          onClick={handlePrint}
+          className="flex items-center gap-2 px-4 py-2 bg-[#3b5998] text-white rounded-lg text-sm font-bold hover:bg-opacity-90 transition-all shadow-sm"
+        >
+          <Printer className="w-4 h-4" /> Imprimir {selectedStudent === "TODOS" ? "Tudo" : "Boletim"}
+        </button>
       </div>
 
-      <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex gap-3 print:hidden">
-        <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-        <p className="text-[12px] text-amber-800 leading-relaxed">
-          <strong>Lembrete:</strong> Este boletim é consolidado eletronicamente. 
-          As médias são atualizadas em tempo real a cada nova correção salva.
-        </p>
-      </div>
+      {selectedStudent === "TODOS" ? (
+        <div className="w-full h-full">
+          {students.map((student, idx) => renderBoletim(student, idx === students.length - 1))}
+        </div>
+      ) : (
+        renderBoletim(selectedStudent, true)
+      )}
     </motion.div>
   );
 }

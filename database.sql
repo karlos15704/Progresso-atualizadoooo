@@ -1,10 +1,16 @@
--- 0. APAGA AS TABELAS ANTIGAS PARA RECRIAR CORRETAMENTE E RESOLVER PROBLEMAS COM CACHE. Zera o banco.
+-- SCRIPT DEFINITIVO DE RESET DO BANCO DE DADOS
+-- ATENÇÃO: Issep apagará todos os dados existentes!
+
+-- 0. APAGAR TUDO (CASCADE garante que as dependências sejam removidas)
+DROP TABLE IF EXISTS attendance CASCADE;
+DROP TABLE IF EXISTS lessons CASCADE;
+DROP TABLE IF EXISTS student_reports CASCADE;
 DROP TABLE IF EXISTS results CASCADE;
 DROP TABLE IF EXISTS exams CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS allowed_professors CASCADE;
 
--- 1. Allowed Professors Table (Whitelist for registration)
+-- 1. Professores Autorizados (Whitelist para novos cadastros)
 CREATE TABLE allowed_professors (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username TEXT UNIQUE NOT NULL,
@@ -12,53 +18,53 @@ CREATE TABLE allowed_professors (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 2. Users Table (Extension of Auth)
+-- 2. Perfis de Usuários (Extensão do Auth)
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    uid UUID UNIQUE NOT NULL, -- This matches auth.users.id
+    uid UUID UNIQUE NOT NULL, -- Relaciona com auth.users.id
     email TEXT UNIQUE NOT NULL,
-    display_name TEXT,
     professional_name TEXT,
-    role TEXT DEFAULT 'professor', -- 'admin' or 'professor'
-    school_name TEXT DEFAULT 'Colégio Progresso Santista',
+    role TEXT DEFAULT 'professor' CHECK (role IN ('professor', 'admin')),
     assigned_subjects JSONB DEFAULT '[]'::jsonb,
     assigned_classes JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3. Exams Table (Exams and Schedule)
+-- 3. Provas (Exames e Agendamentos)
 CREATE TABLE exams (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    professor_id UUID REFERENCES auth.users(id),
     title TEXT NOT NULL,
     subject TEXT NOT NULL,
-    questions JSONB DEFAULT '[]'::jsonb,
-    answer_key JSONB DEFAULT '{}'::jsonb,
-    study_guide TEXT DEFAULT '',
-    professor_id UUID REFERENCES auth.users(id),
-    exam_type TEXT,
-    exam_date DATE,
-    exam_time TIME,
-    class_year TEXT,
+    questions JSONB NOT NULL,
+    answer_key JSONB,
     bimester TEXT DEFAULT '1º Bimestre',
     content TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    class_year TEXT,
+    study_guide TEXT,
+    exam_date DATE,
+    exam_time TIME,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 4. Results Table (Exam Submissions)
+-- 4. Resultados (Tentativas e Correções)
 CREATE TABLE results (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     exam_id UUID REFERENCES exams(id) ON DELETE CASCADE,
+    professor_id UUID REFERENCES auth.users(id),
     student_name TEXT NOT NULL,
     student_class TEXT NOT NULL,
-    bimester TEXT DEFAULT '1º Bimestre',
-    answers JSONB NOT NULL,
     score NUMERIC NOT NULL,
     max_score NUMERIC NOT NULL,
-    corrected_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    professor_id UUID REFERENCES auth.users(id)
+    answers JSONB,
+    processed_image TEXT,
+    manually_reviewed BOOLEAN DEFAULT FALSE,
+    bimester TEXT DEFAULT '1º Bimestre',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 5. Student Reports Table
+-- 5. Relatórios por Aluno
 CREATE TABLE student_reports (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     student_name TEXT NOT NULL,
@@ -70,85 +76,93 @@ CREATE TABLE student_reports (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Row Level Security (RLS) Policies
--- ... (existing enable commands)
-ALTER TABLE student_reports ENABLE ROW LEVEL SECURITY;
+-- 6. Diário Escolar (Aulas)
+CREATE TABLE lessons (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    professor_id UUID REFERENCES auth.users(id),
+    class_id TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    bimester TEXT NOT NULL,
+    date DATE NOT NULL,
+    content TEXT NOT NULL,
+    lesson_count INTEGER DEFAULT 2,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
--- ... (existing users/exams/results policies)
+-- 7. Frequência (Chamada)
+CREATE TABLE attendance (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    lesson_id UUID REFERENCES lessons(id) ON DELETE CASCADE,
+    student_name TEXT NOT NULL,
+    status TEXT CHECK (status IN ('present', 'absent')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
--- 5. Student Reports Policies
-CREATE POLICY "Professors can see their own reports" ON student_reports
-    FOR SELECT USING (
-        professor_id = auth.uid() OR
-        EXISTS (SELECT 1 FROM users WHERE uid = auth.uid() AND role = 'admin')
-    );
-
-CREATE POLICY "Professors can insert their own reports" ON student_reports
-    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
-
-CREATE POLICY "Owners or Admin can update reports" ON student_reports
-    FOR UPDATE USING (
-        professor_id = auth.uid() OR
-        EXISTS (SELECT 1 FROM users WHERE uid = auth.uid() AND role = 'admin')
-    );
-
-CREATE POLICY "Owners or Admin can delete reports" ON student_reports
-    FOR DELETE USING (
-        professor_id = auth.uid() OR
-        EXISTS (SELECT 1 FROM users WHERE uid = auth.uid() AND role = 'admin')
-    );
-
--- Enable RLS on all tables
+-- ATIVAR SEGURANÇA DE NÍVEL DE LINHA (RLS)
 ALTER TABLE allowed_professors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE exams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE student_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lessons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attendance ENABLE ROW LEVEL SECURITY;
 
--- 1. Users Policies
-CREATE POLICY "Users can view their own profile" ON users
-    FOR SELECT USING (auth.uid() = uid);
+-- POLÍTICAS DE ACESSO (SEM RECURSÃO)
 
-CREATE POLICY "Admin can view all users" ON users
-    FOR SELECT USING (
-        EXISTS (SELECT 1 FROM users WHERE uid = auth.uid() AND role = 'admin')
-    );
+-- Função para contornar recursão infinita (Security Definer ignora as políticas na tabela ao checar admin)
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN LANGUAGE sql SECURITY DEFINER AS $$
+  SELECT role = 'admin' FROM public.users WHERE uid = auth.uid() LIMIT 1;
+$$;
 
-CREATE POLICY "Allow public insert for first time registration" ON users
-    FOR INSERT WITH CHECK (true);
+-- Allowed Professors
+CREATE POLICY "Visualização pública de professores autorizados" ON allowed_professors FOR SELECT USING (true);
+CREATE POLICY "Gestão total de autorizados para admins" ON allowed_professors FOR ALL USING (
+    public.is_admin()
+);
 
--- 2. Exams Policies
-CREATE POLICY "Professors can see their own exams OR global schedule items" ON exams
-    FOR SELECT USING (
-        professor_id = auth.uid() OR 
-        (answer_key->'_metadata'->>'isExternal')::boolean = true OR
-        EXISTS (SELECT 1 FROM users WHERE uid = auth.uid() AND role = 'admin')
-    );
+-- Users
+CREATE POLICY "Visualização de perfis por todos" ON users FOR SELECT USING (true);
+CREATE POLICY "Usuários atualizam próprio perfil" ON users FOR UPDATE USING (uid = auth.uid());
+CREATE POLICY "Admins excluem usuários" ON users FOR DELETE USING (
+    public.is_admin()
+);
+CREATE POLICY "Admins atualizam usuários" ON users FOR UPDATE USING (
+    public.is_admin()
+);
+CREATE POLICY "Inserção inicial pública para registro" ON users FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Users can insert exams" ON exams
-    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+-- Exams
+CREATE POLICY "Gestão de provas pelo dono ou admin" ON exams FOR ALL USING (
+    professor_id = auth.uid() OR public.is_admin()
+);
+CREATE POLICY "Leitura pública de provas agendadas" ON exams FOR SELECT USING (true);
 
-CREATE POLICY "Owners or Admin can update exams" ON exams
-    FOR UPDATE USING (
-        professor_id = auth.uid() OR 
-        EXISTS (SELECT 1 FROM users WHERE uid = auth.uid() AND role = 'admin')
-    );
+-- Results
+CREATE POLICY "Gestão de resultados pelo dono ou admin" ON results FOR ALL USING (
+    professor_id = auth.uid() OR public.is_admin()
+);
+CREATE POLICY "Inserção pública para alunos" ON results FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Owners or Admin can delete exams" ON exams
-    FOR DELETE USING (
-        professor_id = auth.uid() OR 
-        EXISTS (SELECT 1 FROM users WHERE uid = auth.uid() AND role = 'admin')
-    );
+-- Student Reports
+CREATE POLICY "Gestão de relatórios pelo dono ou admin" ON student_reports FOR ALL USING (
+    professor_id = auth.uid() OR public.is_admin()
+);
 
--- 3. Results Policies
-CREATE POLICY "Professors can view results for their exams" ON results
-    FOR SELECT USING (
-        professor_id = auth.uid() OR
-        EXISTS (SELECT 1 FROM users WHERE uid = auth.uid() AND role = 'admin')
-    );
+-- Lessons
+CREATE POLICY "Gestão de aulas pelo dono ou admin" ON lessons FOR ALL USING (
+    professor_id = auth.uid() OR public.is_admin()
+);
 
-CREATE POLICY "Allow public insert for students submitting exams" ON results
-    FOR INSERT WITH CHECK (true);
+-- Attendance
+CREATE POLICY "Gestão de frequência baseada na aula" ON attendance FOR ALL USING (
+    EXISTS (
+        SELECT 1 FROM lessons 
+        WHERE lessons.id = attendance.lesson_id 
+        AND (lessons.professor_id = auth.uid() OR public.is_admin())
+    )
+);
 
--- 4. Allowed Professors Policies
-CREATE POLICY "Allow everyone to select allowed professors" ON allowed_professors
-    FOR SELECT USING (true);
+-- BOOTSTRAP: PROFESSOR ADMIN INICIAL
+-- Substitua se desejar outro usuário master inicial
+INSERT INTO allowed_professors (email, username) VALUES ('cps@cps.local', 'cps');
