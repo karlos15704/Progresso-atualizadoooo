@@ -33,7 +33,9 @@ import {
   Mail,
   ExternalLink,
   Copy,
-  RotateCcw
+  RotateCcw,
+  Menu,
+  Settings
 } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
@@ -423,6 +425,7 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [view, setView] = useState<'dashboard' | 'create' | 'correct' | 'reports' | 'guides' | 'admin' | 'schedule' | 'print' | 'studentReports' | 'printReport' | 'boletim' | 'diary'>('dashboard');
   const [selectedPrintExam, setSelectedPrintExam] = useState<Exam | null>(null);
   const [selectedReportForPrint, setSelectedReportForPrint] = useState<StudentReport | null>(null);
@@ -622,8 +625,15 @@ export default function App() {
   return (
     <div className="min-h-screen bg-bg flex flex-col print:bg-white print:block">
       {/* Header */}
-      <header className="bg-white border-b border-border h-[70px] px-8 flex items-center justify-between sticky top-0 z-10 print:hidden">
+      <header className="bg-white border-b border-border h-[70px] px-4 md:px-8 flex items-center justify-between sticky top-0 z-30 print:hidden">
         <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="hidden lg:flex p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-600"
+            title={sidebarCollapsed ? "Expandir Menu" : "Recolher Menu"}
+          >
+            <Menu className="w-5 h-5" />
+          </button>
           <div className="bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm flex items-center gap-2">
             <img src={LOGO_VINHO} alt="Logo CPS" className="w-5 h-5 object-contain" />
             <div className="w-px h-4 bg-slate-200"></div>
@@ -648,38 +658,46 @@ export default function App() {
 
       <div className="flex flex-1 overflow-hidden print:overflow-visible print:block">
         {/* Sidebar */}
-        <aside className="w-[240px] bg-slate-900 text-white flex flex-col hidden lg:flex print:hidden shadow-xl z-20">
+        <aside className={cn(
+          "bg-slate-900 text-white flex flex-col hidden lg:flex print:hidden shadow-xl z-20 transition-all duration-300 ease-in-out",
+          sidebarCollapsed ? "w-[70px]" : "w-[240px]"
+        )}>
           <div className="py-6 px-3 flex flex-col gap-2">
             <NavButton 
               active={view === 'dashboard'} 
               onClick={() => { setView('dashboard'); setExamToEdit(null); }} 
               icon={<BarChart3 className="w-5 h-5" />} 
               label="Visão Geral" 
+              collapsed={sidebarCollapsed}
             />
             <NavButton 
               active={view === 'diary'} 
               onClick={() => { setView('diary'); setExamToEdit(null); }} 
               icon={<BookOpen className="w-5 h-5" />} 
               label="Diário & Notas" 
+              collapsed={sidebarCollapsed}
             />
             <NavButton 
               active={view === 'boletim'} 
               onClick={() => { setView('boletim'); setExamToEdit(null); }} 
               icon={<FileText className="w-5 h-5" />} 
               label="Boletim Consolidado" 
+              collapsed={sidebarCollapsed}
             />
             <NavButton 
               active={view === 'studentReports'} 
               onClick={() => { setView('studentReports'); setExamToEdit(null); }} 
               icon={<UserIcon className="w-5 h-5" />} 
               label="Observações Individuais" 
+              collapsed={sidebarCollapsed}
             />
             {isAdmin && (
               <NavButton 
                 active={view === 'admin'} 
                 onClick={() => { setView('admin'); setExamToEdit(null); }} 
-                icon={<UserIcon className="w-5 h-5" />} 
+                icon={<Settings className="w-5 h-5" />} 
                 label="Administração" 
+                collapsed={sidebarCollapsed}
               />
             )}
           </div>
@@ -706,30 +724,37 @@ export default function App() {
       </div>
 
       {/* Mobile Nav */}
-      <nav className="lg:hidden bg-white border-t border-slate-200 px-1 py-2 flex justify-between overflow-x-auto gap-1 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-50 print:hidden text-slate-600">
+      <nav className="lg:hidden bg-white border-t border-slate-200 px-1 py-2 flex justify-between items-center overflow-x-auto gap-1 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-50 print:hidden text-slate-600">
         <MobileNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<BarChart3 />} label="Início" />
         <MobileNavButton active={view === 'diary'} onClick={() => setView('diary')} icon={<BookOpen />} label="Diário" />
         <MobileNavButton active={view === 'boletim'} onClick={() => setView('boletim')} icon={<FileText />} label="Boletim" />
         <MobileNavButton active={view === 'studentReports'} onClick={() => setView('studentReports')} icon={<UserIcon />} label="Relatórios" />
+        {isAdmin && (
+          <MobileNavButton active={view === 'admin'} onClick={() => setView('admin')} icon={<Settings />} label="Admin" />
+        )}
       </nav>
     </div>
   );
 }
 
 // Sub-components
-function NavButton({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string }) {
+function NavButton({ active, onClick, icon, label, collapsed }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string, collapsed?: boolean }) {
   return (
     <button 
       onClick={onClick}
       className={cn(
-        "flex items-center gap-3 px-5 py-3 transition-all duration-200 text-sm font-medium w-full text-left",
+        "flex items-center transition-all duration-200 text-sm font-medium w-full text-left rounded-md",
+        collapsed ? "justify-center px-0 py-3" : "gap-3 px-5 py-3",
         active 
-          ? "bg-secondary opacity-100 border-l-4 border-accent" 
-          : "opacity-80 hover:bg-secondary/50 hover:opacity-100"
+          ? "bg-secondary opacity-100 border-l-4 border-accent text-white" 
+          : "opacity-80 hover:bg-secondary/50 hover:opacity-100 text-slate-300"
       )}
+      title={collapsed ? label : ""}
     >
-      {icon}
-      {label}
+      <div className={cn("flex-shrink-0", active ? "text-accent" : "")}>
+        {icon}
+      </div>
+      {!collapsed && <span className="truncate">{label}</span>}
     </button>
   );
 }
@@ -3829,7 +3854,7 @@ function StudentReportPrintView({ reports, onBack }: { reports: StudentReport[],
             </div>
 
             <div className="mt-auto pt-10 text-center">
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[4px]">Colégio Progresso Santista • Tecnologia EduGrade Pro</p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[4px]">Colégio Progresso Santista</p>
             </div>
           </div>
         ))}
