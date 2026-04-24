@@ -3555,20 +3555,20 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
                   </div>
                 </div>
                 {/* Row 3 */}
-                <div className="flex">
-                  <div className="flex-[4] border-r-[3px] border-black border-dashed px-2 py-1 normal-case">
+                <div className="flex min-h-[100px]">
+                  <div className="flex-[4] border-r-[3px] border-black border-dashed px-2 py-2 normal-case">
                     <span className="uppercase">Instruções:</span>
-                    <ul className="text-[11px] font-normal list-none ml-6 mt-0.5 space-y-0 text-black">
+                    <ul className="text-[11px] font-normal list-none ml-6 mt-1 space-y-1 text-black">
                       <li>❖ Faça letra legível;</li>
                       <li>❖ Mantenha a limpeza e a organização da prova;</li>
                       <li>❖ Evite rasuras e não deixe questões em branco.</li>
                     </ul>
                   </div>
                   <div className="flex-1 flex flex-col justify-between items-center text-center px-0 py-0">
-                    <div className="w-full border-b-[3px] border-black border-dashed pb-1 pt-1 h-1/2 flex items-center justify-center">
+                    <div className="w-full border-b-[3px] border-black border-dashed pb-1 pt-1 h-[65%] flex items-center justify-center font-bold uppercase text-[10px]">
                       Ass. do professor
                     </div>
-                    <div className="h-1/2 flex items-center justify-center">
+                    <div className="h-[35%] flex items-center justify-center text-[10px] uppercase font-bold px-1">
                       {exam.examType}
                     </div>
                   </div>
