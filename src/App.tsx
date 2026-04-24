@@ -982,6 +982,9 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
   const filteredExams = exams.filter(e => bimesterFilter === '' || e.bimester === bimesterFilter);
   const displayExams = showAll ? filteredExams : filteredExams.slice(0, 6);
 
+  // Auto-check if we are the special master admin
+  const isMasterAdmin = user.email === 'cps@cps.local';
+
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
@@ -989,6 +992,25 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
       exit={{ opacity: 0, x: -20 }}
       className="space-y-6"
     >
+      {isMasterAdmin && (
+        <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="bg-amber-100 p-2 rounded-full text-amber-600">
+              <Settings className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-amber-900">Acesso Master Detectado</p>
+              <p className="text-xs text-amber-700 font-medium">Você pode gerenciar permissões e autorizar novos professores no painel de administração.</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setView('admin')}
+            className="px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-md hover:bg-amber-700 transition-colors shadow-sm"
+          >
+            Abrir Administração
+          </button>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
         <StatCard label="Provas Criadas" value={exams.length} icon={<FileText />} color="" />
         <StatCard label="Correções Pendentes" value={results.filter(r => r.score === undefined).length} icon={<CheckCircle2 />} color="" />
@@ -2254,7 +2276,7 @@ function GuidesView({ exams }: { exams: Exam[] }) {
 function AdminView({ user }: { user: User }) {
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
-  const [allowedUsers, setAllowedUsers] = useState<{id: string, username: string}[]>([]);
+  const [allowedUsers, setAllowedUsers] = useState<any[]>([]);
   const [networkUsers, setNetworkUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
@@ -2354,12 +2376,12 @@ function AdminView({ user }: { user: User }) {
     try {
       const cleanUsername = username.toLowerCase().trim();
       const supabaseEmail = `${cleanUsername}@cps.local`;
-      const { error } = await supabase.from('allowed_professors').insert({
+      const { error } = await supabase.from('allowed_professors').insert([{
         email: supabaseEmail,
         username: cleanUsername,
         full_name: fullName.trim(),
         created_at: new Date().toISOString()
-      });
+      }]);
       if (error) throw error;
       setUsername('');
       setFullName('');
