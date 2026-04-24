@@ -593,12 +593,20 @@ export default function App() {
     fetchResults();
     fetchStudentReports();
 
-    // Fetch professors for admin console
+    // Fetch professors for admin console - ensure we only fetch when admin
     const fetchProfessors = async () => {
-      const { data } = await supabase.from('users').select('*');
-      if (data) setProfessors(data);
+      try {
+        const { data, error } = await supabase.from('users').select('*').order('display_name', { ascending: true });
+        if (error) throw error;
+        if (data) setProfessors(data);
+      } catch (err) {
+        console.error("Erro ao buscar usuários para administração:", err);
+      }
     };
-    fetchProfessors();
+    
+    if (isAdmin || user.email === 'cps@cps.local') {
+      fetchProfessors();
+    }
 
     const examsFilter = isAdmin ? undefined : undefined; // Subscription for all exams to see global schedule updates
     
