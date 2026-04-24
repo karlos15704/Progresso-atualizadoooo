@@ -436,6 +436,8 @@ export default function App() {
   const [studentReports, setStudentReports] = useState<StudentReport[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [professors, setProfessors] = useState<any[]>([]);
+  const [examBeingReassigned, setExamBeingReassigned] = useState<Exam | null>(null);
 
   // Auth Listener
   useEffect(() => {
@@ -581,6 +583,13 @@ export default function App() {
     fetchResults();
     fetchStudentReports();
 
+    // Fetch professors for admin console
+    const fetchProfessors = async () => {
+      const { data } = await supabase.from('users').select('*');
+      if (data) setProfessors(data);
+    };
+    fetchProfessors();
+
     const examsFilter = isAdmin ? undefined : undefined; // Subscription for all exams to see global schedule updates
     
     const examsSub = supabase.channel('exams_changes')
@@ -598,6 +607,23 @@ export default function App() {
   }, [user, isAdmin, refreshTrigger]);
 
   const handleLogout = () => supabase.auth.signOut();
+
+  const handleReassignProfessor = async (examId: string, newProfessorId: string) => {
+    try {
+      const { error: examError } = await supabase.from('exams').update({ professor_id: newProfessorId }).eq('id', examId);
+      if (examError) throw examError;
+
+      // Also update results associated with this exam
+      const { error: resultsError } = await supabase.from('results').update({ professor_id: newProfessorId }).eq('exam_id', examId);
+      if (resultsError) throw resultsError;
+
+      setRefreshTrigger(prev => prev + 1);
+      setExamBeingReassigned(null);
+      alert("Professor reatribuído com sucesso!");
+    } catch (err: any) {
+      alert("Erro ao reatribuir: " + err.message);
+    }
+  };
 
   const handleDeleteExam = async (id: string) => {
     if (!window.confirm("Tem certeza que deseja excluir esta prova? Esta ação também excluirá todos os resultados associados.")) return;
@@ -711,7 +737,7 @@ export default function App() {
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-[25px] bg-[#f8fafc] print:overflow-visible print:p-0">
           <AnimatePresence mode="wait">
-            {view === 'dashboard' && <DashboardView user={user} isAdmin={isAdmin} exams={exams} results={results} setView={setView} onSelectPrintExam={setSelectedPrintExam} onEditExam={e => { setExamToEdit(e); setView('create'); }} onDeleteExam={handleDeleteExam} />}
+            {view === 'dashboard' && <DashboardView user={user} isAdmin={isAdmin} exams={exams} results={results} setView={setView} onSelectPrintExam={setSelectedPrintExam} onEditExam={e => { setExamToEdit(e); setView('create'); }} onDeleteExam={handleDeleteExam} professors={professors} onReassignProfessor={setExamBeingReassigned} />}
             {view === 'create' && <CreateExamView user={user} userProfile={userProfile} setView={setView} examToEdit={examToEdit} onExamSaved={() => { setExamToEdit(null); setRefreshTrigger(prev => prev + 1); setView('dashboard'); }} />}
             {view === 'correct' && <CorrectExamView user={user} exams={exams} setView={setView} setRefreshTrigger={setRefreshTrigger} />}
             {view === 'guides' && <GuidesView exams={exams} />}
@@ -724,6 +750,61 @@ export default function App() {
           </AnimatePresence>
         </main>
       </div>
+
+      {examBeingReassigned && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 border border-border"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-black text-primary uppercase tracking-tight">Reatribuir Professor</h3>
+              <button onClick={() => setExamBeingReassigned(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+              Você está mudando o vínculo da avaliação <b className="text-accent">"{stripHtml(examBeingReassigned.title)}"</b>. 
+              Isso fará com que os resultados e diários sejam migrados para o novo professor.
+            </p>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Selecione o Novo Professor</label>
+                <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2">
+                  {professors.filter(p => p.uid !== examBeingReassigned.professorId).map(prof => (
+                    <button
+                      key={prof.uid}
+                      onClick={() => handleReassignProfessor(examBeingReassigned.id, prof.uid)}
+                      className="flex items-center gap-3 p-3 text-left bg-slate-50 border border-slate-200 rounded-lg hover:border-accent hover:bg-slate-100 transition-all group"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-accent group-hover:bg-accent group-hover:text-white transition-colors">
+                        <UserIcon className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">{prof.professional_name || prof.display_name}</p>
+                        <p className="text-[10px] text-slate-500 uppercase font-medium">{prof.email}</p>
+                      </div>
+                    </button>
+                  ))}
+                  {professors.length <= 1 && (
+                    <p className="text-center text-slate-400 py-4 text-sm font-medium italic">Nenhum outro professor disponível.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setExamBeingReassigned(null)}
+              className="w-full mt-6 py-3 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-200"
+            >
+              Cancelar
+            </button>
+          </motion.div>
+        </div>
+      )}
 
       {/* Mobile Nav */}
       <nav className="lg:hidden bg-white border-t border-slate-200 px-1 py-2 flex justify-between items-center overflow-x-auto gap-1 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-50 print:hidden text-slate-600">
@@ -883,7 +964,18 @@ function LoginView({ error, setError }: { error: string | null, setError: (e: st
   );
 }
 
-function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintExam, onEditExam, onDeleteExam }: { user: User, isAdmin: boolean, exams: Exam[], results: Result[], setView: (v: any) => void, onSelectPrintExam: (e: Exam) => void, onEditExam: (exam: Exam) => void, onDeleteExam: (id: string) => void }) {
+function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintExam, onEditExam, onDeleteExam, professors, onReassignProfessor }: { 
+  user: User, 
+  isAdmin: boolean, 
+  exams: Exam[], 
+  results: Result[], 
+  setView: (v: any) => void, 
+  onSelectPrintExam: (e: Exam) => void, 
+  onEditExam: (exam: Exam) => void, 
+  onDeleteExam: (id: string) => void,
+  professors: any[],
+  onReassignProfessor: (exam: Exam) => void
+}) {
   const [showAll, setShowAll] = useState(false);
   const [bimesterFilter, setBimesterFilter] = useState('');
   
@@ -980,6 +1072,16 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                               <Printer className="w-4 h-4" />
                               <span className="hidden xl:inline">Imprimir</span>
                             </button>
+                            {isAdmin && (
+                              <button 
+                                onClick={() => onReassignProfessor(exam)}
+                                className="text-amber-600 font-bold hover:underline flex items-center gap-1"
+                                title="Reatribuir Professor"
+                              >
+                                <Users className="w-4 h-4" />
+                                <span className="hidden xl:inline">Reatribuir</span>
+                              </button>
+                            )}
                             <button 
                               onClick={() => generatePrintableAnswerSheet(exam, LOGO_VINHO, [""])}
                               className="text-blue-500 font-bold hover:underline flex items-center gap-1"
