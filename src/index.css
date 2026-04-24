@@ -33,5 +33,17 @@
 
 @media print {
   @page { margin: 0; }
-  body { margin: 1cm; }
+  body { 
+    margin: 0; 
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+.omr-marker {
+  width: 32px;
+  height: 32px;
+  background-color: black !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
 }

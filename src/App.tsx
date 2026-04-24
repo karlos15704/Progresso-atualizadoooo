@@ -3472,10 +3472,10 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
             className="answer-sheet-page bg-white p-12 border border-border max-w-[210mm] mx-auto mt-10 print:border-none print:shadow-none print:mt-0 print:max-w-none print:w-[210mm] print:h-[297mm] print:break-after-page relative overflow-hidden"
           >
             {/* OMR Markers */}
-            <div className="absolute top-4 left-4 w-6 h-6 bg-black"></div>
-            <div className="absolute top-4 right-4 w-6 h-6 bg-black"></div>
-            <div className="absolute bottom-4 left-4 w-6 h-6 bg-black"></div>
-            <div className="absolute bottom-4 right-4 w-6 h-6 bg-black"></div>
+            <div className="absolute top-4 left-4 omr-marker"></div>
+            <div className="absolute top-4 right-4 omr-marker"></div>
+            <div className="absolute bottom-4 left-4 omr-marker"></div>
+            <div className="absolute bottom-4 right-4 omr-marker"></div>
 
             {/* Identity QR Code */}
             {student.name && (
