@@ -56,6 +56,13 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 
+// Utility to strip HTML tags
+const stripHtml = (html: string) => {
+  if (!html) return '';
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return doc.body.textContent || "";
+};
+
 // Types
 interface Question {
   id: number;
@@ -922,8 +929,8 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                               {exam.bimester || '1º Bim.'}
                             </span>
                           </td>
-                          <td className="px-5 py-3 border-b border-border text-slate-700">{exam.subject}</td>
-                          <td className="px-5 py-3 border-b border-border text-slate-700">{exam.examType}</td>
+                          <td className="px-5 py-3 border-b border-border text-slate-700">{stripHtml(exam.subject)}</td>
+                          <td className="px-5 py-3 border-b border-border text-slate-700">{stripHtml(exam.examType)}</td>
                           <td className="px-5 py-3 border-b border-border text-slate-500">{new Date(exam.createdAt).toLocaleDateString()}</td>
                           <td className="px-5 py-3 border-b border-border">
                             <span className={cn(
@@ -2071,9 +2078,9 @@ function GuidesView({ exams }: { exams: Exam[] }) {
                   : "bg-white border-border text-slate-700 hover:border-accent/40"
               )}
             >
-              <p className="font-bold">{exam.title}</p>
+              <p className="font-bold">{stripHtml(exam.title)}</p>
               <p className={cn("text-[11px] opacity-70 font-bold uppercase", selectedExam?.id === exam.id ? "text-white" : "text-slate-500")}>
-                {exam.subject}
+                {stripHtml(exam.subject)}
               </p>
             </button>
           ))}
@@ -3335,16 +3342,27 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
 
             {/* Content / Title */}
             {(() => {
-              const displayTitle = (exam.content || exam.title || '')
+              const rawTitle = (exam.content || exam.title || '');
+              const cleanTitle = rawTitle
                 .replace(/[-–]?\s*\(?\b(PII|PIII)\b\)?\s*/gi, '')
                 .replace(/\(\s*\)/g, '')
                 .trim();
                 
-              if (!displayTitle) return null;
+              if (!cleanTitle) return null;
               
+              // Helper to check if string contains HTML
+              const isHtml = /<[a-z][\s\S]*>/i.test(cleanTitle);
+
               return (
                 <div className="text-center mb-8 px-8">
-                  <h2 className="text-sm font-bold">{displayTitle}</h2>
+                  {isHtml ? (
+                    <div 
+                      className="text-sm font-bold q-text-html-container [&_p]:inline" 
+                      dangerouslySetInnerHTML={{ __html: cleanTitle }} 
+                    />
+                  ) : (
+                    <h2 className="text-sm font-bold">{cleanTitle}</h2>
+                  )}
                 </div>
               );
             })()}
@@ -3386,7 +3404,10 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
                       {['a', 'b', 'c', 'd'].map((letter, i) => (
                         <div key={letter} className="flex gap-2">
                           <span className="text-sm font-bold">{letter})</span>
-                          <span className="text-sm">{q.options[i]}</span>
+                          <span 
+                            className="text-sm q-text-html-container" 
+                            dangerouslySetInnerHTML={{ __html: q.options[i] || '' }} 
+                          />
                         </div>
                       ))}
                     </div>
@@ -3438,7 +3459,7 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
               </div>
               <h2 className="text-lg font-black text-primary uppercase">Caderno de Respostas • Folha Óptica</h2>
               <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">
-                {(exam.title || '').replace(/[-–]?\s*\(?\b(PII|PIII)\b\)?\s*/gi, '').replace(/\(\s*\)/g, '').trim()} • {exam.subject}
+                {(exam.title || '').replace(/<[^>]*>/g, '').replace(/[-–]?\s*\(?\b(PII|PIII)\b\)?\s*/gi, '').replace(/\(\s*\)/g, '').trim()} • {exam.subject}
               </p>
             </div>
 
@@ -4418,7 +4439,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                             <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase">{exam.examType}</span>
                             <span className="text-[10px] text-slate-400 font-bold uppercase">{new Date(exam.examDate || new Date().toISOString()).toLocaleDateString('pt-BR')}</span>
                           </div>
-                          <h4 className="font-bold text-sm text-slate-800 uppercase">{exam.title}</h4>
+                          <h4 className="font-bold text-sm text-slate-800 uppercase">{stripHtml(exam.title)}</h4>
                         </div>
                         <div className="flex items-center gap-2">
                           <button 
@@ -4462,7 +4483,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                       <th className="p-4 text-[10px] font-black text-slate-400 text-left uppercase sticky left-0 bg-white z-10 w-64 border-r border-slate-100 shadow-[1px_0_0_rgba(0,0,0,0.05)]">Aluno</th>
                       {exams.map(exam => (
                          <th key={exam.id} className="p-4 text-[10px] font-black text-slate-400 text-center uppercase min-w-[100px]">
-                           {exam.title.split(' ')[0]} {/* short title */}
+                           {stripHtml(exam.title).split(' ')[0]} {/* short title */}
                          </th>
                       ))}
                       <th className="p-4 text-[10px] font-black text-[#3b5998] text-center uppercase border-l border-slate-100 bg-blue-50/30">Média Bimestral</th>
@@ -4789,7 +4810,7 @@ function BoletimView({ results, exams, user }: { results: Result[], exams: Exam[
 
   const renderBoletim = (studentName: string, isLast: boolean = false) => {
     const studentResults = results.filter(r => r.studentName === studentName);
-    const subjects = Array.from(new Set(exams.map(e => e.subject)));
+    const subjects = Array.from(new Set(exams.map(e => stripHtml(e.subject))));
 
     return (
       <div key={studentName} className={cn("bg-white border text-black border-slate-300 print:border-none p-8 md:p-12 print:p-0 w-full max-w-5xl mx-auto shadow-sm print:shadow-none min-h-[800px]", isLast ? "" : "print:break-after-page mb-8")}>
@@ -4852,7 +4873,7 @@ function BoletimView({ results, exams, user }: { results: Result[], exams: Exam[
                   const resultsSubjectPath = studentResults.filter(r => r.bimester === bim);
                   const bimScoresObj = resultsSubjectPath.filter(r => {
                      const ex = exams.find(e => e.id === r.examId);
-                     return ex && ex.subject === subject;
+                     return ex && stripHtml(ex.subject) === subject;
                   });
                   
                   if (bimScoresObj.length === 0) return null;
@@ -4867,7 +4888,7 @@ function BoletimView({ results, exams, user }: { results: Result[], exams: Exam[
 
                 return (
                   <tr key={subject}>
-                    <td className="border-r border-black p-2 pl-3 text-[11px] font-black uppercase">{subject}</td>
+                    <td className="border-r border-black p-2 pl-3 text-[11px] font-black uppercase">{stripHtml(subject)}</td>
                     {rowBim.map((avg, i) => (
                       <td key={i} className="border-r border-black p-2 text-center text-[13px] font-bold">
                          {avg !== null ? (
