@@ -34,18 +34,32 @@
 @media print {
   @page { 
     margin: 0; 
-    size: auto;
+    size: A4;
+  }
+  html, body, #root {
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+    display: block !important;
   }
   body { 
     margin: 0; 
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    overflow: visible !important;
-    height: auto !important;
   }
   /* Hide any potential UI artifacts that might stay visible */
-  .AnimatePresence, [data-framer-portal-id], #root > div {
+  .AnimatePresence, [data-framer-portal-id], #root > div:not(.print-container) {
     overflow: visible !important;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+
+  /* Ensure items don't break mid-way */
+  .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }
 

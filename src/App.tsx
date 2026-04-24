@@ -753,7 +753,7 @@ export default function App() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-[25px] bg-[#f8fafc] print:overflow-visible print:p-0">
+        <main className="flex-1 overflow-y-auto p-4 md:p-[25px] bg-[#f8fafc] print:overflow-visible print:p-0 print:static print:block print-container">
           <AnimatePresence mode="wait">
             {view === 'dashboard' && <DashboardView user={user} isAdmin={isAdmin} exams={exams} results={results} setView={setView} onSelectPrintExam={setSelectedPrintExam} onEditExam={e => { setExamToEdit(e); setView('create'); }} onDeleteExam={handleDeleteExam} professors={professors} onReassignProfessor={setExamBeingReassigned} />}
             {view === 'create' && <CreateExamView user={user} userProfile={userProfile} setView={setView} examToEdit={examToEdit} onExamSaved={() => { setExamToEdit(null); setRefreshTrigger(prev => prev + 1); setView('dashboard'); }} />}
@@ -3402,8 +3402,8 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between print:hidden">
+    <div className="space-y-8 print-container pb-12">
+      <div className="flex items-center justify-between print:hidden no-print">
         <button 
           onClick={onBack}
           className="text-slate-500 font-bold text-sm flex items-center gap-2 hover:text-slate-700"
@@ -3436,7 +3436,7 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
       </div>
 
       {/* Settings Panel */}
-      <div className="bg-white p-6 border border-border shadow-sm rounded-lg print:hidden">
+      <div className="bg-white p-6 border border-border shadow-sm rounded-lg print:hidden no-print">
         <h3 className="text-lg font-bold text-primary mb-4">Configurações de Impressão</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
@@ -3497,7 +3497,7 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
           <div 
             key={`exam-${sIdx}`} 
             className={cn(
-              "exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto min-h-[297mm] text-black print:border-none print:shadow-none print:max-w-none print:w-[210mm] print:min-h-[100vh] flex flex-col justify-between print:m-0",
+              "exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto min-h-[297mm] text-black print:border-none print:shadow-none print:max-w-none print:w-[210mm] print:min-h-[297mm] flex flex-col justify-between print:m-0 print:p-8",
               sIdx === studentsToRender.length - 1 ? "" : "print:break-after-page"
             )}
             style={{ fontSize: `${exam.fontSize || 13}px`, fontFamily: exam.fontFamily || 'Inter' }}
@@ -3664,12 +3664,12 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
       </div>
 
       {/* Answer Sheets Container (OMR Compatible) */}
-      <div id="answer-sheets-container" className="space-y-12 print:space-y-0">
+      <div id="answer-sheets-container" className="space-y-12 print:space-y-0 print:break-before-page">
         {studentsToRender.map((student, sIdx) => (
           <div 
             key={`sheet-${sIdx}`} 
             className={cn(
-              "answer-sheet-page bg-white p-12 border border-border max-w-[210mm] mx-auto mt-10 print:border-none print:shadow-none print:mt-0 print:max-w-none print:w-[210mm] print:h-[297mm] relative overflow-hidden",
+              "answer-sheet-page bg-white p-12 border border-border max-w-[210mm] mx-auto mt-10 print:border-none print:shadow-none print:mt-0 print:max-w-none print:w-[210mm] print:min-h-[297mm] relative print:overflow-visible print-avoid-break",
               sIdx === studentsToRender.length - 1 ? "" : "print:break-after-page"
             )}
           >
@@ -3716,9 +3716,9 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-12 p-6 border-2 border-slate-100 rounded-xl">
+            <div className="grid grid-cols-3 gap-y-4 gap-x-8 p-6 border-2 border-slate-100 rounded-xl print:border-slate-300 print:gap-y-3">
               {exam.questions.filter(q => q.type !== 'essay').map((q, idx) => (
-                <div key={q.id} className="flex items-center gap-4">
+                <div key={q.id} className="flex items-center gap-4 print-avoid-break">
                   <span className="w-8 font-black text-primary text-sm">{String(idx + 1).padStart(2, '0')}</span>
                   <div className="flex gap-2">
                     {['A', 'B', 'C', 'D', 'E'].map(letter => (
@@ -3982,8 +3982,8 @@ function StudentReportPrintView({ reports, onBack }: { reports: StudentReport[],
   }, []);
 
   return (
-    <div className="space-y-12">
-      <div className="flex items-center justify-between print:hidden p-8 border-b border-border bg-white sticky top-0 z-20">
+    <div className="space-y-12 print-container">
+      <div className="flex items-center justify-between print:hidden no-print p-8 border-b border-border bg-white sticky top-0 z-20">
         <button onClick={onBack} className="text-slate-500 font-bold hover:text-primary flex items-center gap-2">
           ← Voltar ao Sistema
         </button>
@@ -4001,7 +4001,7 @@ function StudentReportPrintView({ reports, onBack }: { reports: StudentReport[],
           <div 
             key={report.id} 
             className={cn(
-              "bg-white p-16 border border-border max-w-[210mm] mx-auto min-h-[297mm] shadow-sm print:border-none print:shadow-none print:m-0 print:w-[210mm] flex flex-col",
+              "bg-white p-16 border border-border max-w-[210mm] mx-auto min-h-[297mm] shadow-sm print:border-none print:shadow-none print:m-0 print:w-[210mm] flex flex-col print-avoid-break",
               idx === reports.length - 1 ? "" : "print:break-after-page"
             )}
           >
@@ -5046,7 +5046,7 @@ function BoletimView({ results, exams, user }: { results: Result[], exams: Exam[
     const subjects = Array.from(new Set(exams.map(e => stripHtml(e.subject))));
 
     return (
-      <div key={studentName} className={cn("bg-white border text-black border-slate-300 print:border-none p-8 md:p-12 print:p-0 w-full max-w-5xl mx-auto shadow-sm print:shadow-none min-h-[800px] mb-8 print:mb-0", isLast ? "" : "print:break-after-page")}>
+      <div key={studentName} className={cn("bg-white border text-black border-slate-300 print:border-none p-8 md:p-12 print:p-0 w-full max-w-5xl mx-auto shadow-sm print:shadow-none min-h-[800px] mb-8 print:mb-0 print:min-h-[297mm] print-avoid-break", isLast ? "" : "print:break-after-page")}>
         {/* HEADER BOLETIM MEK */}
         <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
            <div className="flex items-center gap-4">
@@ -5217,8 +5217,8 @@ function BoletimView({ results, exams, user }: { results: Result[], exams: Exam[
 
   // Visualização do Boletim Múltiplo ou Individual
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-20 print:space-y-0 print:pb-0">
-      <div className="print:hidden flex items-center justify-between mb-4">
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-20 print:space-y-0 print:pb-0 print-container">
+      <div className="print:hidden no-print flex items-center justify-between mb-4">
         <button 
           onClick={() => setSelectedStudent(null)}
           className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
