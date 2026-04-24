@@ -304,7 +304,8 @@ export async function generatePrintableAnswerSheet(exam: any, logoBase64?: strin
     
     // Footnote
     doc.setFontSize(7);
-    doc.text("EduGrade v3.0 - Processamento Local", 105, 275, { align: 'center' });
+    // Remove branding
+
   }
 
   doc.save(`Folhas_Respostas_${exam.title}.pdf`);

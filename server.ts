@@ -61,7 +61,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 EduGrade Server is strictly listening on http://0.0.0.0:${PORT}`);
+    console.log(`🚀 Server is strictly listening on http://0.0.0.0:${PORT}`);
   });
 }
 

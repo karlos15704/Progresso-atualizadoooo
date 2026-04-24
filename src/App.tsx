@@ -1027,7 +1027,7 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
             {results.length > 0 ? (
                <p className="text-slate-600">
                  Registramos <b>{results.length}</b> resultados. Média atual:{' '}
-                 <b>{((results.reduce((acc, r) => acc + (r.points / Math.max(1, r.totalPoints)), 0) / results.length) * 100).toFixed(1)}%</b>. Continue monitorando os resultados dos alunos.
+                 <b>{((results.reduce((acc, r) => acc + (r.score / Math.max(1, r.maxScore)), 0) / results.length) * 100).toFixed(1)}%</b>. Continue monitorando os resultados dos alunos.
                </p>
             ) : (
                <p className="text-slate-600">
@@ -3067,7 +3067,7 @@ function ScheduleView({ exams, isAdmin, user, onExamSaved }: { exams: Exam[], is
 
         <div className="mt-8 pt-6 border-t border-dashed border-border flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
           <span>Emitido em: {new Date().toLocaleDateString('pt-BR')}</span>
-          <span>EduGrade Pro • Colégio Progresso Santista</span>
+          <span>Colégio Progresso Santista</span>
         </div>
       </div>
     </div>
@@ -3434,10 +3434,6 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
                 <span>Boa Sorte! • {exam.subject}</span>
                 <span className="text-[8px] opacity-40">Colégio Progresso Santista</span>
               </div>
-              <div className="flex flex-col items-end gap-1 text-[10px]">
-                <span className="text-black/60">Resultado em PDF</span>
-                <span className="bg-black text-white px-2 py-0.5 rounded text-[8px]">PRODUZIDO POR EDUGRADE PRO</span>
-              </div>
             </div>
           </div>
         ))}
@@ -3523,10 +3519,6 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
                   <li>O scanner não lerá marcas duplas.</li>
                 </ul>
               </div>
-            </div>
-
-            <div className="absolute bottom-10 left-0 right-0 text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-              EduGrade Pro • Processamento Óptico Local
             </div>
           </div>
         ))}
