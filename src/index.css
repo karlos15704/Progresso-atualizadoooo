@@ -41,25 +41,49 @@
     overflow: visible !important;
     background: white !important;
     display: block !important;
+    width: 100% !important;
   }
   body { 
     margin: 0; 
+    padding: 0;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
-  /* Hide any potential UI artifacts that might stay visible */
-  .AnimatePresence, [data-framer-portal-id], #root > div:not(.print-container) {
-    overflow: visible !important;
+  
+  /* Critical: Hide EVERYTHING except the print-container */
+  body > *:not(.print-container),
+  #root > *:not(.print-container),
+  div:not(.print-container) > div:not(.print-container) {
+    /* We use a more surgical approach if possible, but no-print is the standard */
+  }
+
+  .no-print, 
+  aside, 
+  nav, 
+  header:not(.print-header), 
+  footer:not(.print-footer),
+  .fixed,
+  .sticky {
+    display: none !important;
   }
   
-  .no-print {
-    display: none !important;
+  .print-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 210mm !important;
+    display: block !important;
+    overflow: visible !important;
   }
 
   /* Ensure items don't break mid-way */
   .print-avoid-break {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+  }
+
+  .print-break-after {
+    page-break-after: always !important;
+    break-after: page !important;
   }
 }
 

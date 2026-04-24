@@ -3402,8 +3402,8 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
   }
 
   return (
-    <div className="space-y-8 print-container pb-12">
-      <div className="flex items-center justify-between print:hidden no-print">
+    <div className="space-y-8 print-container print:space-y-0">
+      <div className="flex items-center justify-between no-print mb-4 px-4">
         <button 
           onClick={onBack}
           className="text-slate-500 font-bold text-sm flex items-center gap-2 hover:text-slate-700"
@@ -3497,7 +3497,7 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
           <div 
             key={`exam-${sIdx}`} 
             className={cn(
-              "exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto min-h-[297mm] text-black print:border-none print:shadow-none print:max-w-none print:w-[210mm] print:min-h-[297mm] flex flex-col justify-between print:m-0 print:p-8",
+              "exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto text-black print:border-none print:shadow-none print:max-w-none print:w-[210mm] print:min-h-[297mm] flex flex-col justify-between print:m-0 print:p-8",
               sIdx === studentsToRender.length - 1 ? "" : "print:break-after-page"
             )}
             style={{ fontSize: `${exam.fontSize || 13}px`, fontFamily: exam.fontFamily || 'Inter' }}
@@ -4001,7 +4001,7 @@ function StudentReportPrintView({ reports, onBack }: { reports: StudentReport[],
           <div 
             key={report.id} 
             className={cn(
-              "bg-white p-16 border border-border max-w-[210mm] mx-auto min-h-[297mm] shadow-sm print:border-none print:shadow-none print:m-0 print:w-[210mm] flex flex-col print-avoid-break",
+              "bg-white p-16 border border-border max-w-[210mm] mx-auto shadow-sm print:border-none print:shadow-none print:m-0 print:w-[210mm] flex flex-col print-avoid-break print:min-h-[297mm]",
               idx === reports.length - 1 ? "" : "print:break-after-page"
             )}
           >
@@ -5046,7 +5046,7 @@ function BoletimView({ results, exams, user }: { results: Result[], exams: Exam[
     const subjects = Array.from(new Set(exams.map(e => stripHtml(e.subject))));
 
     return (
-      <div key={studentName} className={cn("bg-white border text-black border-slate-300 print:border-none p-8 md:p-12 print:p-0 w-full max-w-5xl mx-auto shadow-sm print:shadow-none min-h-[800px] mb-8 print:mb-0 print:min-h-[297mm] print-avoid-break", isLast ? "" : "print:break-after-page")}>
+      <div key={studentName} className={cn("bg-white border text-black border-slate-300 print:border-none p-8 md:p-12 print:p-0 w-full max-w-5xl mx-auto shadow-sm print:shadow-none mb-8 print:mb-0 print:min-h-[297mm] print-avoid-break", isLast ? "" : "print:break-after-page")}>
         {/* HEADER BOLETIM MEK */}
         <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
            <div className="flex items-center gap-4">
