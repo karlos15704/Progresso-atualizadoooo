@@ -32,11 +32,20 @@
 }
 
 @media print {
-  @page { margin: 0; }
+  @page { 
+    margin: 0; 
+    size: auto;
+  }
   body { 
     margin: 0; 
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+  /* Hide any potential UI artifacts that might stay visible */
+  .AnimatePresence, [data-framer-portal-id], #root > div {
+    overflow: visible !important;
   }
 }
 

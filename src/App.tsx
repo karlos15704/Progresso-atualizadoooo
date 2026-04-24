@@ -3492,11 +3492,14 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
       </div>
 
       {/* Generated Exams */}
-      <div id="exams-container" className="space-y-12">
+      <div id="exams-container" className="space-y-12 print:space-y-0">
         {studentsToRender.map((student, sIdx) => (
           <div 
             key={`exam-${sIdx}`} 
-            className="exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto min-h-[297mm] text-black print:border-none print:shadow-none print:max-w-none print:w-[210mm] print:min-h-[100vh] print:break-after-page flex flex-col justify-between print:m-0"
+            className={cn(
+              "exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto min-h-[297mm] text-black print:border-none print:shadow-none print:max-w-none print:w-[210mm] print:min-h-[100vh] flex flex-col justify-between print:m-0",
+              sIdx === studentsToRender.length - 1 ? "" : "print:break-after-page"
+            )}
             style={{ fontSize: `${exam.fontSize || 13}px`, fontFamily: exam.fontFamily || 'Inter' }}
           >
             <div className="flex-1">
@@ -3661,11 +3664,14 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
       </div>
 
       {/* Answer Sheets Container (OMR Compatible) */}
-      <div id="answer-sheets-container" className="space-y-12">
+      <div id="answer-sheets-container" className="space-y-12 print:space-y-0">
         {studentsToRender.map((student, sIdx) => (
           <div 
             key={`sheet-${sIdx}`} 
-            className="answer-sheet-page bg-white p-12 border border-border max-w-[210mm] mx-auto mt-10 print:border-none print:shadow-none print:mt-0 print:max-w-none print:w-[210mm] print:h-[297mm] print:break-after-page relative overflow-hidden"
+            className={cn(
+              "answer-sheet-page bg-white p-12 border border-border max-w-[210mm] mx-auto mt-10 print:border-none print:shadow-none print:mt-0 print:max-w-none print:w-[210mm] print:h-[297mm] relative overflow-hidden",
+              sIdx === studentsToRender.length - 1 ? "" : "print:break-after-page"
+            )}
           >
             {/* OMR Markers */}
             <div className="absolute top-4 left-4 omr-marker"></div>
@@ -3994,7 +4000,10 @@ function StudentReportPrintView({ reports, onBack }: { reports: StudentReport[],
         {reports.map((report, idx) => (
           <div 
             key={report.id} 
-            className="bg-white p-16 border border-border max-w-[210mm] mx-auto min-h-[297mm] shadow-sm print:border-none print:shadow-none print:m-0 print:w-[210mm] print:break-after-page flex flex-col"
+            className={cn(
+              "bg-white p-16 border border-border max-w-[210mm] mx-auto min-h-[297mm] shadow-sm print:border-none print:shadow-none print:m-0 print:w-[210mm] flex flex-col",
+              idx === reports.length - 1 ? "" : "print:break-after-page"
+            )}
           >
             {/* Header */}
             <div className="border-b-2 border-primary pb-8 mb-10 flex items-center justify-between">
@@ -5037,7 +5046,7 @@ function BoletimView({ results, exams, user }: { results: Result[], exams: Exam[
     const subjects = Array.from(new Set(exams.map(e => stripHtml(e.subject))));
 
     return (
-      <div key={studentName} className={cn("bg-white border text-black border-slate-300 print:border-none p-8 md:p-12 print:p-0 w-full max-w-5xl mx-auto shadow-sm print:shadow-none min-h-[800px]", isLast ? "" : "print:break-after-page mb-8")}>
+      <div key={studentName} className={cn("bg-white border text-black border-slate-300 print:border-none p-8 md:p-12 print:p-0 w-full max-w-5xl mx-auto shadow-sm print:shadow-none min-h-[800px] mb-8 print:mb-0", isLast ? "" : "print:break-after-page")}>
         {/* HEADER BOLETIM MEK */}
         <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
            <div className="flex items-center gap-4">
