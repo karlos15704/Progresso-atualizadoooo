@@ -2253,6 +2253,7 @@ function GuidesView({ exams }: { exams: Exam[] }) {
 
 function AdminView({ user }: { user: User }) {
   const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
   const [allowedUsers, setAllowedUsers] = useState<{id: string, username: string}[]>([]);
   const [networkUsers, setNetworkUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -2345,7 +2346,10 @@ function AdminView({ user }: { user: User }) {
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username) return;
+    if (!username || !fullName) {
+      alert("Por favor, preencha todos os campos.");
+      return;
+    }
     setLoading(true);
     try {
       const cleanUsername = username.toLowerCase().trim();
@@ -2353,12 +2357,16 @@ function AdminView({ user }: { user: User }) {
       const { error } = await supabase.from('allowed_professors').insert({
         email: supabaseEmail,
         username: cleanUsername,
+        full_name: fullName.trim(),
         created_at: new Date().toISOString()
       });
       if (error) throw error;
       setUsername('');
-    } catch (err) {
+      setFullName('');
+      alert("Professor autorizado com sucesso!");
+    } catch (err: any) {
       console.error(err);
+      alert("Erro ao autorizar professor: " + (err.message || 'Erro desconhecido'));
     } finally {
       setLoading(false);
     }
@@ -2428,21 +2436,31 @@ function AdminView({ user }: { user: User }) {
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-lg border border-border shadow-sm">
             <h3 className="text-base font-bold text-primary mb-4">Adicionar Professor Autorizado</h3>
-            <form onSubmit={handleAddUser} className="flex gap-4">
-              <input 
-                type="text" 
-                placeholder="Usuário do professor..." 
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                required
-                className="flex-1 px-4 py-2 rounded-md border border-border focus:border-accent outline-none text-sm"
-              />
+            <form onSubmit={handleAddUser} className="space-y-4">
+              <div className="flex flex-col md:flex-row gap-4">
+                <input 
+                  type="text" 
+                  placeholder="Usuário (ex: carlos.silva)" 
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  required
+                  className="flex-1 px-4 py-2 rounded-md border border-border focus:border-accent outline-none text-sm"
+                />
+                <input 
+                  type="text" 
+                  placeholder="Nome Completo" 
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                  required
+                  className="flex-1 px-4 py-2 rounded-md border border-border focus:border-accent outline-none text-sm"
+                />
+              </div>
               <button 
                 type="submit"
                 disabled={loading}
-                className="bg-accent text-white px-6 py-2 rounded-md font-bold text-sm hover:bg-accent/90 transition-all shadow-sm disabled:opacity-50"
+                className="w-full bg-accent text-white px-6 py-2 rounded-md font-bold text-sm hover:bg-accent/90 transition-all shadow-sm disabled:opacity-50"
               >
-                Adicionar
+                {loading ? 'Adicionando...' : 'Autorizar Novo Professor'}
               </button>
             </form>
           </div>
@@ -2450,12 +2468,16 @@ function AdminView({ user }: { user: User }) {
           <div className="bg-white p-6 rounded-lg border border-border shadow-sm">
             <h3 className="text-base font-bold text-primary mb-4">Professores Autorizados ({allowedUsers.length})</h3>
             <div className="space-y-2">
-              {allowedUsers.map((item, idx) => (
+              {allowedUsers.map((item: any, idx) => (
                 <div key={item.id || `allowed-${idx}`} className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-100">
-                  <span className="font-medium text-slate-700 text-sm">{item.username}</span>
+                  <div className="flex flex-col">
+                    <span className="font-bold text-slate-700 text-sm">{item.full_name || 'Sem nome'}</span>
+                    <span className="text-xs text-slate-500">Usuário: <span className="font-mono">{item.username}</span></span>
+                  </div>
                   <button 
                     onClick={() => handleRemoveUser(item.id)}
-                    className="text-red-400 hover:text-red-600 p-1"
+                    className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-all"
+                    title="Remover Autorização"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
