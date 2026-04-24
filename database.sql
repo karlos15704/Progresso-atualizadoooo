@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS allowed_professors (
   username text UNIQUE NOT NULL,
   email text UNIQUE NOT NULL,
   full_name text NOT NULL,
+  assigned_subjects text[] DEFAULT '{}',
   created_at timestamptz DEFAULT now()
 );
 

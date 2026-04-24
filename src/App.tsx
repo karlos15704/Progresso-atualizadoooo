@@ -455,25 +455,35 @@ export default function App() {
   const handleUser = async (currentUser: User | null) => {
     if (currentUser) {
       try {
-        let isUserAdmin = currentUser.email?.toLowerCase() === 'cps@cps.local';
+        const isUserMaster = currentUser.email?.toLowerCase() === 'cps@cps.local';
         const { data: profile, error } = await supabase.from('users').select('*').eq('uid', currentUser.id).maybeSingle();
         
         if (error && error.code !== 'PGRST116') {
            console.error("Database user fetch error, continuing securely... ", error);
         } else if (!profile) {
+          // If first time, try to get data from allowed_professors
+          const { data: allowed } = await supabase.from('allowed_professors').select('*').eq('email', currentUser.email?.toLowerCase()).single();
+          
           const newProfile = {
             uid: currentUser.id,
             email: currentUser.email,
-            display_name: currentUser.user_metadata?.displayName || currentUser.email?.split('@')[0],
-            role: isUserAdmin ? 'admin' : 'professor',
+            display_name: allowed?.full_name || currentUser.user_metadata?.displayName || currentUser.email?.split('@')[0],
+            role: isUserMaster ? 'admin' : 'professor',
             school_name: 'Colégio Progresso Santista',
-            professional_name: currentUser.user_metadata?.displayName || currentUser.email?.split('@')[0],
-            assigned_subjects: [],
+            professional_name: allowed?.full_name || currentUser.user_metadata?.displayName || currentUser.email?.split('@')[0],
+            assigned_subjects: allowed?.assigned_subjects || [],
             assigned_classes: []
           };
           await supabase.from('users').insert(newProfile);
           setUserProfile(newProfile);
+          setIsAdmin(isUserMaster || newProfile.role === 'admin');
         } else {
+          // Check if role needs sync for master account
+          if (isUserMaster && profile.role !== 'admin') {
+            await supabase.from('users').update({ role: 'admin' }).eq('uid', currentUser.id);
+            profile.role = 'admin';
+          }
+
           // Fill missing fields on old profiles
           const updatedProfile = {
              ...profile,
@@ -482,9 +492,9 @@ export default function App() {
              assigned_classes: profile.assigned_classes || []
           };
           setUserProfile(updatedProfile);
+          setIsAdmin(isUserMaster || updatedProfile.role === 'admin');
         }
         
-        setIsAdmin(isUserAdmin || profile?.role === 'admin');
         setUser(currentUser);
       } catch (err) {
         console.error("Error setting up user:", err);
@@ -2276,6 +2286,7 @@ function GuidesView({ exams }: { exams: Exam[] }) {
 function AdminView({ user }: { user: User }) {
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
   const [allowedUsers, setAllowedUsers] = useState<any[]>([]);
   const [networkUsers, setNetworkUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -2380,11 +2391,13 @@ function AdminView({ user }: { user: User }) {
         email: supabaseEmail,
         username: cleanUsername,
         full_name: fullName.trim(),
+        assigned_subjects: selectedSubject ? [selectedSubject] : [],
         created_at: new Date().toISOString()
       }]);
       if (error) throw error;
       setUsername('');
       setFullName('');
+      setSelectedSubject('');
       alert("Professor autorizado com sucesso!");
     } catch (err: any) {
       console.error(err);
@@ -2466,7 +2479,7 @@ function AdminView({ user }: { user: User }) {
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   required
-                  className="flex-1 px-4 py-2 rounded-md border border-border focus:border-accent outline-none text-sm"
+                  className="flex-1 px-4 py-3 rounded-md border border-border focus:border-accent outline-none text-sm"
                 />
                 <input 
                   type="text" 
@@ -2474,17 +2487,41 @@ function AdminView({ user }: { user: User }) {
                   value={fullName}
                   onChange={e => setFullName(e.target.value)}
                   required
-                  className="flex-1 px-4 py-2 rounded-md border border-border focus:border-accent outline-none text-sm"
+                  className="flex-1 px-4 py-3 rounded-md border border-border focus:border-accent outline-none text-sm"
                 />
+              </div>
+              <div className="flex flex-col space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Disciplina Principal</label>
+                <select 
+                  value={selectedSubject}
+                  onChange={e => setSelectedSubject(e.target.value)}
+                  className="w-full px-4 py-3 rounded-md border border-border focus:border-accent outline-none text-sm bg-slate-50 font-bold text-slate-700 appearance-none cursor-pointer"
+                >
+                  <option value="">Selecione uma disciplina...</option>
+                  {schoolInfo.subjects.map((sub: string) => (
+                    <option key={sub} value={sub}>{sub}</option>
+                  ))}
+                </select>
               </div>
               <button 
                 type="submit"
                 disabled={loading}
-                className="w-full bg-accent text-white px-6 py-2 rounded-md font-bold text-sm hover:bg-accent/90 transition-all shadow-sm disabled:opacity-50"
+                className="w-full bg-accent text-white px-6 py-4 rounded-md font-bold text-sm hover:bg-accent/90 transition-all shadow-md active:scale-[0.98] disabled:opacity-50"
               >
-                {loading ? 'Adicionando...' : 'Autorizar Novo Professor'}
+                {loading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Processando...</span>
+                  </div>
+                ) : 'Autorizar Novo Professor'}
               </button>
             </form>
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-md">
+              <p className="text-xs text-blue-800 leading-relaxed font-medium">
+                <strong>Como funciona o cadastro?</strong><br/>
+                Após autorizar um usuário aqui, o professor deve clicar em <strong>"Registrar"</strong> na tela de login e criar sua conta usando exatamente o mesmo usuário e a senha que desejar. O sistema irá reconhecer automaticamente a disciplina autorizada.
+              </p>
+            </div>
           </div>
 
           <div className="bg-white p-6 rounded-lg border border-border shadow-sm">
@@ -2494,7 +2531,14 @@ function AdminView({ user }: { user: User }) {
                 <div key={item.id || `allowed-${idx}`} className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-100">
                   <div className="flex flex-col">
                     <span className="font-bold text-slate-700 text-sm">{item.full_name || 'Sem nome'}</span>
-                    <span className="text-xs text-slate-500">Usuário: <span className="font-mono">{item.username}</span></span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] text-slate-500 font-mono bg-slate-200/50 px-1.5 py-0.5 rounded italic">@{item.username}</span>
+                      {item.assigned_subjects?.length > 0 && (
+                        <span className="text-[10px] bg-accent/10 text-accent px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">
+                          {item.assigned_subjects.join(', ')}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <button 
                     onClick={() => handleRemoveUser(item.id)}

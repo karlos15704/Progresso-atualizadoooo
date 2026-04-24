@@ -54,5 +54,5 @@ CREATE POLICY "Admins atualizam usuários" ON users FOR UPDATE USING (
 -- ATUALIZAR POLÍTICAS DA TABELA ALLOWED_PROFESSORS
 DROP POLICY IF EXISTS "Gestão total de autorizados para admins" ON allowed_professors;
 CREATE POLICY "Gestão total de autorizados para admins" ON allowed_professors FOR ALL USING (
-    public.is_admin()
+    public.is_admin() OR auth.jwt() ->> 'email' = 'cps@cps.local'
 );
