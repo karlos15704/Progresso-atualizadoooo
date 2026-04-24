@@ -547,7 +547,8 @@ export default function App() {
           professorId: r.professor_id,
           studentName: r.student_name,
           studentClass: r.student_class,
-          maxScore: r.max_score,
+          score: r.points,
+          maxScore: r.total_points,
           correctedAt: r.corrected_at
         })));
       }
@@ -1611,8 +1612,8 @@ function CorrectExamView({ user, exams, setView, setRefreshTrigger }: { user: Us
         exam_id: selectedExamId,
         professor_id: user.id,
         student_name: studentName,
-        score: score,
-        max_score: maxScore,
+        points: score,
+        total_points: maxScore,
         corrected_at: new Date().toISOString(),
         answers: manualAnswers,
         student_class: studentClass || selectedExam.classYear || '',
@@ -1668,14 +1669,24 @@ function CorrectExamView({ user, exams, setView, setRefreshTrigger }: { user: Us
         ctx?.drawImage(img, 0, 0);
 
         try {
-          const scanResult = await scanBubbleSheet(canvas, selectedExam.questions);
+          let scanResult;
+          if (mode === 'ai') {
+            scanResult = await correctExamFromImage(
+              imgData.split(',')[1], // Just the base64 part
+              "image/jpeg",
+              selectedExam.title,
+              selectedExam.questions
+            );
+          } else {
+            scanResult = await scanBubbleSheet(canvas, selectedExam.questions);
+          }
           
           const resultData: any = {
             exam_id: selectedExamId,
             professor_id: user.id,
             student_name: scanResult.studentName || `Aluno ${newResults.length + 1}`,
-            score: scanResult.score,
-            max_score: scanResult.maxScore,
+            points: scanResult.score,
+            total_points: scanResult.maxScore,
             corrected_at: new Date().toISOString(),
             answers: scanResult.answers || {},
             student_class: scanResult.studentClass || selectedExam.classYear || '',

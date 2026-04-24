@@ -35,16 +35,34 @@ export async function scanBubbleSheet(
     grayscale[i / 4] = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
   }
 
-  // 2. Adaptive Binarization (simple local threshold)
-  let sumG = 0;
-  for (let i = 0; i < grayscale.length; i++) sumG += grayscale[i];
-  const avgG = sumG / grayscale.length;
-  // Use a more generous threshold for detecting markers in possible shadows
-  const threshold = Math.min(180, Math.max(90, avgG * 0.8)); 
-
+  // 2. Local Adaptive Binarization
   const binary = new Uint8Array(width * height);
-  for (let i = 0; i < grayscale.length; i++) {
-    binary[i] = grayscale[i] < threshold ? 1 : 0; // 1 = black, 0 = white
+  const gridSize = Math.floor(width / 8); 
+  
+  for (let gy = 0; gy < height; gy += gridSize) {
+    for (let gx = 0; gx < width; gx += gridSize) {
+      // Calculate local average in this grid
+      let localSum = 0;
+      let count = 0;
+      const endY = Math.min(gy + gridSize, height);
+      const endX = Math.min(gx + gridSize, width);
+      
+      for (let y = gy; y < endY; y++) {
+        for (let x = gx; x < endX; x++) {
+          localSum += grayscale[y * width + x];
+          count++;
+        }
+      }
+      
+      const localAvg = localSum / count;
+      const localThreshold = localAvg * 0.85; 
+
+      for (let y = gy; y < endY; y++) {
+        for (let x = gx; x < endX; x++) {
+          binary[y * width + x] = grayscale[y * width + x] < localThreshold ? 1 : 0;
+        }
+      }
+    }
   }
 
   // 3. Find Markers (4 black squares)
@@ -128,9 +146,14 @@ export async function scanBubbleSheet(
     let maxBlack = -1;
 
     for (let oIdx = 0; oIdx < 5; oIdx++) {
-      // PDF Template coordinates
-      const normX = 0.25 + (oIdx * 0.10); 
-      const normY = 0.35 + (bubbleIdx * 0.027); // Use bubbleIdx instead of qIdx
+      // PDF Template coordinates (More precise mapping)
+      // Marker centers at 15mm and 195mm (width 180mm)
+      // Bubble centers at 60mm + j*20mm
+      const normX = (45 + (oIdx * 20)) / 180; 
+      
+      // Marker centers at 15mm and 285mm (height 270mm)
+      // Bubble centers at 109mm + bubbleIdx*8mm
+      const normY = (94 + (bubbleIdx * 8)) / 270; 
       
       // Bilinear interpolation
       const topX = tl.x + (tr.x - tl.x) * normX;
@@ -142,7 +165,8 @@ export async function scanBubbleSheet(
       const py = topY + (botY - topY) * normY;
 
       let blackCount = 0;
-      const r = Math.floor(width * 0.010); 
+      // Search radius - slightly larger than the bubble (3mm in 180mm = ~1.6% of width)
+      const r = Math.floor(width * 0.012); 
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
           const sx = Math.floor(px + dx), sy = Math.floor(py + dy);
@@ -150,7 +174,10 @@ export async function scanBubbleSheet(
         }
       }
 
-      if (blackCount > maxBlack && blackCount > (r * r * 0.8)) {
+      // Density threshold: A marked circle is ~80% of its bounding box area
+      // We check if the density is significant enough compared to the search area
+      const totalArea = (2 * r + 1) * (2 * r + 1);
+      if (blackCount > maxBlack && blackCount > (totalArea * 0.25)) { 
         maxBlack = blackCount;
         bestOption = options[oIdx];
       }
