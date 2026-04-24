@@ -623,9 +623,9 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col print:bg-white print:block">
+    <div className="h-screen bg-bg flex flex-col print:h-auto print:bg-white print:block overflow-hidden">
       {/* Header */}
-      <header className="bg-white border-b border-border h-[70px] px-4 md:px-8 flex items-center justify-between sticky top-0 z-30 print:hidden">
+      <header className="bg-white border-b border-border h-[70px] px-4 md:px-8 flex-shrink-0 flex items-center justify-between sticky top-0 z-30 print:hidden">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -701,9 +701,11 @@ export default function App() {
               />
             )}
           </div>
-          <div className="mt-auto p-6 text-[10px] uppercase tracking-widest text-slate-500 font-bold">
-            v3.0.0 Colégio Progresso
-          </div>
+          {!sidebarCollapsed && (
+            <div className="mt-auto p-4 md:p-6 text-[10px] uppercase tracking-widest text-slate-500 font-bold truncate">
+              Colégio Progresso 
+            </div>
+          )}
         </aside>
 
         {/* Main Content */}
