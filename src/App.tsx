@@ -878,7 +878,6 @@ function MobileNavButton({ active, onClick, icon, label }: { active: boolean, on
 }
 
 function LoginView({ error, setError }: { error: string | null, setError: (e: string | null) => void }) {
-  const [isRegistering, setIsRegistering] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -891,26 +890,13 @@ function LoginView({ error, setError }: { error: string | null, setError: (e: st
       const supabaseEmail = `${username.toLowerCase().trim()}@cps.local`;
       const supabasePassword = password + "_cpsAuth"; // Ensures >= 6 chars
 
-      if (isRegistering) {
-        // Check if allowed
-        const { data: allowed } = await supabase.from('allowed_professors').select('*').eq('username', username.toLowerCase().trim()).single();
-        if (!allowed && username.toLowerCase().trim() !== 'cps') {
-          throw new Error('Usuário não autorizado pelo administrador.');
-        }
-
-        const { error } = await supabase.auth.signUp({ email: supabaseEmail, password: supabasePassword });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email: supabaseEmail, password: supabasePassword });
-        if (error) throw error;
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email: supabaseEmail, password: supabasePassword });
+      if (error) throw error;
     } catch (err: any) {
       if (err.message?.includes('rate limit')) {
         setError('Muitas tentativas. Por favor, aguarde alguns minutos antes de tentar novamente.');
       } else if (err.message?.includes('Invalid login credentials')) {
         setError('Usuário ou senha incorretos.');
-      } else if (err.message?.includes('User already registered')) {
-        setError('Este usuário já está em uso.');
       } else {
         setError(err.message || 'Ocorreu um erro ao autenticar.');
       }
@@ -942,39 +928,40 @@ function LoginView({ error, setError }: { error: string | null, setError: (e: st
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input 
-            type="text" 
-            placeholder="Usuário" 
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            required
-            className="w-full px-4 py-3 rounded-md border border-border focus:border-accent outline-none text-sm"
-          />
-          <input 
-            type="password" 
-            placeholder="Senha" 
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-            className="w-full px-4 py-3 rounded-md border border-border focus:border-accent outline-none text-sm"
-          />
+          <div className="text-left space-y-1">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Usuário</label>
+            <input 
+              type="text" 
+              placeholder="Ex: joao.silva" 
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              required
+              className="w-full px-4 py-3 rounded-md border border-border focus:border-accent outline-none text-sm"
+            />
+          </div>
+          <div className="text-left space-y-1">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Senha</label>
+            <input 
+              type="password" 
+              placeholder="••••••••" 
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              className="w-full px-4 py-3 rounded-md border border-border focus:border-accent outline-none text-sm"
+            />
+          </div>
           <button 
             type="submit"
             disabled={loading}
-            className="w-full bg-primary text-white py-3 px-6 rounded-md font-bold flex items-center justify-center gap-3 hover:bg-primary/90 transition-all shadow-sm disabled:opacity-50"
+            className="w-full bg-primary text-white py-3 px-6 rounded-md font-bold flex items-center justify-center gap-3 hover:bg-primary/90 transition-all shadow-sm disabled:opacity-50 mt-4"
           >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isRegistering ? 'Registrar' : 'Entrar')}
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Entrar no Sistema'}
           </button>
         </form>
 
-        <div className="mt-6 text-sm">
-          <button 
-            onClick={() => { setIsRegistering(!isRegistering); setError(null); }}
-            className="text-accent font-bold hover:underline"
-          >
-            {isRegistering ? 'Já tenho uma conta. Entrar.' : 'Não tem conta? Registrar.'}
-          </button>
-        </div>
+        <p className="mt-8 text-xs text-slate-400 font-medium">
+          Caso tenha esquecido seus dados, entre em contato com a secretaria pedagógica.
+        </p>
       </motion.div>
     </div>
   );
@@ -2292,7 +2279,8 @@ function GuidesView({ exams }: { exams: Exam[] }) {
 function AdminView({ user }: { user: User }) {
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState('');
+  const [password, setPassword] = useState('');
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [allowedUsers, setAllowedUsers] = useState<any[]>([]);
   const [networkUsers, setNetworkUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -2303,6 +2291,12 @@ function AdminView({ user }: { user: User }) {
   
   const [configuringUser, setConfiguringUser] = useState<any | null>(null);
   const [configLoading, setConfigLoading] = useState(false);
+
+  const toggleSubject = (sub: string) => {
+    setSelectedSubjects(prev => 
+      prev.includes(sub) ? prev.filter(s => s !== sub) : [...prev, sub]
+    );
+  };
 
   const handleUpdateUserConfig = async () => {
     if (!configuringUser) return;
@@ -2385,29 +2379,39 @@ function AdminView({ user }: { user: User }) {
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !fullName) {
-      alert("Por favor, preencha todos os campos.");
+    if (!username || !fullName || !password) {
+      alert("Por favor, preencha todos os campos (usuário, nome e senha).");
       return;
     }
     setLoading(true);
     try {
-      const cleanUsername = username.toLowerCase().trim();
-      const supabaseEmail = `${cleanUsername}@cps.local`;
-      const { error } = await supabase.from('allowed_professors').insert([{
-        email: supabaseEmail,
-        username: cleanUsername,
-        full_name: fullName.trim(),
-        assigned_subjects: selectedSubject ? [selectedSubject] : [],
-        created_at: new Date().toISOString()
-      }]);
-      if (error) throw error;
+      const response = await fetch('/api/admin/create-professor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: username.toLowerCase().trim(),
+          fullName: fullName.trim(),
+          password: password,
+          assignedSubjects: selectedSubjects
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Erro ao criar professor.");
+      }
+
       setUsername('');
       setFullName('');
-      setSelectedSubject('');
-      alert("Professor autorizado com sucesso!");
+      setPassword('');
+      setSelectedSubjects([]);
+      alert("Professor criado e autorizado com sucesso!");
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao autorizar professor: " + (err.message || 'Erro desconhecido'));
+      alert("Erro ao criar professor: " + (err.message || 'Erro desconhecido'));
     } finally {
       setLoading(false);
     }
@@ -2476,38 +2480,60 @@ function AdminView({ user }: { user: User }) {
 
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-lg border border-border shadow-sm">
-            <h3 className="text-base font-bold text-primary mb-4">Adicionar Professor Autorizado</h3>
+            <h3 className="text-base font-bold text-primary mb-4">Criar Novo Login de Professor</h3>
             <form onSubmit={handleAddUser} className="space-y-4">
-              <div className="flex flex-col md:flex-row gap-4">
-                <input 
-                  type="text" 
-                  placeholder="Usuário (ex: carlos.silva)" 
-                  value={username}
-                  onChange={e => setUsername(e.target.value)}
-                  required
-                  className="flex-1 px-4 py-3 rounded-md border border-border focus:border-accent outline-none text-sm"
-                />
-                <input 
-                  type="text" 
-                  placeholder="Nome Completo" 
-                  value={fullName}
-                  onChange={e => setFullName(e.target.value)}
-                  required
-                  className="flex-1 px-4 py-3 rounded-md border border-border focus:border-accent outline-none text-sm"
-                />
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Nome Completo</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: João da Silva Santos" 
+                    value={fullName}
+                    onChange={e => setFullName(e.target.value)}
+                    required
+                    className="w-full px-4 py-3 rounded-md border border-border focus:border-accent outline-none text-sm"
+                  />
+                </div>
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1 space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Usuário de Acesso</label>
+                    <input 
+                      type="text" 
+                      placeholder="joao.silva" 
+                      value={username}
+                      onChange={e => setUsername(e.target.value)}
+                      required
+                      className="w-full px-4 py-3 rounded-md border border-border focus:border-accent outline-none text-sm font-mono"
+                    />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Senha Inicial</label>
+                    <input 
+                      type="text" 
+                      placeholder="Senha temporária" 
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      required
+                      className="w-full px-4 py-3 rounded-md border border-border focus:border-accent outline-none text-sm"
+                    />
+                  </div>
+                </div>
               </div>
               <div className="flex flex-col space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Disciplina Principal</label>
-                <select 
-                  value={selectedSubject}
-                  onChange={e => setSelectedSubject(e.target.value)}
-                  className="w-full px-4 py-3 rounded-md border border-border focus:border-accent outline-none text-sm bg-slate-50 font-bold text-slate-700 appearance-none cursor-pointer"
-                >
-                  <option value="">Selecione uma disciplina...</option>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Disciplinas que Ministra</label>
+                <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 border border-slate-100 rounded-md max-h-[150px] overflow-y-auto">
                   {schoolInfo.subjects.map((sub: string) => (
-                    <option key={sub} value={sub}>{sub}</option>
+                    <label key={sub} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 p-1 rounded transition-colors">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedSubjects.includes(sub)}
+                        onChange={() => toggleSubject(sub)}
+                        className="w-4 h-4 rounded border-slate-300 text-accent focus:ring-accent"
+                      />
+                      <span className="text-xs font-bold text-slate-700">{sub}</span>
+                    </label>
                   ))}
-                </select>
+                </div>
               </div>
               <button 
                 type="submit"
@@ -2517,15 +2543,15 @@ function AdminView({ user }: { user: User }) {
                 {loading ? (
                   <div className="flex items-center justify-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Processando...</span>
+                    <span>Criando Conta...</span>
                   </div>
-                ) : 'Autorizar Novo Professor'}
+                ) : 'Criar Conta do Professor'}
               </button>
             </form>
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-md">
-              <p className="text-xs text-blue-800 leading-relaxed font-medium">
-                <strong>Como funciona o cadastro?</strong><br/>
-                Após autorizar um usuário aqui, o professor deve clicar em <strong>"Registrar"</strong> na tela de login e criar sua conta usando exatamente o mesmo usuário e a senha que desejar. O sistema irá reconhecer automaticamente a disciplina autorizada.
+            <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-md">
+              <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                <AlertCircle className="w-4 h-4 inline mr-1 mb-0.5" />
+                <strong>Segurança:</strong> Informe o usuário e a senha diretamente ao professor. Ele não precisará se registrar, basta entrar com esses dados.
               </p>
             </div>
           </div>

@@ -2,8 +2,23 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import fs from "fs";
+import { createClient } from '@supabase/supabase-js';
 
 const LOG_FILE = path.join(process.cwd(), 'server-debug.log');
+
+let supabaseAdmin: any = null;
+
+function getSupabaseAdmin() {
+  if (!supabaseAdmin) {
+    const url = process.env.VITE_SUPABASE_URL || 'https://kieifmfjonynbqvmhzis.supabase.co';
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!key) {
+      throw new Error("SUPABASE_SERVICE_ROLE_KEY environment variable is required for admin operations.");
+    }
+    supabaseAdmin = createClient(url, key);
+  }
+  return supabaseAdmin;
+}
 
 async function startServer() {
   const app = express();
@@ -29,6 +44,64 @@ async function startServer() {
     res.json({ status: "ok", time: new Date().toISOString() });
   });
 
+  // Admin route to create a professor account
+  app.post("/api/admin/create-professor", async (req, res) => {
+    const { username, fullName, password, assignedSubjects } = req.body;
+
+    if (!username || !fullName || !password) {
+      return res.status(400).json({ error: "Nome, usuário e senha são obrigatórios." });
+    }
+
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return res.status(500).json({ error: "Configuração do servidor incompleta (service role key faltando)." });
+    }
+
+    try {
+      const admin = getSupabaseAdmin();
+      const email = `${username.toLowerCase().trim()}@cps.local`;
+      const finalPassword = password + "_cpsAuth"; 
+
+      // 1. Create Auth User
+      const { data: authData, error: authError } = await admin.auth.admin.createUser({
+        email,
+        password: finalPassword,
+        email_confirm: true,
+        user_metadata: { displayName: fullName }
+      });
+
+      if (authError) throw authError;
+      if (!authData.user) throw new Error("Falha ao criar usuário no Auth.");
+
+      // 2. Create Profile in users table
+      const { error: profileError } = await admin.from('users').insert([{
+        uid: authData.user.id,
+        email: email,
+        username: username.toLowerCase().trim(),
+        professional_name: fullName,
+        role: 'professor',
+        assigned_subjects: assignedSubjects || [],
+        assigned_classes: []
+      }]);
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      // 3. Add to allowed_professors for compatibility
+      await admin.from('allowed_professors').insert([{
+        email,
+        username: username.toLowerCase().trim(),
+        full_name: fullName,
+        assigned_subjects: assignedSubjects || []
+      }]);
+
+      res.status(201).json({ message: "Professor criado com sucesso!", user: authData.user });
+    } catch (err: any) {
+      console.error("Erro ao criar professor:", err);
+      res.status(500).json({ error: err.message || "Erro interno ao criar professor." });
+    }
+  });
+
   // Add error handler for Express parsing
   app.use((err: any, req: any, res: any, next: any) => {
     if (err.type === 'entity.too.large') {
@@ -45,14 +118,20 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
-    console.log("Starting server in DEVELOPMENT mode with Vite middleware...");
+    const startMsg = "Starting server in DEVELOPMENT mode with Vite middleware...\n";
+    console.log(startMsg.trim());
+    fs.appendFileSync(LOG_FILE, startMsg);
+    
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
+    console.log("Vite middleware applied.");
+    fs.appendFileSync(LOG_FILE, "Vite middleware applied.\n");
   } else {
     console.log("Starting server in PRODUCTION mode...");
+    fs.appendFileSync(LOG_FILE, "Starting server in PRODUCTION mode.\n");
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
@@ -61,8 +140,13 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Server is strictly listening on http://0.0.0.0:${PORT}`);
+    const msg = `🚀 Server is strictly listening on http://0.0.0.0:${PORT}`;
+    console.log(msg);
+    fs.appendFileSync(LOG_FILE, msg + "\n");
   });
 }
 
-startServer();
+startServer().catch(err => {
+  console.error("CRITICAL SERVER START ERROR:", err);
+  fs.appendFileSync(LOG_FILE, `CRITICAL SERVER START ERROR: ${err.stack || err}\n`);
+});
