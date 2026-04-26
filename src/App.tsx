@@ -967,6 +967,20 @@ function LoginView({ error, setError }: { error: string | null, setError: (e: st
   );
 }
 
+// Categories for exams
+const EXAM_CATEGORIES = [
+  'PI', 
+  'PII', 
+  'PIII', 
+  'PIV', 
+  'PV', 
+  'Recuperação Bimestral', 
+  'Recuperação Final',
+  'Trabalho',
+  'Simulado',
+  'Atividade'
+];
+
 function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintExam, onEditExam, onDeleteExam, professors, onReassignProfessor }: { 
   user: User, 
   isAdmin: boolean, 
@@ -979,11 +993,19 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
   professors: any[],
   onReassignProfessor: (exam: Exam) => void
 }) {
+  const schoolInfo = getSchoolInfo();
   const [showAll, setShowAll] = useState(false);
   const [bimesterFilter, setBimesterFilter] = useState('');
+  const [classFilter, setClassFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   
-  const filteredExams = exams.filter(e => bimesterFilter === '' || e.bimester === bimesterFilter);
-  const displayExams = showAll ? filteredExams : filteredExams.slice(0, 6);
+  const filteredExams = exams.filter(e => {
+    const matchBimester = bimesterFilter === '' || e.bimester === bimesterFilter;
+    const matchClass = classFilter === '' || (e.classYear || '').includes(classFilter);
+    const matchCategory = categoryFilter === '' || e.examType === categoryFilter;
+    return matchBimester && matchClass && matchCategory;
+  });
+  const displayExams = showAll ? filteredExams : filteredExams.slice(0, 10);
 
   // Auto-check if we are the special master admin
   const isMasterAdmin = user.email === 'cps@cps.local';
@@ -1024,19 +1046,44 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
         <div className="lg:col-span-3 bg-white rounded-lg border border-border overflow-hidden shadow-sm">
           <div className="px-5 py-4 border-b border-border flex justify-between items-center bg-[#fcfcfd]">
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-3">
               <h3 className="text-base font-bold text-primary">{showAll ? 'Todas as Avaliações' : 'Avaliações Recentes'}</h3>
-              <select 
-                value={bimesterFilter}
-                onChange={e => setBimesterFilter(e.target.value)}
-                className="text-[11px] font-bold border border-slate-200 rounded px-2 py-1 outline-none bg-white"
-              >
-                <option value="">Filtrar Bimestre</option>
-                <option value="1º Bimestre">1º Bim.</option>
-                <option value="2º Bimestre">2º Bim.</option>
-                <option value="3º Bimestre">3º Bim.</option>
-                <option value="4º Bimestre">4º Bim.</option>
-              </select>
+              
+              <div className="flex items-center gap-2">
+                <select 
+                  value={bimesterFilter}
+                  onChange={e => setBimesterFilter(e.target.value)}
+                  className="text-[11px] font-bold border border-slate-200 rounded px-2 py-1 outline-none bg-white"
+                >
+                  <option value="">Todos Bimestres</option>
+                  <option value="1º Bimestre">1º Bim.</option>
+                  <option value="2º Bimestre">2º Bim.</option>
+                  <option value="3º Bimestre">3º Bim.</option>
+                  <option value="4º Bimestre">4º Bim.</option>
+                </select>
+
+                <select 
+                   value={classFilter}
+                   onChange={e => setClassFilter(e.target.value)}
+                   className="text-[11px] font-bold border border-slate-200 rounded px-2 py-1 outline-none bg-white"
+                >
+                  <option value="">Todas as Turmas</option>
+                  {schoolInfo.classes.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+
+                <select 
+                   value={categoryFilter}
+                   onChange={e => setCategoryFilter(e.target.value)}
+                   className="text-[11px] font-bold border border-slate-200 rounded px-2 py-1 outline-none bg-white"
+                >
+                  <option value="">Todos os Tipos</option>
+                  {EXAM_CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <button onClick={() => setShowAll(!showAll)} className="text-[12px] text-accent font-bold cursor-pointer hover:underline">
               {showAll ? 'Ver Menos' : 'Ver Banco de Dados Completo'}
@@ -1440,13 +1487,9 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
                 className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm"
               />
               <datalist id="exam-types">
-                <option value="P2" />
-                <option value="P3" />
-                <option value="Simulado" />
-                <option value="Atividade" />
-                <option value="Trabalho" />
-                <option value="Recuperação Bimestral" />
-                <option value="Recuperação Final" />
+                {EXAM_CATEGORIES.map(cat => (
+                  <option key={cat} value={cat} />
+                ))}
               </datalist>
             </div>
           </div>
@@ -4144,7 +4187,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
 
   const [newExamTitle, setNewExamTitle] = useState('');
   const [newExamDate, setNewExamDate] = useState(new Date().toISOString().split('T')[0]);
-  const [newExamType, setNewExamType] = useState('PROVA I');
+  const [newExamType, setNewExamType] = useState('PI');
   const [showAddExam, setShowAddExam] = useState(false);
   const [savingExam, setSavingExam] = useState(false);
 
@@ -4666,13 +4709,9 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                       onChange={e => setNewExamType(e.target.value)}
                       className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-blue-500 transition-all shadow-sm"
                     >
-                      <option value="PROVA I">PROVA I (10.0)</option>
-                      <option value="PROVA II">PROVA II (10.0)</option>
-                      <option value="PROVA III">PROVA III (10.0)</option>
-                      <option value="PROVA IV">PROVA IV (10.0)</option>
-                      <option value="PROVA V">PROVA V (10.0)</option>
-                      <option value="TRABALHO">TRABALHO (10.0)</option>
-                      <option value="SIMULADO">SIMULADO (10.0)</option>
+                      {EXAM_CATEGORIES.map(cat => (
+                        <option key={cat} value={cat}>{cat} (10.0)</option>
+                      ))}
                     </select>
                   </div>
                   <button 
@@ -4685,38 +4724,44 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                 </div>
               </div>
 
-              {/* Listagem Avaliações criadas neste bimestre */}
-              <div className="p-0">
+              {/* Listagem Avaliações criadas neste bimestre agrupadas por categoria */}
+              <div className="p-0 overflow-y-auto max-h-[400px]">
                 {exams.length === 0 ? (
                   <div className="p-8 text-center text-slate-500 text-sm">Ainda não há avaliações criadas para este bimestre.</div>
                 ) : (
                   <div className="divide-y divide-slate-100">
-                    {exams.map(exam => (
-                      <div key={exam.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase">{exam.examType}</span>
-                            <span className="text-[10px] text-slate-400 font-bold uppercase">{new Date(exam.examDate || new Date().toISOString()).toLocaleDateString('pt-BR')}</span>
+                    {Array.from(new Set(exams.map(e => e.examType))).sort().map(cat => (
+                      <div key={cat} className="bg-slate-50/30">
+                        <div className="px-4 py-2 border-y border-slate-100 bg-slate-50">
+                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{cat || 'Sem Categoria'}</span>
+                        </div>
+                        {exams.filter(e => e.examType === cat).map(exam => (
+                          <div key={exam.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-white transition-colors">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[10px] text-slate-400 font-bold uppercase">{new Date(exam.examDate || new Date().toISOString()).toLocaleDateString('pt-BR')}</span>
+                              </div>
+                              <h4 className="font-bold text-sm text-slate-800 uppercase">{stripHtml(exam.title)}</h4>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button 
+                                onClick={() => handleDuplicateExam(exam)}
+                                className="bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase hover:bg-slate-50 shadow-sm flex items-center gap-1"
+                              >
+                                <Copy className="w-3.5 h-3.5" /> Duplicar
+                              </button>
+                              <button 
+                                onClick={() => startLaunchingGrades(exam)}
+                                className="bg-green-600 text-white px-3 py-1.5 rounded-md text-[10px] font-black uppercase hover:bg-green-700 shadow-sm flex items-center gap-1"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" /> Lançar/Corrigir Notas
+                              </button>
+                              <button onClick={() => handleDeleteExamLocal(exam.id)} className="text-slate-300 hover:text-red-500 p-2 transition-colors ml-2">
+                                 <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
-                          <h4 className="font-bold text-sm text-slate-800 uppercase">{stripHtml(exam.title)}</h4>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => handleDuplicateExam(exam)}
-                            className="bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase hover:bg-slate-50 shadow-sm flex items-center gap-1"
-                          >
-                            <Copy className="w-3.5 h-3.5" /> Duplicar
-                          </button>
-                          <button 
-                            onClick={() => startLaunchingGrades(exam)}
-                            className="bg-green-600 text-white px-3 py-1.5 rounded-md text-[10px] font-black uppercase hover:bg-green-700 shadow-sm flex items-center gap-1"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" /> Lançar/Corrigir Notas
-                          </button>
-                          <button onClick={() => handleDeleteExamLocal(exam.id)} className="text-slate-300 hover:text-red-500 p-2 transition-colors ml-2">
-                             <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                        ))}
                       </div>
                     ))}
                   </div>
