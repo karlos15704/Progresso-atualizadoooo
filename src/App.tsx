@@ -206,9 +206,14 @@ interface Student {
   classId: string;
 }
 
+interface ClassSubjectsMapping {
+  [classId: string]: string[];
+}
+
 const DEFAULT_SCHOOL_INFO = {
   subjects: ['Coordenação', 'Português', 'Matemática', 'Ciências', 'História', 'Geografia', 'Inglês', 'Artes', 'Educação Física', 'Física', 'Química', 'Biologia', 'Filosofia', 'Sociologia'],
   classes: ['6º A', '6º B', '6º C', '7º A', '7º B', '8º A', '8º B', '9º A', '9º B'],
+  class_subjects: {} as ClassSubjectsMapping,
   studentsDB: {
     '6º ano': [
       { classId: '6º A', name: 'ADRIELLY LUCIA PERES SANTOS SILVA' },
@@ -458,7 +463,7 @@ const ProfessionalEditor = ({ value, onChange, placeholder, className, style }: 
   );
 };
 
-function getSchoolInfo(): { subjects: string[], classes: string[], studentsDB: Record<string, Student[]> } {
+function getSchoolInfo(): { subjects: string[], classes: string[], class_subjects: Record<string, string[]>, studentsDB: Record<string, Student[]> } {
   const saved = localStorage.getItem('schoolInfo');
   if (saved) {
     try {
@@ -470,6 +475,7 @@ function getSchoolInfo(): { subjects: string[], classes: string[], studentsDB: R
       return {
         subjects,
         classes: DEFAULT_SCHOOL_INFO.classes, // Force to always be the updated list
+        class_subjects: parsed.class_subjects || DEFAULT_SCHOOL_INFO.class_subjects,
         studentsDB: parsed.studentsDB || DEFAULT_SCHOOL_INFO.studentsDB
       };
     } catch {
@@ -2538,6 +2544,21 @@ function AdminView({ user }: { user: User }) {
     saveInfo({ ...schoolInfo, classes: schoolInfo.classes.filter((c: string) => c !== cls) });
   };
 
+  const handleToggleClassSubject = (cls: string, sub: string) => {
+    const currentSubjects = schoolInfo.class_subjects[cls] || [];
+    const newSubjects = currentSubjects.includes(sub)
+      ? currentSubjects.filter(s => s !== sub)
+      : [...currentSubjects, sub];
+    
+    saveInfo({
+      ...schoolInfo,
+      class_subjects: {
+        ...schoolInfo.class_subjects,
+        [cls]: newSubjects
+      }
+    });
+  };
+
   useEffect(() => {
     const fetchAllowed = async () => {
       const { data } = await supabase.from('allowed_professors').select('*');
@@ -2656,6 +2677,43 @@ function AdminView({ user }: { user: User }) {
                 </span>
               ))}
             </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg border border-border shadow-sm mb-8">
+          <h3 className="text-base font-bold text-primary mb-4 flex items-center gap-2">
+            <LayoutList className="w-5 h-5" /> Disciplinas por Sala
+          </h3>
+          <p className="text-xs text-slate-500 mb-6 italic">Defina quais matérias cada turma terá. Isso filtrará as disciplinas sugeridas no Diário e Boletim de cada sala.</p>
+          
+          <div className="space-y-6">
+            {schoolInfo.classes.map((cls: string) => (
+              <div key={cls} className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                 <div className="flex items-center gap-2 mb-3">
+                    <div className="w-2 h-6 bg-accent rounded-full"></div>
+                    <span className="text-sm font-black text-slate-800 uppercase tracking-tighter">{cls}</span>
+                 </div>
+                 <div className="flex flex-wrap gap-2">
+                    {schoolInfo.subjects.map((sub: string) => {
+                       const isSelected = (schoolInfo.class_subjects[cls] || []).includes(sub);
+                       return (
+                         <button 
+                           key={sub}
+                           onClick={() => handleToggleClassSubject(cls, sub)}
+                           className={cn(
+                             "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all active:scale-95",
+                             isSelected 
+                               ? "bg-accent text-white border-accent shadow-sm" 
+                               : "bg-white text-slate-500 border-slate-200 hover:border-accent/40"
+                           )}
+                         >
+                           {sub}
+                         </button>
+                       );
+                    })}
+                 </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -4648,7 +4706,13 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
   };
 
   const schoolInfo = getSchoolInfo();
-  const subjects = schoolInfo.subjects;
+  // Filter subjects based on defined class_subjects. If none defined for this class, show all.
+  const subjects = useMemo(() => {
+    if (!selectedClass) return schoolInfo.subjects;
+    const defined = schoolInfo.class_subjects[selectedClass];
+    return (defined && defined.length > 0) ? defined : schoolInfo.subjects;
+  }, [schoolInfo, selectedClass]);
+
   const classes = schoolInfo.classes;
   const bimesters = [
     '1º Bimestre', 
@@ -6039,11 +6103,21 @@ function BoletimView({ results, exams, user, isAdmin, userProfile, onRefresh }: 
     const studentInfo = allPossibleStudents.find(s => s.name === studentName);
     const studentClass = studentInfo?.classId || 'N/A';
     
-    let subjects = Array.from(new Set(exams.map(e => stripHtml(e.subject))));
+    // Subjects specifically for this class according to schoolInfo mapping
+    const subjects = useMemo(() => {
+      const defined = schoolInfo.class_subjects[studentClass];
+      if (defined && defined.length > 0) return defined;
+      // Fallback to current subjects found in exams for this class
+      return Array.from(new Set(exams.filter(e => e.classYear === studentClass).map(e => stripHtml(e.subject))));
+    }, [studentClass, schoolInfo, exams]);
 
-    if (!isAdmin && userProfile?.assigned_subjects) {
-      subjects = subjects.filter(s => userProfile.assigned_subjects.includes(s));
-    }
+    const filteredSubjects = useMemo(() => {
+      let list = subjects;
+      if (!isAdmin && userProfile?.assigned_subjects) {
+        list = list.filter(s => userProfile.assigned_subjects.includes(s));
+      }
+      return list;
+    }, [subjects, isAdmin, userProfile]);
 
     return (
       <div key={studentName} className={cn("bg-white text-black p-4 md:p-12 print:p-8 w-full max-w-5xl mx-auto mb-8 print:mb-0 print:min-h-[297mm] print:break-inside-avoid print-avoid-break flex flex-col", isLast ? "" : "print:break-after-page")}>
@@ -6098,10 +6172,10 @@ function BoletimView({ results, exams, user, isAdmin, userProfile, onRefresh }: 
               </tr>
             </thead>
             <tbody className="divide-y-2 divide-black">
-              {subjects.length === 0 && (
+              {filteredSubjects.length === 0 && (
                  <tr><td colSpan={6} className="p-8 text-center text-sm font-black uppercase text-slate-400">Nenhuma disciplina avaliada neste período.</td></tr>
               )}
-              {subjects.map(subject => {
+              {filteredSubjects.map(subject => {
                 const rowBimFinals: (number | null)[] = bimesters.map(bim => {
                   const subjectBimResults = studentResults.filter(r => {
                       const ex = exams.find(e => e.id === r.examId);
