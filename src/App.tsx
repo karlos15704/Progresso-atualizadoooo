@@ -859,7 +859,7 @@ export default function App() {
             {view === 'print' && selectedPrintExam && <ExamPrintView exam={selectedPrintExam} onBack={() => setView('dashboard')} />}
             {view === 'admin' && isAdmin && <AdminView user={user} />}
             {view === 'diary' && <DigitalDiaryView user={user} isAdmin={isAdmin} userProfile={userProfile} />}
-            {view === 'boletim' && <BoletimView results={results} exams={exams} isAdmin={isAdmin} user={user} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
+            {view === 'boletim' && <BoletimView results={results} exams={exams} isAdmin={isAdmin} user={user} userProfile={userProfile} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
           </AnimatePresence>
           <div className="mt-20 mb-12 text-center border-t-4 border-slate-900 pt-12">
             <div className="inline-flex flex-col items-center gap-4">
@@ -6000,7 +6000,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
   );
 }
 
-function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exams: Exam[], isAdmin: boolean, user: User, onRefresh: () => void }) {
+function BoletimView({ results, exams, user, isAdmin, userProfile, onRefresh }: { results: Result[], exams: Exam[], isAdmin: boolean, user: User, userProfile: any, onRefresh: () => void }) {
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -6009,17 +6009,10 @@ function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exa
   const classes = schoolInfo.classes;
   const bimesters = ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'];
 
-  const userProfile = (window as any).__USER_PROFILE__;
-
   const allPossibleStudents = Object.values(schoolInfo.studentsDB).flat() as any[];
   
   const studentsFiltered = useMemo(() => {
     let list = allPossibleStudents;
-
-    // Filter by assigned classes for non-admins
-    if (!isAdmin && userProfile?.assigned_classes) {
-      list = list.filter((s: any) => userProfile.assigned_classes.includes(s.classId));
-    }
 
     if (selectedClass) {
       list = list.filter((s: any) => s.classId === selectedClass);
@@ -6028,7 +6021,7 @@ function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exa
       list = list.filter((s: any) => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
     }
     return list.map(s => s.name).sort();
-  }, [allPossibleStudents, selectedClass, searchTerm, isAdmin, userProfile]);
+  }, [allPossibleStudents, selectedClass, searchTerm]);
 
   const handlePrint = () => {
     window.print();
@@ -6043,6 +6036,9 @@ function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exa
 
   const renderBoletim = (studentName: string, isLast: boolean = false) => {
     const studentResults = results.filter(r => r.studentName === studentName);
+    const studentInfo = allPossibleStudents.find(s => s.name === studentName);
+    const studentClass = studentInfo?.classId || 'N/A';
+    
     let subjects = Array.from(new Set(exams.map(e => stripHtml(e.subject))));
 
     if (!isAdmin && userProfile?.assigned_subjects) {
@@ -6083,7 +6079,7 @@ function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exa
                 <span className="text-[10px] font-black uppercase tracking-widest text-center">Turma</span>
              </div>
              <div className="px-4 py-2 flex-1 bg-white flex items-center">
-                <span className="text-base font-black uppercase tracking-tight">{selectedClass || 'NÃO DEFINIDA'}</span>
+                <span className="text-base font-black uppercase tracking-tight">{studentClass}</span>
              </div>
            </div>
         </div>
@@ -6241,7 +6237,7 @@ function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exa
                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl outline-none focus:border-[#3b5998] focus:bg-white font-black text-xs text-slate-800 transition-all uppercase appearance-none"
                  >
                    <option value="">TODAS AS TURMAS</option>
-                   {(isAdmin ? classes : (userProfile?.assigned_classes || [])).map(c => <option key={c} value={c}>{c}</option>)}
+                   {classes.map(c => <option key={c} value={c}>{c}</option>)}
                  </select>
                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                </div>
