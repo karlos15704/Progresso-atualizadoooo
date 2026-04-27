@@ -203,7 +203,7 @@ interface Student {
 }
 
 const DEFAULT_SCHOOL_INFO = {
-  subjects: ['Português', 'Matemática', 'Ciências', 'História', 'Geografia', 'Inglês', 'Artes', 'Educação Física', 'Física', 'Química', 'Biologia', 'Filosofia', 'Sociologia'],
+  subjects: ['Coordenação', 'Português', 'Matemática', 'Ciências', 'História', 'Geografia', 'Inglês', 'Artes', 'Educação Física', 'Física', 'Química', 'Biologia', 'Filosofia', 'Sociologia'],
   classes: ['6º A', '6º B', '6º C', '7º A', '7º B', '8º A', '8º B', '9º A', '9º B'],
   studentsDB: {
     '6º ano': [
@@ -459,8 +459,12 @@ function getSchoolInfo(): { subjects: string[], classes: string[], studentsDB: R
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
+      const subjects = parsed.subjects || DEFAULT_SCHOOL_INFO.subjects;
+      if (!subjects.includes('Coordenação')) {
+        subjects.unshift('Coordenação');
+      }
       return {
-        subjects: parsed.subjects || DEFAULT_SCHOOL_INFO.subjects,
+        subjects,
         classes: DEFAULT_SCHOOL_INFO.classes, // Force to always be the updated list
         studentsDB: parsed.studentsDB || DEFAULT_SCHOOL_INFO.studentsDB
       };
@@ -627,7 +631,7 @@ export default function App() {
     const fetchStudentReports = async () => {
       let query = supabase.from('student_reports').select(`
         *,
-        users:professor_id ( professional_name )
+        professor:professor_id ( professional_name )
       `).order('created_at', { ascending: false });
       
       if (!isAdmin) {
@@ -642,10 +646,10 @@ export default function App() {
           subject: r.subject,
           content: r.report_text,
           professorId: r.professor_id,
-          professorName: (r as any).users?.professional_name || 'Professor não identificado',
+          professorName: (r as any).professor?.professional_name || (user?.id === r.professor_id ? userProfile?.professional_name : 'Professor não identificado'),
           bimester: r.bimester,
           createdAt: r.created_at,
-          updatedAt: r.updated_at
+          updatedAt: r.created_at
         })));
       }
     };
@@ -3963,8 +3967,8 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
           report_text: content,
           class_name: selectedClass,
           subject: selectedSubject,
-          bimester: selectedBimester,
-          created_at: new Date().toISOString() // Using created_at for sorting usually, but maybe should use updated_at if it exists
+          bimester: selectedBimester
+          // Removed created_at update
         }).eq('id', editingId);
         if (error) throw error;
       } else {
@@ -4082,10 +4086,14 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
               className="w-full px-4 py-2 border border-border rounded-md text-sm outline-none focus:border-accent bg-white"
             >
               <option value="">Selecione...</option>
-              {!isAdmin ? (
-                userProfile?.assigned_subjects?.map((s: string) => <option key={s} value={s}>{s}</option>)
-              ) : (
+              {isAdmin ? (
                 schoolInfo.subjects.map(s => <option key={s} value={s}>{s}</option>)
+              ) : (
+                <>
+                  {/* Coordenadores usually have Admin=true, but if not, we allow them to see it if they have it assigned */}
+                  {userProfile?.assigned_subjects?.map((s: string) => <option key={s} value={s}>{s}</option>)}
+                  {!userProfile?.assigned_subjects?.includes('Coordenação') && <option value="Coordenação">Coordenação</option>}
+                </>
               )}
             </select>
           </div>
