@@ -629,10 +629,7 @@ export default function App() {
     };
 
     const fetchStudentReports = async () => {
-      let query = supabase.from('student_reports').select(`
-        *,
-        professor:professor_id ( professional_name )
-      `).order('created_at', { ascending: false });
+      let query = supabase.from('student_reports').select('*').order('created_at', { ascending: false });
       
       if (!isAdmin) {
         query = query.eq('professor_id', user.id);
@@ -646,7 +643,7 @@ export default function App() {
           subject: r.subject,
           content: r.report_text,
           professorId: r.professor_id,
-          professorName: (r as any).professor?.professional_name || (user?.id === r.professor_id ? userProfile?.professional_name : 'Professor não identificado'),
+          professorName: user.id === r.professor_id ? userProfile?.professional_name : 'Professor',
           bimester: r.bimester,
           createdAt: r.created_at,
           updatedAt: r.created_at
@@ -671,6 +668,9 @@ export default function App() {
     
     if (isAdmin || user.email === 'cps@cps.local') {
       fetchProfessors();
+    } else {
+      // Logic removed but we can still fetch if needed for mapping, 
+      // however for professors they only see their own reports
     }
 
     const examsFilter = isAdmin ? undefined : undefined; // Subscription for all exams to see global schedule updates
@@ -836,7 +836,23 @@ export default function App() {
             {view === 'create' && <CreateExamView user={user} userProfile={userProfile} setView={setView} examToEdit={examToEdit} onExamSaved={() => { setExamToEdit(null); setRefreshTrigger(prev => prev + 1); setView('dashboard'); }} />}
             {view === 'correct' && <CorrectExamView user={user} exams={exams} setView={setView} setRefreshTrigger={setRefreshTrigger} />}
             {view === 'guides' && <GuidesView exams={exams} />}
-            {view === 'studentReports' && <StudentReportsView user={user} userProfile={userProfile} isAdmin={isAdmin} reports={studentReports} refresh={() => setRefreshTrigger(prev => prev + 1)} onPrint={(report) => { setSelectedReportForPrint(report); setView('printReport'); setMultipleReportsToPrint([]); }} onPrintAll={(reports) => { setMultipleReportsToPrint(reports); setSelectedReportForPrint(null); setView('printReport'); }} />}
+            {view === 'studentReports' && (
+              <StudentReportsView 
+                user={user} 
+                userProfile={userProfile} 
+                isAdmin={isAdmin} 
+                reports={studentReports.map(r => {
+                  if (isAdmin && professors.length > 0) {
+                    const prof = professors.find(p => p.uid === r.professorId);
+                    if (prof) return { ...r, professorName: prof.professional_name };
+                  }
+                  return r;
+                })} 
+                refresh={() => setRefreshTrigger(prev => prev + 1)} 
+                onPrint={(report) => { setSelectedReportForPrint(report); setView('printReport'); setMultipleReportsToPrint([]); }} 
+                onPrintAll={(reports) => { setMultipleReportsToPrint(reports); setSelectedReportForPrint(null); setView('printReport'); }} 
+              />
+            )}
             {view === 'printReport' && (selectedReportForPrint || multipleReportsToPrint.length > 0) && <StudentReportPrintView reports={selectedReportForPrint ? [selectedReportForPrint] : multipleReportsToPrint} onBack={() => setView('studentReports')} />}
             {view === 'print' && selectedPrintExam && <ExamPrintView exam={selectedPrintExam} onBack={() => setView('dashboard')} />}
             {view === 'admin' && isAdmin && <AdminView user={user} />}
