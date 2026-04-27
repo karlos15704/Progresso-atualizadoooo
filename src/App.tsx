@@ -731,13 +731,15 @@ export default function App() {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <div className="flex items-center gap-3">
-            <div className="bg-primary p-2 rounded-lg shadow-lg shadow-primary/10">
-              <span className="text-white font-display font-black text-sm italic">CPS</span>
+          <div className="flex items-center gap-2">
+            <div className="bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm flex items-center gap-2">
+              <img src={LOGO_VINHO} alt="Logo CPS" className="w-4 h-4 md:w-5 md:h-5 object-contain" />
+              <div className="w-px h-4 bg-slate-200"></div>
+              <img src={LOGO_COC} alt="Plataforma COC" className="h-3 md:h-4 object-contain" />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-sm font-display font-black text-slate-800 tracking-tight uppercase leading-none">Colégio Progresso</h1>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Gestão Acadêmica</span>
+              <h1 className="text-[10px] md:text-xs font-display font-black text-slate-800 tracking-tight uppercase leading-none">Colégio Progresso</h1>
+              <span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Gestão Acadêmica</span>
             </div>
           </div>
         </div>
@@ -4612,16 +4614,16 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-20 text-left bg-white min-h-screen text-slate-800 font-sans">
       {/* Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mt-3 gap-4 border-b border-slate-200 pb-4">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mt-3 gap-4 border-b border-slate-200 pb-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Diário & Correção de Avaliações</h1>
-          <p className="text-sm text-slate-500 font-medium">Gestão unificada do planejamento, provas, gabaritos e notas.</p>
+          <h1 className="text-xl md:text-2xl font-black text-slate-800 uppercase tracking-tight">Diário & Correção</h1>
+          <p className="text-xs md:text-sm text-slate-500 font-medium">Gestão unificada do planejamento, provas e notas.</p>
         </div>
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
           <select 
             value={selectedClass} 
             onChange={e => setSelectedClass(e.target.value)}
-            className="flex-1 md:w-40 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
+            className="w-full md:w-40 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
           >
             <option value="">Selecione a Turma</option>
             {classes.map(c => <option key={c} value={c}>{c}</option>)}
@@ -4629,7 +4631,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
           <select 
             value={selectedSubject} 
             onChange={e => setSelectedSubject(e.target.value)}
-            className="flex-1 md:w-48 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
+            className="w-full md:w-48 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
           >
             <option value="">Selecione a Disciplina</option>
             {subjects.map(s => <option key={s} value={s}>{s}</option>)}
@@ -4637,7 +4639,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
           <select 
             value={selectedBimester} 
             onChange={e => setSelectedBimester(e.target.value)}
-            className="flex-1 md:w-40 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
+            className="w-full md:w-40 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
           >
             {bimesters.map(b => <option key={b} value={b}>{b}</option>)}
           </select>
@@ -5201,21 +5203,21 @@ function BoletimView({ results, exams, user }: { results: Result[], exams: Exam[
     const subjects = Array.from(new Set(exams.map(e => stripHtml(e.subject))));
 
     return (
-      <div key={studentName} className={cn("bg-white border text-black border-slate-300 print:border-none p-8 md:p-12 print:p-0 w-full max-w-5xl mx-auto shadow-sm print:shadow-none mb-8 print:mb-0 print:min-h-[297mm] print-avoid-break", isLast ? "" : "print:break-after-page")}>
+      <div key={studentName} className={cn("bg-white border text-black border-slate-300 print:border-none p-4 md:p-12 print:p-0 w-full max-w-5xl mx-auto shadow-sm print:shadow-none mb-8 print:mb-0 print:min-h-[297mm] print-avoid-break", isLast ? "" : "print:break-after-page")}>
         {/* HEADER BOLETIM MEK */}
-        <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between border-b-2 border-black pb-4 mb-6 gap-4">
            <div className="flex items-center gap-4">
-             <div className="w-16 h-16 bg-slate-200 rounded flex flex-col items-center justify-center font-black text-[10px] text-slate-400 overflow-hidden print:border print:border-black">
+             <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-200 rounded flex flex-col items-center justify-center font-black text-[10px] text-slate-400 overflow-hidden print:border print:border-black">
                 <img src={LOGO_VINHO} alt="Logo" className="w-full h-full object-contain" />
              </div>
              <div>
-               <h1 className="text-xl font-black uppercase tracking-tighter">Boletim Escolar</h1>
-               <p className="text-[10px] font-bold uppercase text-slate-600">Ensino Fundamental II e Médio - Padrão MEC</p>
+               <h1 className="text-lg md:text-xl font-black uppercase tracking-tighter">Boletim Escolar</h1>
+               <p className="text-[8px] md:text-[10px] font-bold uppercase text-slate-600">Ensino Fundamental II e Médio - Padrão MEC</p>
              </div>
            </div>
-           <div className="text-right">
-             <p className="text-sm font-black uppercase">Ano Letivo: 2026</p>
-             <p className="text-xs font-bold uppercase text-slate-600">Emissão: {new Date().toLocaleDateString('pt-BR')}</p>
+           <div className="text-center sm:text-right">
+             <p className="text-xs md:text-sm font-black uppercase">Ano Letivo: 2026</p>
+             <p className="text-[10px] md:text-xs font-bold uppercase text-slate-600">Emissão: {new Date().toLocaleDateString('pt-BR')}</p>
            </div>
         </div>
 
