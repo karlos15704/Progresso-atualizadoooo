@@ -6055,7 +6055,7 @@ function BoletimView({ results, exams, user, isAdmin, userProfile, onRefresh }: 
              </div>
              <div>
                <h1 className="text-xl md:text-3xl font-black uppercase tracking-tighter leading-none">Boletim Escolar</h1>
-               <p className="text-[10px] md:text-[12px] font-black uppercase text-black mt-1">Ensino Fundamental II e Médio - Padrão Nacional</p>
+               <p className="text-[10px] md:text-[12px] font-black uppercase text-black mt-1">Educação Infantil • Ensino Fundamental I e II</p>
              </div>
            </div>
            <div className="text-center sm:text-right">
