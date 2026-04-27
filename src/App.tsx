@@ -35,7 +35,8 @@ import {
   Copy,
   RotateCcw,
   Menu,
-  Settings
+  Settings,
+  Scan
 } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
@@ -719,6 +720,13 @@ export default function App() {
               onClick={() => { setView('diary'); setExamToEdit(null); }} 
               icon={<BookOpen className="w-5 h-5" />} 
               label="Diário & Notas" 
+              collapsed={sidebarCollapsed}
+            />
+            <NavButton 
+              active={view === 'correct'} 
+              onClick={() => { setView('correct'); setExamToEdit(null); }} 
+              icon={<Scan className="w-5 h-5" />} 
+              label="Correção Automática" 
               collapsed={sidebarCollapsed}
             />
             <NavButton 
