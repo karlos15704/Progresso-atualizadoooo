@@ -613,9 +613,7 @@ export default function App() {
 
     const fetchResults = async () => {
       let query = supabase.from('results').select('*');
-      if (!isAdmin) {
-        query = query.eq('professor_id', user.id);
-      }
+      // Remove the professor_id filter to allow seeing results for shared classes/subjects
       const { data } = await query;
       if (data) {
         setResults(data.map(r => ({
@@ -4960,10 +4958,12 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
       for (const [key, value] of Object.entries(bulkGrades)) {
         const [studentName, examId] = key.split('|');
         const exam = exams.find(e => e.id === examId);
+        const existingResult = results.find(r => r.examId === examId && r.studentName === studentName);
         
         // Security check for each exam in the bulk update
         if (exam && isAuthorized(exam.classYear, exam.subject)) {
           updates.push({
+            ...(existingResult?.id ? { id: existingResult.id } : {}),
             exam_id: examId,
             student_name: studentName,
             points: Number(value),
@@ -4989,9 +4989,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
       for (const payload of updates) {
         const { error } = await supabase
           .from('results')
-          .upsert(payload, { 
-            onConflict: 'exam_id,student_name' 
-          });
+          .upsert(payload);
           
         if (error) {
           console.error("Erro no upsert bulk:", error);
@@ -5094,23 +5092,25 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
 
     setSavingGrades(true);
     try {
-      const payloads = students.map(student => ({
-        exam_id: launchingGradesFor.id,
-        professor_id: user.id,
-        student_name: student.name,
-        points: gradeInputs[student.name] !== undefined ? Number(gradeInputs[student.name]) : 0,
-        total_points: 10,
-        corrected_at: new Date().toISOString(),
-        student_class: selectedClass
-      }));
+      const payloads = students.map(student => {
+        const existingResult = results.find(r => r.examId === launchingGradesFor.id && r.studentName === student.name);
+        return {
+          ...(existingResult?.id ? { id: existingResult.id } : {}),
+          exam_id: launchingGradesFor.id,
+          professor_id: user.id,
+          student_name: student.name,
+          points: gradeInputs[student.name] !== undefined ? Number(gradeInputs[student.name]) : 0,
+          total_points: 10,
+          corrected_at: new Date().toISOString(),
+          student_class: selectedClass
+        };
+      });
 
       // Upsert results
       for (const payload of payloads) {
         const { error } = await supabase
           .from('results')
-          .upsert(payload, { 
-            onConflict: 'exam_id,student_name' 
-          });
+          .upsert(payload);
           
         if (error) {
           console.error("Erro no upsert:", error);
