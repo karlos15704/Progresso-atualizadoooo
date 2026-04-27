@@ -4626,6 +4626,13 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
   const [bulkGrades, setBulkGrades] = useState<Record<string, number>>({});
   const [savingBulk, setSavingBulk] = useState(false);
 
+  const isAuthorized = (cls: string = selectedClass, sub: string = selectedSubject) => {
+    if (isAdmin) return true;
+    const assignedSubjects = userProfile?.assigned_subjects || [];
+    const assignedClasses = userProfile?.assigned_classes || [];
+    return assignedSubjects.includes(sub) && assignedClasses.includes(cls);
+  };
+
   const schoolInfo = getSchoolInfo();
   const subjects = schoolInfo.subjects;
   const classes = schoolInfo.classes;
@@ -4647,6 +4654,10 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
 
   // -- Duplicate Exam --
   const handleDuplicateExam = async (exam: Exam) => {
+    if (!isAuthorized()) {
+      alert("Acesso Negado: Você não tem autorização para criar avaliações nesta turma.");
+      return;
+    }
     if (!window.confirm("Deseja duplicar esta prova?")) return;
     try {
       const { error } = await supabase.from('exams').insert({
@@ -4746,6 +4757,12 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
 
   const handleSaveLesson = async () => {
     if (!newContent) return;
+    
+    if (!isAuthorized()) {
+      alert("Acesso Negado: Você não tem autorização para lecionar nesta turma e disciplina.");
+      return;
+    }
+
     try {
       if (editingLesson) {
          const { error } = await supabase.from('lessons').update({
@@ -4779,6 +4796,11 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
   const handleGenerateCronograma = async () => {
     if (!generatorStartDate || !generatorEndDate) return;
     
+    if (!isAuthorized()) {
+      alert("Acesso Negado: Somente o professor responsável por esta turma e disciplina pode gerar cronogramas.");
+      return;
+    }
+
     const start = new Date(generatorStartDate + 'T00:00:00');
     const end = new Date(generatorEndDate + 'T00:00:00');
     
@@ -4883,6 +4905,12 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
 
   const handleSaveExam = async () => {
     if (!newExamTitle || !selectedClass || !selectedSubject) return;
+
+    if (!isAuthorized()) {
+      alert("Acesso Negado: Você não tem autorização para criar avaliações para esta turma e disciplina.");
+      return;
+    }
+
     setSavingExam(true);
     try {
       const { error } = await supabase.from('exams').insert({
@@ -4920,7 +4948,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
         const exam = exams.find(e => e.id === examId);
         
         // Security check for each exam in the bulk update
-        if (exam && (exam.professorId === user.id || isAdmin)) {
+        if (exam && (isAuthorized(exam.classYear, exam.subject) || exam.professorId === user.id)) {
           updates.push({
             exam_id: examId,
             student_name: studentName,
@@ -5000,10 +5028,16 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
      alert(`Histórico de ${studentName}\nAvaliações concluídas: ${studentResults.length}`);
   };
 
-  const handleDeleteExamLocal = async (id: string) => {
+  const handleDeleteExamLocal = async (exam: Exam) => {
     if (!window.confirm("Deseja realmente excluir esta avaliação?")) return;
+    
+    if (exam.professorId !== user.id && !isAdmin) {
+      alert("Acesso Negado: Apenas o professor responsável por esta avaliação pode excluí-la.");
+      return;
+    }
+
     try {
-      const { error } = await supabase.from('exams').delete().eq('id', id);
+      const { error } = await supabase.from('exams').delete().eq('id', exam.id);
       if (error) throw error;
       fetchData();
     } catch (err: any) {
@@ -5012,6 +5046,10 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
   };
 
   const startLaunchingGrades = (exam: Exam) => {
+    if (!isAuthorized(exam.classYear, exam.subject)) {
+      alert("Acesso Negado: Você não tem autorização para lançar notas nesta turma e disciplina.");
+      return;
+    }
     setLaunchingGradesFor(exam);
     const existingGrades: {[key: string]: number} = {};
     results.filter(r => r.examId === exam.id).forEach(r => {
@@ -5026,6 +5064,11 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
     // Apenas o professor responsável ou admin
     if (launchingGradesFor.professorId !== user.id && !isAdmin) {
       alert("Acesso Negado: Apenas o professor responsável por esta avaliação pode lançar ou editar as notas.");
+      return;
+    }
+
+    if (!isAuthorized(launchingGradesFor.classYear, launchingGradesFor.subject)) {
+      alert("Acesso Negado: Você não está atribuído a esta disciplina e turma.");
       return;
     }
 
@@ -5078,10 +5121,10 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
           <select 
             value={selectedClass} 
             onChange={e => setSelectedClass(e.target.value)}
-            className="w-full md:w-40 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
+            className="w-full md:w-40 bg-white border-2 border-slate-300 rounded-xl px-3 py-2 text-sm font-black text-slate-900 outline-none focus:border-accent transition-all shadow-md"
           >
             <option value="">Selecione a Turma</option>
-            {classes.map(c => <option key={c} value={c}>{c}</option>)}
+            {(isAdmin ? classes : (userProfile?.assigned_classes || [])).map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <select 
             value={selectedSubject} 
@@ -5178,6 +5221,10 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                           </div>
                           <button 
                             onClick={async () => {
+                              if (!isAuthorized()) {
+                                alert("Acesso Negado: Você não tem autorização para excluir aulas nesta turma.");
+                                return;
+                              }
                               if(window.confirm("Deseja deletar esta aula?")) {
                                 await supabase.from('lessons').delete().eq('id', lesson.id);
                                 fetchData();
@@ -5297,7 +5344,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                               >
                                 <Edit2 className="w-3.5 h-3.5" /> Lançar/Corrigir Notas
                               </button>
-                              <button onClick={() => handleDeleteExamLocal(exam.id)} className="text-slate-300 hover:text-red-500 p-2 transition-colors ml-2">
+                              <button onClick={() => handleDeleteExamLocal(exam)} className="text-slate-300 hover:text-red-500 p-2 transition-colors ml-2">
                                  <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
@@ -5364,13 +5411,13 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                   <table className="w-full border-collapse">
                     <thead>
                       <tr className="bg-slate-900 border-b-2 border-slate-800">
-                        <th className="p-5 text-[11px] font-black text-white text-left uppercase sticky left-0 bg-slate-900 z-10 w-72 border-r border-white/10 tracking-widest">Aluno</th>
+                        <th className="p-5 text-xs font-black text-white text-left uppercase sticky left-0 bg-slate-900 z-10 w-80 border-r border-white/10 tracking-widest">Aluno</th>
                         {exams.map(exam => (
-                           <th key={exam.id} className="p-5 text-[11px] font-black text-white text-center uppercase min-w-[120px] border-r border-white/10 tracking-widest leading-tight">
+                           <th key={exam.id} className="p-5 text-xs font-black text-white text-center uppercase min-w-[130px] border-r border-white/10 tracking-widest leading-tight">
                              {stripHtml(exam.title)}
                            </th>
                         ))}
-                        <th className="p-5 text-[11px] font-black text-accent text-center uppercase bg-slate-800 tracking-widest">Média Bimestral</th>
+                        <th className="p-5 text-xs font-black text-accent text-center uppercase bg-slate-800 tracking-widest">Média Bimestral</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
@@ -5382,8 +5429,8 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                         
                         return (
                           <tr key={student.name} className="hover:bg-slate-50 transition-colors group">
-                            <td className="p-5 font-black text-slate-900 text-xs uppercase sticky left-0 bg-white border-r-2 border-slate-100 shadow-[2px_0_10px_rgba(0,0,0,0.05)] flex justify-between items-center">
-                              <span className="truncate pr-4 leading-relaxed">{student.name}</span>
+                            <td className="p-5 font-black text-slate-900 text-sm uppercase sticky left-0 bg-white border-r-2 border-slate-100 shadow-[3px_0_15px_rgba(0,0,0,0.1)] flex justify-between items-center min-w-[320px]">
+                              <span className="truncate pr-4 leading-relaxed tracking-tight">{student.name}</span>
                               {!isBulkEditing && (
                                 <button onClick={() => showStudentDetails(student.name)} className="text-accent hover:scale-125 transition-all opacity-0 group-hover:opacity-100" title="Ver Histórico">
                                   <Search className="w-4 h-4 shadow-sm" />
