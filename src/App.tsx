@@ -1425,6 +1425,22 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
     }]);
   };
 
+  const [newCustomSubject, setNewCustomSubject] = useState('');
+
+  const handlePromoteClasses = () => {
+    const currentClasses = configuringUser.assigned_classes || [];
+    const promoted = currentClasses.map((cls: string) => {
+      const match = cls.match(/^(\d+)(.*)$/);
+      if (match) {
+        const num = parseInt(match[1]);
+        const rest = match[2];
+        return `${num + 1}${rest}`;
+      }
+      return cls;
+    });
+    setConfiguringUser({ ...configuringUser, assigned_classes: Array.from(new Set(promoted)) });
+  };
+
   const handleSave = async () => {
     if (!title) { setValidationError('O título da prova é obrigatório.'); return; }
     if (!subject) { setValidationError('A disciplina é obrigatória.'); return; }
