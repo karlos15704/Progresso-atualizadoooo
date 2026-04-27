@@ -5519,16 +5519,17 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                             ? (regularResults.reduce((acc, r) => acc + (Number(r.score) / r.maxScore * 10), 0) / regularResults.length)
                             : 0;
                           
+                          const isEligible = baseAvg < 6;
+                          
                           // Final Bimonthly Grade with Recovery formula
                           let finalBimesterGrade = baseAvg;
-                          if (recoveryResult) {
+                          if (recoveryResult && isEligible) {
                             const recoveryScore = (recoveryResult.score / recoveryResult.maxScore * 10);
                             finalBimesterGrade = (baseAvg + recoveryScore) / 2;
                           }
 
                           const avgDisplay = baseAvg.toFixed(1);
                           const finalDisplay = finalBimesterGrade.toFixed(1);
-                          const isEligible = baseAvg < 6;
                           
                           return (
                             <tr key={student.name} className="hover:bg-slate-50 transition-colors group">
@@ -5700,7 +5701,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                             ? regular.reduce((acc, r) => acc + (Number(r.score) / r.maxScore * 10), 0) / regular.length
                             : 0;
                           
-                          if (recovery) {
+                          if (recovery && base < 6) {
                             return (base + (recovery.score / recovery.maxScore * 10)) / 2;
                           }
                           return base;
@@ -5740,7 +5741,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                             return ex && ex.examType === 'Recuperação Bimestral';
                           });
                           const base = regular.length > 0 ? regular.reduce((acc, r) => acc + (Number(r.score) / r.maxScore * 10), 0) / regular.length : 0;
-                          return recovery ? (base + (recovery.score / recovery.maxScore * 10)) / 2 : base;
+                          return (recovery && base < 6) ? (base + (recovery.score / recovery.maxScore * 10)) / 2 : base;
                         });
                         currentAvg = bimesterAverages.reduce((acc, v) => acc + v, 0) / 4;
                       }
@@ -6106,7 +6107,7 @@ function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exa
                     ? regular.reduce((acc, r) => acc + ((r.score / r.maxScore) * 10), 0) / regular.length
                     : 0;
                   
-                  if (recovery) {
+                  if (recovery && baseAvg < 6) {
                     const recScore = (recovery.score / recovery.maxScore) * 10;
                     return (baseAvg + recScore) / 2;
                   }
@@ -6126,7 +6127,7 @@ function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exa
                   : 0;
 
                 let mediaFinalTotal = mediaAnualBase;
-                if (yearRecovery) {
+                if (yearRecovery && mediaAnualBase < 6) {
                    const recFinalScore = (yearRecovery.score / yearRecovery.maxScore) * 10;
                    mediaFinalTotal = (mediaAnualBase + recFinalScore) / 2;
                 }
