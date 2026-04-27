@@ -833,13 +833,14 @@ export default function App() {
       )}
 
       {/* Mobile Nav */}
-      <nav className="lg:hidden bg-white border-t border-slate-200 px-1 py-2 flex justify-between items-center overflow-x-auto gap-1 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-50 print:hidden text-slate-600">
-        <MobileNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<BarChart3 />} label="Início" />
-        <MobileNavButton active={view === 'diary'} onClick={() => setView('diary')} icon={<BookOpen />} label="Diário" />
-        <MobileNavButton active={view === 'boletim'} onClick={() => setView('boletim')} icon={<FileText />} label="Boletim" />
-        <MobileNavButton active={view === 'studentReports'} onClick={() => setView('studentReports')} icon={<UserIcon />} label="Relatórios" />
+      <nav className="lg:hidden bg-white border-t border-slate-200 px-1 py-1 flex justify-between items-center overflow-x-auto gap-0.5 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-50 animate-in slide-in-from-bottom-5 print:hidden text-slate-600">
+        <MobileNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<BarChart3 size={18} />} label="Início" />
+        <MobileNavButton active={view === 'diary'} onClick={() => setView('diary')} icon={<BookOpen size={18} />} label="Diário" />
+        <MobileNavButton active={view === 'correct'} onClick={() => setView('correct')} icon={<Scan size={18} />} label="Correção" />
+        <MobileNavButton active={view === 'boletim'} onClick={() => setView('boletim')} icon={<FileText size={18} />} label="Boletim" />
+        <MobileNavButton active={view === 'studentReports'} onClick={() => setView('studentReports')} icon={<UserIcon size={18} />} label="Obs" />
         {isAdmin && (
-          <MobileNavButton active={view === 'admin'} onClick={() => setView('admin')} icon={<Settings />} label="Admin" />
+          <MobileNavButton active={view === 'admin'} onClick={() => setView('admin')} icon={<Settings size={18} />} label="Admin" />
         )}
       </nav>
     </div>
