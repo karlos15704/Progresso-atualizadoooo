@@ -6015,6 +6015,12 @@ function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exa
   
   const studentsFiltered = useMemo(() => {
     let list = allPossibleStudents;
+
+    // Filter by assigned classes for non-admins
+    if (!isAdmin && userProfile?.assigned_classes) {
+      list = list.filter((s: any) => userProfile.assigned_classes.includes(s.classId));
+    }
+
     if (selectedClass) {
       list = list.filter((s: any) => s.classId === selectedClass);
     }
@@ -6022,7 +6028,7 @@ function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exa
       list = list.filter((s: any) => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
     }
     return list.map(s => s.name).sort();
-  }, [allPossibleStudents, selectedClass, searchTerm]);
+  }, [allPossibleStudents, selectedClass, searchTerm, isAdmin, userProfile]);
 
   const handlePrint = () => {
     window.print();
@@ -6044,60 +6050,60 @@ function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exa
     }
 
     return (
-      <div key={studentName} className={cn("bg-white border text-black border-slate-300 print:border-none p-4 md:p-12 print:p-0 w-full max-w-5xl mx-auto shadow-sm print:shadow-none mb-8 print:mb-0 print:min-h-[297mm] print-avoid-break", isLast ? "" : "print:break-after-page")}>
+      <div key={studentName} className={cn("bg-white border text-black border-slate-300 print:border-none p-4 md:p-12 print:p-8 w-full max-w-5xl mx-auto shadow-sm print:shadow-none mb-8 print:mb-0 print:min-h-[297mm] print:break-inside-avoid print-avoid-break flex flex-col", isLast ? "" : "print:break-after-page")}>
         {/* HEADER BOLETIM MEK */}
-        <div className="flex flex-col sm:flex-row items-center justify-between border-b-2 border-black pb-4 mb-6 gap-4">
-           <div className="flex items-center gap-4">
-             <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-200 rounded flex flex-col items-center justify-center font-black text-[10px] text-slate-400 overflow-hidden print:border print:border-black">
+        <div className="flex flex-col sm:flex-row items-center justify-between border-b-4 border-black pb-4 mb-8 gap-4">
+           <div className="flex items-center gap-6">
+             <div className="w-16 h-16 md:w-20 md:h-20 bg-slate-100 rounded px-1 flex flex-col items-center justify-center font-black text-[10px] text-slate-400 overflow-hidden border-2 border-black">
                 <img src={LOGO_VINHO} alt="Logo" className="w-full h-full object-contain" />
              </div>
              <div>
-               <h1 className="text-lg md:text-xl font-black uppercase tracking-tighter">Boletim Escolar</h1>
-               <p className="text-[8px] md:text-[10px] font-bold uppercase text-slate-600">Ensino Fundamental II e Médio - Padrão MEC</p>
+               <h1 className="text-xl md:text-3xl font-black uppercase tracking-tighter leading-none">Boletim Escolar</h1>
+               <p className="text-[10px] md:text-[12px] font-black uppercase text-black mt-1">Ensino Fundamental II e Médio - Padrão Nacional</p>
              </div>
            </div>
            <div className="text-center sm:text-right">
-             <p className="text-xs md:text-sm font-black uppercase">Ano Letivo: 2026</p>
+             <p className="text-sm md:text-lg font-black uppercase">Ano Letivo: 2026</p>
              <p className="text-[10px] md:text-xs font-bold uppercase text-slate-600">Emissão: {new Date().toLocaleDateString('pt-BR')}</p>
            </div>
         </div>
 
         {/* INFO ALUNO */}
-        <div className="flex flex-col gap-2 mb-8">
-           <div className="flex items-stretch border border-black rounded-sm overflow-hidden">
-             <div className="bg-slate-100 border-r border-black px-3 py-1.5 min-w-[120px]">
-                <span className="text-[9px] font-black uppercase tracking-widest">Aluno(a)</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+           <div className="flex items-stretch border-2 border-black rounded-sm overflow-hidden">
+             <div className="bg-slate-100 border-r-2 border-black px-4 py-2 min-w-[100px] flex items-center justify-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-center">Aluno(a)</span>
              </div>
-             <div className="px-3 py-1.5 flex-1 bg-white">
-                <span className="text-sm font-black uppercase tracking-tight">{studentName}</span>
+             <div className="px-4 py-2 flex-1 bg-white flex items-center">
+                <span className="text-base font-black uppercase tracking-tight">{studentName}</span>
              </div>
            </div>
-           <div className="flex items-stretch border border-black rounded-sm overflow-hidden">
-             <div className="bg-slate-100 border-r border-black px-3 py-1.5 min-w-[120px]">
-                <span className="text-[9px] font-black uppercase tracking-widest">Turma</span>
+           <div className="flex items-stretch border-2 border-black rounded-sm overflow-hidden">
+             <div className="bg-slate-100 border-r-2 border-black px-4 py-2 min-w-[100px] flex items-center justify-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-center">Turma</span>
              </div>
-             <div className="px-3 py-1.5 flex-1 bg-white">
-                <span className="text-sm font-black uppercase tracking-tight">{selectedClass || 'NÃO DEFINIDA'}</span>
+             <div className="px-4 py-2 flex-1 bg-white flex items-center">
+                <span className="text-base font-black uppercase tracking-tight">{selectedClass || 'NÃO DEFINIDA'}</span>
              </div>
            </div>
         </div>
 
         {/* QUADRO DE NOTAS */}
-        <div className="border-2 border-black rounded-sm overflow-hidden">
+        <div className="border-2 border-black rounded-sm overflow-hidden flex-1">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b border-black">
-                <th className="border-r border-black p-2 text-left text-[11px] font-black uppercase w-1/3 bg-slate-100">Disciplinas</th>
-                <th className="border-r border-black p-2 text-center text-[10px] font-black uppercase">1º Bim</th>
-                <th className="border-r border-black p-2 text-center text-[10px] font-black uppercase">2º Bim</th>
-                <th className="border-r border-black p-2 text-center text-[10px] font-black uppercase">3º Bim</th>
-                <th className="border-r border-black p-2 text-center text-[10px] font-black uppercase">4º Bim</th>
-                <th className="border-black p-2 text-center text-[11px] font-black uppercase bg-slate-100">Média Final</th>
+              <tr className="border-b-2 border-black">
+                <th className="border-r-2 border-black p-3 text-left text-[12px] font-black uppercase w-1/3 bg-slate-100">Componentes Curriculares</th>
+                <th className="border-r-2 border-black p-3 text-center text-[11px] font-black uppercase">1º Bim</th>
+                <th className="border-r-2 border-black p-3 text-center text-[11px] font-black uppercase">2º Bim</th>
+                <th className="border-r-2 border-black p-3 text-center text-[11px] font-black uppercase">3º Bim</th>
+                <th className="border-r-2 border-black p-3 text-center text-[11px] font-black uppercase">4º Bim</th>
+                <th className="p-3 text-center text-[12px] font-black uppercase bg-slate-100">Média Final</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-black">
+            <tbody className="divide-y-2 divide-black">
               {subjects.length === 0 && (
-                 <tr><td colSpan={6} className="p-4 text-center text-xs italic">Nenhuma disciplina avaliada.</td></tr>
+                 <tr><td colSpan={6} className="p-8 text-center text-sm font-black uppercase text-slate-400">Nenhuma disciplina avaliada neste período.</td></tr>
               )}
               {subjects.map(subject => {
                 const rowBimFinals: (number | null)[] = bimesters.map(bim => {
@@ -6149,17 +6155,17 @@ function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exa
 
                 return (
                   <tr key={subject}>
-                    <td className="border-r border-black p-2 pl-3 text-[11px] font-black uppercase">{stripHtml(subject)}</td>
+                    <td className="border-r-2 border-black p-3 pl-4 text-[12px] font-black uppercase">{stripHtml(subject)}</td>
                     {rowBimFinals.map((avg, i) => (
-                      <td key={i} className="border-r border-black p-2 text-center text-[13px] font-bold">
+                      <td key={i} className="border-r-2 border-black p-3 text-center text-[16px] font-black">
                          {avg !== null ? (
-                           <span>{avg.toFixed(1).replace('.', ',')}</span>
+                           <span className={avg < 6 ? 'text-red-700' : 'text-blue-800'}>{avg.toFixed(1).replace('.', ',')}</span>
                          ) : '-'}
                       </td>
                     ))}
-                    <td className="border-black p-2 text-center text-[14px] font-black bg-slate-50">
+                    <td className="p-3 text-center text-[18px] font-black bg-slate-50">
                       {bimsComNota.length > 0 ? (
-                         <span className={mediaFinalTotal >= 6 ? 'text-blue-900' : 'text-red-700'}>
+                         <span className={mediaFinalTotal >= 6 ? 'text-blue-900 underline decoration-2 underline-offset-4' : 'text-red-800 underline decoration-2 underline-offset-4'}>
                            {mediaFinalTotal.toFixed(1).replace('.', ',')}
                          </span>
                       ) : '-'}
@@ -6171,20 +6177,26 @@ function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exa
           </table>
         </div>
 
-        {/* REGRAS */}
-        <div className="mt-4 border border-black p-3 text-[9px] uppercase font-bold text-slate-700 rounded-sm">
-           <p>Critério de Aprovação: Média Final igual ou superior a 6,0 (seis).</p>
-           <p>Recuperação Bimestral: (Média + Recuperação) / 2 = Média Final do Bimestre.</p>
-           <p>Recuperação Final: (Média Anual + Recuperação Final) / 2 = Média Final do Ano.</p>
+        {/* INFO EXTRA */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+          <div className="border-2 border-black p-4 text-[11px] uppercase font-black text-black rounded-sm leading-relaxed">
+             <h4 className="border-b border-black pb-1 mb-2">Legenda / Critérios</h4>
+             <p>• Média para Aprovação: 6,0</p>
+             <p>• Recuperação Bimestral: (Média + Recuperação) / 2</p>
+             <p>• Média Final Anual: (Soma Bimestres + Rec. Final) / 2</p>
+          </div>
+          <div className="border-2 border-black p-4 text-[11px] uppercase font-black text-black rounded-sm flex flex-col justify-center">
+             <p className="text-center italic opacity-70">"A educação é o passaporte para o futuro."</p>
+          </div>
         </div>
 
         {/* FOOTER ASSINATURAS */}
-        <div className="grid grid-cols-2 gap-16 mt-32 px-10">
-           <div className="border-t border-black pt-2 text-center">
-             <p className="text-[10px] font-black uppercase">Assinatura da Coordenação</p>
+        <div className="grid grid-cols-2 gap-16 mt-32 px-12 pb-12">
+           <div className="border-t-2 border-black pt-4 text-center">
+             <p className="text-[12px] font-black uppercase">Direção / Coordenação</p>
            </div>
-           <div className="border-t border-black pt-2 text-center">
-             <p className="text-[10px] font-black uppercase">Assinatura do(a) Responsável</p>
+           <div className="border-t-2 border-black pt-4 text-center">
+             <p className="text-[12px] font-black uppercase">Assinatura do Responsável</p>
            </div>
         </div>
       </div>
