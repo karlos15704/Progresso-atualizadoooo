@@ -4964,7 +4964,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
         const exam = exams.find(e => e.id === examId);
         
         // Security check for each exam in the bulk update
-        if (exam && (isAuthorized(exam.classYear, exam.subject) || exam.professorId === user.id)) {
+        if (exam && isAuthorized(exam.classYear, exam.subject)) {
           updates.push({
             exam_id: examId,
             student_name: studentName,
@@ -5058,8 +5058,8 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
   const handleDeleteExamLocal = async (exam: Exam) => {
     if (!window.confirm("Deseja realmente excluir esta avaliação?")) return;
     
-    if (exam.professorId !== user.id && !isAdmin) {
-      alert("Acesso Negado: Apenas o professor responsável por esta avaliação pode excluí-la.");
+    if (!isAuthorized(exam.classYear, exam.subject)) {
+      alert("Acesso Negado: Você não tem autorização para gerenciar esta avaliação.");
       return;
     }
 
@@ -5088,15 +5088,9 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
   const handleSaveGrades = async () => {
     if (!launchingGradesFor) return;
 
-    // Apenas o professor responsável ou admin
-    if (launchingGradesFor.professorId !== user.id && !isAdmin) {
-      alert("Acesso Negado: Apenas o professor responsável por esta avaliação pode lançar ou editar as notas.");
-      setSavingGrades(false);
-      return;
-    }
-
+    // Apenas o professor autorizado ou admin
     if (!isAuthorized(launchingGradesFor.classYear, launchingGradesFor.subject)) {
-      alert("Acesso Negado: Você não está atribuído a esta disciplina e turma nesta sala.");
+      alert("Acesso Negado: Você não tem autorização para lançar notas nesta turma e disciplina.");
       setSavingGrades(false);
       return;
     }
@@ -5549,7 +5543,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <span className="px-2 py-0.5 bg-white/20 rounded text-[9px] font-black uppercase tracking-widest text-white">Lançamento de Notas</span>
-                    {(launchingGradesFor.professorId !== user.id && !isAdmin) && (
+                    {!isAuthorized(launchingGradesFor.classYear, launchingGradesFor.subject) && (
                       <span className="px-2 py-0.5 bg-red-500 rounded text-[9px] font-black uppercase tracking-widest text-white">Somente Leitura</span>
                     )}
                   </div>
@@ -5578,7 +5572,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                               step="0.1"
                               min="0"
                               max="10"
-                              disabled={launchingGradesFor.professorId !== user.id && !isAdmin}
+                              disabled={!isAuthorized(launchingGradesFor.classYear, launchingGradesFor.subject)}
                               value={gradeInputs[student.name] || ''}
                               onChange={e => setGradeInputs({...gradeInputs, [student.name]: parseFloat(e.target.value) || 0})}
                               placeholder="0,0"
@@ -5597,7 +5591,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                 >
                   Fechar Janela
                 </button>
-                {(launchingGradesFor.professorId === user.id || isAdmin) && (
+                {isAuthorized(launchingGradesFor.classYear, launchingGradesFor.subject) && (
                   <button 
                     onClick={handleSaveGrades}
                     disabled={savingGrades}
@@ -5974,7 +5968,8 @@ function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exa
         {/* REGRAS */}
         <div className="mt-4 border border-black p-3 text-[9px] uppercase font-bold text-slate-700 rounded-sm">
            <p>Critério de Aprovação: Média Final igual ou superior a 6,0 (seis).</p>
-           <p>Cálculo da Média: Soma-se a média dos 4 bimestres e divide-se por 4. (Média + Recuperação) / 2.</p>
+           <p>Recuperação Bimestral: (Média + Recuperação) / 2 = Média Final do Bimestre.</p>
+           <p>Recuperação Final: (Média Anual + Recuperação Final) / 2 = Média Final do Ano.</p>
         </div>
 
         {/* FOOTER ASSINATURAS */}
