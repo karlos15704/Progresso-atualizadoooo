@@ -774,6 +774,11 @@ export default function App() {
             {view === 'diary' && <DigitalDiaryView user={user} isAdmin={isAdmin} userProfile={userProfile} />}
             {view === 'boletim' && <BoletimView results={results} exams={exams} isAdmin={isAdmin} user={user} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
           </AnimatePresence>
+          <div className="mt-12 mb-8 text-center border-t border-slate-100 pt-8 opacity-40 hover:opacity-100 transition-opacity">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+              Desenvolvido por Antônio Carlos
+            </p>
+          </div>
         </main>
       </div>
 
