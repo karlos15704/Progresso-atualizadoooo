@@ -761,7 +761,7 @@ export default function App() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-[25px] bg-[#f8fafc] print:overflow-visible print:p-0 print:static print:block print-container">
+        <main className="flex-1 overflow-y-auto p-4 md:p-[25px] pb-24 lg:pb-[25px] bg-[#f8fafc] print:overflow-visible print:p-0 print:static print:block print-container">
           <AnimatePresence mode="wait">
             {view === 'dashboard' && <DashboardView user={user} isAdmin={isAdmin} exams={exams} results={results} setView={setView} onSelectPrintExam={setSelectedPrintExam} onEditExam={e => { setExamToEdit(e); setView('create'); }} onDeleteExam={handleDeleteExam} professors={professors} onReassignProfessor={setExamBeingReassigned} />}
             {view === 'create' && <CreateExamView user={user} userProfile={userProfile} setView={setView} examToEdit={examToEdit} onExamSaved={() => { setExamToEdit(null); setRefreshTrigger(prev => prev + 1); setView('dashboard'); }} />}
@@ -833,7 +833,7 @@ export default function App() {
       )}
 
       {/* Mobile Nav */}
-      <nav className="lg:hidden bg-white border-t border-slate-200 px-1 py-1 flex justify-between items-center overflow-x-auto gap-0.5 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-50 animate-in slide-in-from-bottom-5 print:hidden text-slate-600">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-1 py-1 flex justify-between items-center overflow-x-auto gap-0.5 shadow-[0_-8px_15px_rgba(0,0,0,0.08)] z-[100] animate-in slide-in-from-bottom-5 print:hidden text-slate-600">
         <MobileNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<BarChart3 size={18} />} label="Início" />
         <MobileNavButton active={view === 'diary'} onClick={() => setView('diary')} icon={<BookOpen size={18} />} label="Diário" />
         <MobileNavButton active={view === 'correct'} onClick={() => setView('correct')} icon={<Scan size={18} />} label="Correção" />
