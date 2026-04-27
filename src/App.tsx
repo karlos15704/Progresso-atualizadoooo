@@ -188,6 +188,7 @@ interface StudentReport {
   id: string;
   studentName: string;
   studentClass: string;
+  subject: string;
   content: string;
   professorId: string;
   bimester: string;
@@ -632,8 +633,9 @@ export default function App() {
         setStudentReports(data.map(r => ({
           id: r.id,
           studentName: r.student_name,
-          studentClass: r.student_class,
-          content: r.content,
+          studentClass: r.class_name,
+          subject: r.subject,
+          content: r.report_text,
           professorId: r.professor_id,
           bimester: r.bimester,
           createdAt: r.created_at,
@@ -824,7 +826,7 @@ export default function App() {
             {view === 'create' && <CreateExamView user={user} userProfile={userProfile} setView={setView} examToEdit={examToEdit} onExamSaved={() => { setExamToEdit(null); setRefreshTrigger(prev => prev + 1); setView('dashboard'); }} />}
             {view === 'correct' && <CorrectExamView user={user} exams={exams} setView={setView} setRefreshTrigger={setRefreshTrigger} />}
             {view === 'guides' && <GuidesView exams={exams} />}
-            {view === 'studentReports' && <StudentReportsView user={user} isAdmin={isAdmin} reports={studentReports} refresh={() => setRefreshTrigger(prev => prev + 1)} onPrint={(report) => { setSelectedReportForPrint(report); setView('printReport'); setMultipleReportsToPrint([]); }} onPrintAll={(reports) => { setMultipleReportsToPrint(reports); setSelectedReportForPrint(null); setView('printReport'); }} />}
+            {view === 'studentReports' && <StudentReportsView user={user} userProfile={userProfile} isAdmin={isAdmin} reports={studentReports} refresh={() => setRefreshTrigger(prev => prev + 1)} onPrint={(report) => { setSelectedReportForPrint(report); setView('printReport'); setMultipleReportsToPrint([]); }} onPrintAll={(reports) => { setMultipleReportsToPrint(reports); setSelectedReportForPrint(null); setView('printReport'); }} />}
             {view === 'printReport' && (selectedReportForPrint || multipleReportsToPrint.length > 0) && <StudentReportPrintView reports={selectedReportForPrint ? [selectedReportForPrint] : multipleReportsToPrint} onBack={() => setView('studentReports')} />}
             {view === 'print' && selectedPrintExam && <ExamPrintView exam={selectedPrintExam} onBack={() => setView('dashboard')} />}
             {view === 'admin' && isAdmin && <AdminView user={user} />}
@@ -3909,8 +3911,9 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
   );
 }
 
-function StudentReportsView({ user, isAdmin, reports, refresh, onPrint, onPrintAll }: { 
+function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPrint, onPrintAll }: { 
   user: User, 
+  userProfile: any,
   isAdmin: boolean, 
   reports: StudentReport[], 
   refresh: () => void,
@@ -3919,11 +3922,19 @@ function StudentReportsView({ user, isAdmin, reports, refresh, onPrint, onPrintA
 }) {
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedStudent, setSelectedStudent] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedBimester, setSelectedBimester] = useState('1º Bimestre');
   const [content, setContent] = useState('');
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [schoolInfo] = useState(getSchoolInfo());
+
+  // Initialize subject if user is a professor
+  useEffect(() => {
+    if (!isAdmin && userProfile?.assigned_subjects?.length > 0 && !selectedSubject) {
+      setSelectedSubject(userProfile.assigned_subjects[0]);
+    }
+  }, [isAdmin, userProfile, selectedSubject]);
 
   const studentsInClass = useMemo(() => {
     if (!selectedClass) return [];
@@ -3935,24 +3946,27 @@ function StudentReportsView({ user, isAdmin, reports, refresh, onPrint, onPrintA
   }, [selectedClass, schoolInfo]);
 
   const handleSave = async () => {
-    if (!selectedStudent || !content) {
-      alert("Preencha o nome do aluno e o conteúdo do relatório.");
+    if (!selectedStudent || !content || !selectedSubject || !selectedClass) {
+      alert("Preencha todos os campos: turma, aluno, disciplina e conteúdo.");
       return;
     }
     setSaving(true);
     try {
       if (editingId) {
         const { error } = await supabase.from('student_reports').update({
-          content,
+          report_text: content,
+          class_name: selectedClass,
+          subject: selectedSubject,
           bimester: selectedBimester,
-          updated_at: new Date().toISOString()
+          created_at: new Date().toISOString() // Using created_at for sorting usually, but maybe should use updated_at if it exists
         }).eq('id', editingId);
         if (error) throw error;
       } else {
         const { error } = await supabase.from('student_reports').insert({
           student_name: selectedStudent,
-          student_class: selectedClass,
-          content,
+          class_name: selectedClass,
+          subject: selectedSubject,
+          report_text: content,
           bimester: selectedBimester,
           professor_id: user.id
         });
@@ -3974,6 +3988,7 @@ function StudentReportsView({ user, isAdmin, reports, refresh, onPrint, onPrintA
     setEditingId(report.id);
     setSelectedClass(report.studentClass);
     setSelectedStudent(report.studentName);
+    setSelectedSubject(report.subject);
     setSelectedBimester(report.bimester);
     setContent(report.content);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -4007,7 +4022,7 @@ function StudentReportsView({ user, isAdmin, reports, refresh, onPrint, onPrintA
 
       <div className="bg-white p-6 rounded-lg border border-border shadow-sm space-y-6">
         <h3 className="text-sm font-bold text-primary uppercase tracking-wider">{editingId ? 'Editar Relatório' : 'Novo Relatório'}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="space-y-2">
             <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Turma / Sala</label>
             <select 
@@ -4029,6 +4044,21 @@ function StudentReportsView({ user, isAdmin, reports, refresh, onPrint, onPrintA
             >
               <option value="">Selecione o aluno...</option>
               {studentsInClass.map((s: any) => <option key={s.name} value={s.name}>{s.name}</option>)}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Disciplina</label>
+            <select 
+              value={selectedSubject} 
+              onChange={e => setSelectedSubject(e.target.value)}
+              className="w-full px-4 py-2 border border-border rounded-md text-sm outline-none focus:border-accent bg-white"
+            >
+              <option value="">Selecione...</option>
+              {!isAdmin ? (
+                userProfile?.assigned_subjects?.map((s: string) => <option key={s} value={s}>{s}</option>)
+              ) : (
+                schoolInfo.subjects.map(s => <option key={s} value={s}>{s}</option>)
+              )}
             </select>
           </div>
           <div className="space-y-2">
@@ -4085,8 +4115,9 @@ function StudentReportsView({ user, isAdmin, reports, refresh, onPrint, onPrintA
               <tr className="bg-slate-50/50">
                 <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider">Aluno</th>
                 <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider">Turma</th>
+                <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider">Disciplina</th>
                 <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider">Bimestre</th>
-                <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider">Data</th>
+                <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider font-mono">Data</th>
                 <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider">Ações</th>
               </tr>
             </thead>
@@ -4094,21 +4125,22 @@ function StudentReportsView({ user, isAdmin, reports, refresh, onPrint, onPrintA
               {reports.map(r => (
                 <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-5 py-4 font-bold text-slate-700">{r.studentName}</td>
-                  <td className="px-5 py-4 text-slate-600">{r.studentClass}</td>
+                  <td className="px-5 py-4 text-slate-600 font-mono text-xs">{r.studentClass}</td>
+                  <td className="px-5 py-4 text-slate-600 font-bold">{r.subject}</td>
                   <td className="px-5 py-4">
-                    <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase">{r.bimester}</span>
+                    <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase whitespace-nowrap">{r.bimester}</span>
                   </td>
-                  <td className="px-5 py-4 text-slate-500">{new Date(r.createdAt).toLocaleDateString()}</td>
-                  <td className="px-5 py-4 flex items-center gap-4">
-                    <button onClick={() => onPrint(r)} className="text-accent font-bold hover:underline flex items-center gap-1">
+                  <td className="px-5 py-4 text-slate-500 font-mono text-xs">{new Date(r.createdAt).toLocaleDateString()}</td>
+                  <td className="px-5 py-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <button onClick={() => onPrint(r)} className="text-accent font-bold hover:underline flex items-center gap-1 whitespace-nowrap">
                       <Printer className="w-4 h-4" />
                       Imprimir
                     </button>
-                    <button onClick={() => handleEdit(r)} className="text-blue-600 font-bold hover:underline flex items-center gap-1">
+                    <button onClick={() => handleEdit(r)} className="text-blue-600 font-bold hover:underline flex items-center gap-1 whitespace-nowrap">
                       <Pencil className="w-4 h-4" />
                       Editar
                     </button>
-                    <button onClick={() => handleDelete(r.id)} className="text-red-400 font-bold hover:underline flex items-center gap-1">
+                    <button onClick={() => handleDelete(r.id)} className="text-red-400 font-bold hover:underline flex items-center gap-1 whitespace-nowrap">
                       <Trash2 className="w-4 h-4" />
                       Excluir
                     </button>
@@ -4117,7 +4149,7 @@ function StudentReportsView({ user, isAdmin, reports, refresh, onPrint, onPrintA
               ))}
               {reports.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-5 py-10 text-center text-slate-400 italic">Nenhum relatório encontrado.</td>
+                  <td colSpan={6} className="px-5 py-10 text-center text-slate-400 italic">Nenhum relatório encontrado.</td>
                 </tr>
               )}
             </tbody>
