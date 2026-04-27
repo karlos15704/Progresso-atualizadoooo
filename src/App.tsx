@@ -59,11 +59,63 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 
-// Utility to strip HTML tags
+// Professional Safe HTML Cleaner (especially for Word-to-Web pasted content)
+const cleanWordHtml = (html: string) => {
+  if (!html) return '';
+  
+  // 1. Remove Word XML namespaces and Office-specific tags
+  let cleaned = html.replace(/<o:p>[\s\S]*?<\/o:p>/g, '')
+                    .replace(/<style>[\s\S]*?<\/style>/g, '')
+                    .replace(/<!--[\s\S]*?-->/g, '') // Remove comments
+                    .replace(/<xml>[\s\S]*?<\/xml>/g, '')
+                    .replace(/class="Mso.*?"/g, '')
+                    .replace(/lang=".*?"/g, '')
+                    .replace(/mso-.*?=".*?"/g, ''); // Remove mso- attributes
+
+  // 2. Remove inline styles that often break layouts (keep only basic font-weight)
+  cleaned = cleaned.replace(/style=".*?"/g, (match) => {
+    if (match.includes('font-weight:bold') || match.includes('font-weight: 700')) return 'style="font-weight:bold"';
+    if (match.includes('font-style:italic')) return 'style="font-style:italic"';
+    return '';
+  });
+
+  // 3. Remove empty spans that just carry useless meta formatting
+  cleaned = cleaned.replace(/<span>([\s\S]*?)<\/span>/g, '$1');
+  
+  return cleaned.trim();
+};
+
+const SafeHTML = ({ html, className }: { html: string, className?: string }) => {
+  if (!html) return null;
+  const cleaned = cleanWordHtml(html);
+  
+  // More robust check: if it contains anything that looks like a tag
+  const hasTags = /<[a-z/][\s\S]*?>/i.test(cleaned);
+  
+  // If it's just raw text with encoded entities, we still want to render it through dangerouslySetInnerHTML
+  // to decode those entities (like &nbsp; or &lt;)
+  const hasEntities = /&[a-z0-9#]+;/i.test(cleaned);
+
+  if (!hasTags && !hasEntities) {
+    return <div className={cn("whitespace-pre-wrap font-sans", className)}>{cleaned}</div>;
+  }
+
+  return (
+    <div 
+      className={cn("prose-custom font-sans leading-relaxed", className)}
+      dangerouslySetInnerHTML={{ __html: cleaned }}
+    />
+  );
+};
+
+// Utility to strip HTML tags for titles etc
 const stripHtml = (html: string) => {
   if (!html) return '';
+  // Check if it's actually HTML
+  if (!html.includes('<') && !html.includes('>')) return html;
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  return doc.body.textContent || "";
+  const text = doc.body.textContent || "";
+  return text.trim();
 };
 
 // Types
@@ -670,21 +722,24 @@ export default function App() {
   return (
     <div className="h-screen bg-bg flex flex-col print:h-auto print:bg-white print:block overflow-hidden">
       {/* Header */}
-      <header className="bg-white border-b border-border h-[70px] px-4 md:px-8 flex-shrink-0 flex items-center justify-between sticky top-0 z-30 print:hidden">
+      <header className="bg-white border-b border-slate-200 h-[70px] px-4 md:px-8 flex-shrink-0 flex items-center justify-between sticky top-0 z-40 print:hidden shadow-sm">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="hidden lg:flex p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-600"
+            className="hidden lg:flex p-2 hover:bg-slate-50 rounded-lg transition-colors text-slate-400 hover:text-slate-900"
             title={sidebarCollapsed ? "Expandir Menu" : "Recolher Menu"}
           >
             <Menu className="w-5 h-5" />
           </button>
-          <div className="bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm flex items-center gap-2">
-            <img src={LOGO_VINHO} alt="Logo CPS" className="w-5 h-5 object-contain" />
-            <div className="w-px h-4 bg-slate-200"></div>
-            <img src={LOGO_COC} alt="Plataforma COC" className="h-4 object-contain" />
+          <div className="flex items-center gap-3">
+            <div className="bg-primary p-2 rounded-lg shadow-lg shadow-primary/10">
+              <span className="text-white font-display font-black text-sm italic">CPS</span>
+            </div>
+            <div className="flex flex-col">
+              <h1 className="text-sm font-display font-black text-slate-800 tracking-tight uppercase leading-none">Colégio Progresso</h1>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Gestão Acadêmica</span>
+            </div>
           </div>
-          <h1 className="text-lg font-bold text-primary tracking-tight uppercase hidden md:block">Colégio Progresso Santista</h1>
         </div>
         
         <div className="flex items-center gap-4">
@@ -761,7 +816,7 @@ export default function App() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-[25px] pb-24 lg:pb-[25px] bg-[#f8fafc] print:overflow-visible print:p-0 print:static print:block print-container">
+        <main className="flex-1 overflow-y-auto p-4 md:p-[30px] pb-32 lg:pb-[30px] bg-[#f8fafc] print:overflow-visible print:p-0 print:static print:block print-container">
           <AnimatePresence mode="wait">
             {view === 'dashboard' && <DashboardView user={user} isAdmin={isAdmin} exams={exams} results={results} setView={setView} onSelectPrintExam={setSelectedPrintExam} onEditExam={e => { setExamToEdit(e); setView('create'); }} onDeleteExam={handleDeleteExam} professors={professors} onReassignProfessor={setExamBeingReassigned} />}
             {view === 'create' && <CreateExamView user={user} userProfile={userProfile} setView={setView} examToEdit={examToEdit} onExamSaved={() => { setExamToEdit(null); setRefreshTrigger(prev => prev + 1); setView('dashboard'); }} />}
@@ -879,14 +934,20 @@ function MobileNavButton({ active, onClick, icon, label }: { active: boolean, on
     <button 
       onClick={onClick}
       className={cn(
-        "flex flex-col items-center justify-center p-2 rounded-xl transition-all flex-1 min-w-[64px]",
-        active ? "text-accent bg-accent/5 scale-105" : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
+        "flex flex-col items-center justify-center p-2 rounded-xl transition-all flex-1 min-w-[50px] relative",
+        active ? "text-primary" : "text-slate-400 hover:text-slate-600"
       )}
     >
-      <div className={cn("mb-1 transition-transform", active ? "scale-110" : "")}>
-        {React.cloneElement(icon as React.ReactElement, { className: "w-5 h-5 md:w-6 md:h-6" })}
+      {active && (
+        <motion.div 
+          layoutId="mobile-nav-indicator"
+          className="absolute inset-0 bg-primary/5 rounded-xl -z-10"
+        />
+      )}
+      <div className={cn("mb-1 transition-all duration-300", active ? "scale-110 -translate-y-1" : "")}>
+        {React.cloneElement(icon as React.ReactElement, { size: 20 })}
       </div>
-      <span className={cn("text-[9px] md:text-[10px] font-bold tracking-wide", active ? "text-accent" : "text-slate-500")}>{label}</span>
+      <span className={cn("text-[9px] font-black uppercase tracking-wider transition-opacity", active ? "opacity-100" : "opacity-60")}>{label}</span>
     </button>
   );
 }
@@ -1268,9 +1329,14 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
 
 function StatCard({ label, value, icon, color }: { label: string, value: any, icon: React.ReactNode, color: string }) {
   return (
-    <div className="bg-white p-5 rounded-lg border border-border shadow-[0_2px_4px_rgba(0,0,0,0.02)] flex flex-col gap-1">
-      <span className="text-[12px] text-[#718096] uppercase tracking-[0.5px] font-bold">{label}</span>
-      <h3 className="text-2xl font-bold text-primary">{value}</h3>
+    <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4 transition-all hover:shadow-md">
+      <div className="p-3 rounded-lg bg-slate-50 text-primary">
+        {React.cloneElement(icon as React.ReactElement, { className: "w-6 h-6" })}
+      </div>
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5">{label}</p>
+        <p className="text-xl font-display font-black text-slate-800 tracking-tight leading-none">{value}</p>
+      </div>
     </div>
   );
 }
@@ -2325,10 +2391,11 @@ function GuidesView({ exams }: { exams: Exam[] }) {
                 <h3 className="text-2xl font-bold text-primary mb-1">{selectedExam.title}</h3>
                 <p className="text-accent font-bold uppercase tracking-widest text-[11px]">Guia de Estudos • {selectedExam.subject}</p>
               </div>
-              <div className="prose prose-slate max-w-none">
-                <div className="whitespace-pre-wrap text-slate-700 leading-relaxed text-sm">
-                  {selectedExam.studyGuide}
-                </div>
+              <div className="bg-[#fcfcfd] p-6 rounded-lg border border-border shadow-sm print:shadow-none">
+                <SafeHTML 
+                  html={selectedExam.studyGuide} 
+                  className="text-slate-800 leading-relaxed text-sm"
+                />
               </div>
             </div>
           ) : (
@@ -3678,19 +3745,12 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
                 
               if (!cleanTitle) return null;
               
-              // Helper to check if string contains HTML
-              const isHtml = /<[a-z][\s\S]*>/i.test(cleanTitle);
-
               return (
                 <div className="text-center mb-8 px-8">
-                  {isHtml ? (
-                    <div 
-                      className="text-sm font-bold q-text-html-container [&_p]:inline" 
-                      dangerouslySetInnerHTML={{ __html: cleanTitle }} 
-                    />
-                  ) : (
-                    <h2 className="text-sm font-bold">{cleanTitle}</h2>
-                  )}
+                  <SafeHTML 
+                    html={cleanTitle} 
+                    className="text-sm font-bold q-text-html-container [&_p]:inline" 
+                  />
                 </div>
               );
             })()}
@@ -3701,9 +3761,9 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
                 <div key={q.id} className="space-y-4 break-inside-avoid">
                   <div className="w-full text-left px-4 flex items-start justify-start gap-1">
                     <span className="font-bold text-sm min-w-[20px]">{idx + 1}.</span>
-                    <span 
+                    <SafeHTML 
+                      html={q.text} 
                       className="text-sm font-bold leading-relaxed q-text-html-container flex-1" 
-                      dangerouslySetInnerHTML={{ __html: q.text }} 
                     />
                   </div>
                   
@@ -3732,9 +3792,9 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
                       {['a', 'b', 'c', 'd'].map((letter, i) => (
                         <div key={letter} className="flex gap-2">
                           <span className="text-sm font-bold">{letter})</span>
-                          <span 
+                          <SafeHTML 
+                            html={q.options[i] || ''} 
                             className="text-sm q-text-html-container" 
-                            dangerouslySetInnerHTML={{ __html: q.options[i] || '' }} 
                           />
                         </div>
                       ))}
