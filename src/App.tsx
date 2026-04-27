@@ -1007,6 +1007,7 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
   const [bimesterFilter, setBimesterFilter] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [showMasterAlert, setShowMasterAlert] = useState(true);
   
   const filteredExams = exams.filter(e => {
     const matchBimester = bimesterFilter === '' || e.bimester === bimesterFilter;
@@ -1026,8 +1027,8 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
       exit={{ opacity: 0, x: -20 }}
       className="space-y-6"
     >
-      {isMasterAdmin && (
-        <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex items-center justify-between shadow-sm">
+      {isMasterAdmin && showMasterAlert && (
+        <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex items-center justify-between shadow-sm relative">
           <div className="flex items-center gap-3">
             <div className="bg-amber-100 p-2 rounded-full text-amber-600">
               <Settings className="w-5 h-5" />
@@ -1037,12 +1038,21 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
               <p className="text-xs text-amber-700 font-medium">Você pode gerenciar permissões e autorizar novos professores no painel de administração.</p>
             </div>
           </div>
-          <button 
-            onClick={() => setView('admin')}
-            className="px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-md hover:bg-amber-700 transition-colors shadow-sm"
-          >
-            Abrir Administração
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setView('admin')}
+              className="px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-md hover:bg-amber-700 transition-colors shadow-sm"
+            >
+              Abrir Administração
+            </button>
+            <button 
+              onClick={() => setShowMasterAlert(false)}
+              className="p-2 text-amber-400 hover:text-amber-600 hover:bg-amber-100 rounded-full transition-colors"
+              title="Fechar aviso"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
