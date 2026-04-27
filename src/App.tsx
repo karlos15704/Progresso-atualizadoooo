@@ -29,6 +29,8 @@ import {
   CheckSquare,
   LayoutList,
   Edit2,
+  Edit3,
+  Save,
   Search,
   Mail,
   ChevronDown,
@@ -4612,6 +4614,9 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
   const [launchingGradesFor, setLaunchingGradesFor] = useState<Exam | null>(null);
   const [gradeInputs, setGradeInputs] = useState<{[key: string]: number}>({});
   const [savingGrades, setSavingGrades] = useState(false);
+  const [isBulkEditing, setIsBulkEditing] = useState(false);
+  const [bulkGrades, setBulkGrades] = useState<Record<string, number>>({});
+  const [savingBulk, setSavingBulk] = useState(false);
 
   const schoolInfo = getSchoolInfo();
   const subjects = schoolInfo.subjects;
@@ -4896,6 +4901,37 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
     }
   };
 
+  const handleSaveBulkGrades = async () => {
+    setSavingBulk(true);
+    try {
+      const updates = Object.entries(bulkGrades).map(([key, value]) => {
+        const [studentName, examId] = key.split('|');
+        return {
+          exam_id: examId,
+          student_name: studentName,
+          points: value,
+          total_points: 10,
+          professor_id: user.id,
+          student_class: selectedClass,
+          bimester: selectedBimester,
+          corrected_at: new Date().toISOString()
+        };
+      });
+
+      for (const payload of updates) {
+        await supabase.from('results').upsert(payload, { onConflict: 'exam_id,student_name' });
+      }
+
+      setIsBulkEditing(false);
+      fetchData();
+      alert("Todas as notas foram salvas com sucesso!");
+    } catch (err: any) {
+      alert("Erro ao salvar notas: " + err.message);
+    } finally {
+      setSavingBulk(false);
+    }
+  };
+
   const handleExportCSV = () => {
     let csv = "Aluno;";
     exams.forEach(exam => {
@@ -5027,7 +5063,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
             className="w-full md:w-48 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
           >
             <option value="">Selecione a Disciplina</option>
-            {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+            {(isAdmin ? subjects : (userProfile?.assigned_subjects || [])).map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           <select 
             value={selectedBimester} 
@@ -5255,12 +5291,48 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                     <div className="w-2 h-6 bg-accent rounded-full" />
                     <h3 className="font-black text-slate-900 text-base tracking-tight uppercase">QUADRO CONSOLIDADO (BOLETIM PRÉVIA)</h3>
                   </div>
-                  <button 
-                    onClick={handleExportCSV}
-                    className="bg-primary text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest shadow-md hover:bg-opacity-90 flex items-center gap-2 transition-all active:scale-95"
-                  >
-                     <Download className="w-4 h-4" /> Exportar Planilha
-                  </button>
+                  <div className="flex gap-2">
+                    {isBulkEditing ? (
+                      <>
+                        <button 
+                          onClick={() => setIsBulkEditing(false)}
+                          className="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-slate-300 transition-all"
+                        >
+                          Cancelar
+                        </button>
+                        <button 
+                          onClick={handleSaveBulkGrades}
+                          disabled={savingBulk}
+                          className="bg-accent text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest shadow-md hover:bg-opacity-90 flex items-center gap-2 transition-all disabled:opacity-50"
+                        >
+                          {savingBulk ? <RotateCcw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} 
+                          Salvar Tudo
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button 
+                          onClick={() => {
+                            const initial = {};
+                            results.forEach(r => {
+                              initial[`${r.studentName}|${r.examId}`] = r.score;
+                            });
+                            setBulkGrades(initial);
+                            setIsBulkEditing(true);
+                          }}
+                          className="bg-slate-900 text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest shadow-md hover:bg-slate-800 flex items-center gap-2 transition-all"
+                        >
+                          <Edit3 className="w-4 h-4" /> Editar Notas
+                        </button>
+                        <button 
+                          onClick={handleExportCSV}
+                          className="bg-primary text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest shadow-md hover:bg-opacity-90 flex items-center gap-2 transition-all"
+                        >
+                           <Download className="w-4 h-4" /> Exportar Planilha
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
@@ -5283,21 +5355,37 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                           : '0.0';
                         
                         return (
-                          <tr key={student.name} className="hover:bg-slate-50 transition-colors">
-                            <td className="p-5 font-black text-slate-900 text-xs uppercase sticky left-0 bg-white border-r-2 border-slate-100 shadow-[2px_0_10px_rgba(0,0,0,0.05)] flex justify-between items-center group">
+                          <tr key={student.name} className="hover:bg-slate-50 transition-colors group">
+                            <td className="p-5 font-black text-slate-900 text-xs uppercase sticky left-0 bg-white border-r-2 border-slate-100 shadow-[2px_0_10px_rgba(0,0,0,0.05)] flex justify-between items-center">
                               <span className="truncate pr-4 leading-relaxed">{student.name}</span>
-                              <button onClick={() => showStudentDetails(student.name)} className="text-accent hover:scale-125 transition-all hidden group-hover:block" title="Ver Histórico">
-                                <Search className="w-4 h-4 shadow-sm" />
-                              </button>
+                              {!isBulkEditing && (
+                                <button onClick={() => showStudentDetails(student.name)} className="text-accent hover:scale-125 transition-all opacity-0 group-hover:opacity-100" title="Ver Histórico">
+                                  <Search className="w-4 h-4 shadow-sm" />
+                                </button>
+                              )}
                             </td>
                             {exams.map(exam => {
                                 const res = studentResults.find(r => r.examId === exam.id);
                                 const normalizedScore = res ? (res.score / res.maxScore * 10) : null;
+                                const key = `${student.name}|${exam.id}`;
+                                
                                 return (
                                   <td key={exam.id} className="p-5 text-center text-sm font-black border-r border-slate-100">
-                                    <span className={normalizedScore !== null ? (normalizedScore >= 6 ? 'text-blue-700' : 'text-red-600') : 'text-slate-300 font-bold'}>
-                                      {normalizedScore !== null ? normalizedScore.toFixed(1).replace('.', ',') : '-'}
-                                    </span>
+                                    {isBulkEditing ? (
+                                      <input 
+                                        type="number"
+                                        step="0.1"
+                                        min="0"
+                                        max="10"
+                                        value={bulkGrades[key] !== undefined ? bulkGrades[key] : (normalizedScore || '')}
+                                        onChange={e => setBulkGrades({...bulkGrades, [key]: parseFloat(e.target.value) || 0})}
+                                        className="w-16 bg-slate-50 border-2 border-slate-200 rounded-lg p-1 text-center font-black focus:border-accent outline-none"
+                                      />
+                                    ) : (
+                                      <span className={normalizedScore !== null ? (normalizedScore >= 6 ? 'text-blue-700' : 'text-red-600') : 'text-slate-300 font-bold'}>
+                                        {normalizedScore !== null ? normalizedScore.toFixed(1).replace('.', ',') : '-'}
+                                      </span>
+                                    )}
                                   </td>
                                 );
                             })}
