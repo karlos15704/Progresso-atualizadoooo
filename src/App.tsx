@@ -1121,26 +1121,26 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
           </div>
         </div>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-        <StatCard label="Provas Criadas" value={exams.length} icon={<FileText />} color="" />
-        <StatCard label="Correções Pendentes" value={results.filter(r => r.score === undefined).length} icon={<CheckCircle2 />} color="" />
-        <StatCard label="Média Geral (PII)" value={results.filter(r => exams.find(e => e.id === r.examId)?.examType === 'PII').length ? (results.filter(r => exams.find(e => e.id === r.examId)?.examType === 'PII').reduce((acc, r) => acc + (r.score/r.maxScore), 0) / results.filter(r => exams.find(e => e.id === r.examId)?.examType === 'PII').length * 10).toFixed(1) : '0.0'} icon={<BarChart3 />} color="" />
-        <StatCard label="Alunos Avaliados" value={results.length} icon={<UserIcon />} color="" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5">
+        <StatCard label="Provas" value={exams.length} icon={<FileText />} color="" />
+        <StatCard label="Pendentes" value={results.filter(r => r.score === undefined).length} icon={<CheckCircle2 />} color="" />
+        <StatCard label="Média (PII)" value={results.filter(r => exams.find(e => e.id === r.examId)?.examType === 'PII').length ? (results.filter(r => exams.find(e => e.id === r.examId)?.examType === 'PII').reduce((acc, r) => acc + (r.score/r.maxScore), 0) / results.filter(r => exams.find(e => e.id === r.examId)?.examType === 'PII').length * 10).toFixed(1) : '0.0'} icon={<BarChart3 />} color="" />
+        <StatCard label="Avaliados" value={results.length} icon={<UserIcon />} color="" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
-        <div className="lg:col-span-3 bg-white rounded-lg border border-border overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-border flex justify-between items-center bg-[#fcfcfd]">
-            <div className="flex flex-wrap items-center gap-3">
-              <h3 className="text-base font-bold text-primary">{showAll ? 'Todas as Avaliações' : 'Avaliações Recentes'}</h3>
+        <div className="lg:col-span-3 bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm">
+          <div className="px-4 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-slate-50/50">
+            <div className="space-y-3">
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">{showAll ? 'Base de Dados Completa' : 'Avaliações Recentes'}</h3>
               
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap gap-2">
                 <select 
                   value={bimesterFilter}
                   onChange={e => setBimesterFilter(e.target.value)}
-                  className="text-[11px] font-bold border border-slate-200 rounded px-2 py-1 outline-none bg-white"
+                  className="text-[10px] font-black border border-slate-200 rounded-lg px-3 py-1.5 outline-none bg-white uppercase tracking-wider shadow-sm focus:ring-2 focus:ring-primary/10 transition-all"
                 >
-                  <option value="">Todos Bimestres</option>
+                  <option value="">Bimestres</option>
                   <option value="1º Bimestre">1º Bim.</option>
                   <option value="2º Bimestre">2º Bim.</option>
                   <option value="3º Bimestre">3º Bim.</option>
@@ -1150,9 +1150,9 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                 <select 
                    value={classFilter}
                    onChange={e => setClassFilter(e.target.value)}
-                   className="text-[11px] font-bold border border-slate-200 rounded px-2 py-1 outline-none bg-white"
+                   className="text-[10px] font-black border border-slate-200 rounded-lg px-3 py-1.5 outline-none bg-white uppercase tracking-wider shadow-sm focus:ring-2 focus:ring-primary/10 transition-all"
                 >
-                  <option value="">Todas as Turmas</option>
+                  <option value="">Turmas</option>
                   {schoolInfo.classes.map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -1161,17 +1161,17 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                 <select 
                    value={categoryFilter}
                    onChange={e => setCategoryFilter(e.target.value)}
-                   className="text-[11px] font-bold border border-slate-200 rounded px-2 py-1 outline-none bg-white"
+                   className="text-[10px] font-black border border-slate-200 rounded-lg px-3 py-1.5 outline-none bg-white uppercase tracking-wider shadow-sm focus:ring-2 focus:ring-primary/10 transition-all"
                 >
-                  <option value="">Todos os Tipos</option>
+                  <option value="">Tipos</option>
                   {EXAM_CATEGORIES.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
               </div>
             </div>
-            <button onClick={() => setShowAll(!showAll)} className="text-[12px] text-accent font-bold cursor-pointer hover:underline">
-              {showAll ? 'Ver Menos' : 'Ver Banco de Dados Completo'}
+            <button onClick={() => setShowAll(!showAll)} className="text-[10px] bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-lg font-black uppercase tracking-widest hover:bg-slate-50 transition-colors shadow-sm self-start sm:self-center">
+              {showAll ? 'Ver Resumo' : 'Expandir Tudo'}
             </button>
           </div>
           <div className="overflow-x-auto">
