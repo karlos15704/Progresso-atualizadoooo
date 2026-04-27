@@ -1965,8 +1965,7 @@ function CorrectExamView({ user, exams, setView, setRefreshTrigger }: { user: Us
         total_points: maxScore,
         corrected_at: new Date().toISOString(),
         answers: manualAnswers,
-        student_class: studentClass || selectedExam.classYear || '',
-        bimester: selectedExam.bimester
+        student_class: studentClass || selectedExam.classYear || ''
       };
 
       const { error } = await supabase.from('results').insert(resultData);
@@ -4745,8 +4744,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
       const { data: resultData } = await supabase
         .from('results')
         .select('*')
-        .eq('student_class', selectedClass)
-        .eq('bimester', selectedBimester);
+        .eq('student_class', selectedClass);
       
       setResults((resultData || []).map(r => ({
         ...r,
@@ -4972,7 +4970,6 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
             total_points: 10,
             professor_id: user.id,
             student_class: selectedClass,
-            bimester: selectedBimester,
             corrected_at: new Date().toISOString()
           });
         } else if (exam) {
@@ -5104,8 +5101,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
         points: gradeInputs[student.name] !== undefined ? Number(gradeInputs[student.name]) : 0,
         total_points: 10,
         corrected_at: new Date().toISOString(),
-        student_class: selectedClass,
-        bimester: launchingGradesFor.bimester || selectedBimester
+        student_class: selectedClass
       }));
 
       // Upsert results
