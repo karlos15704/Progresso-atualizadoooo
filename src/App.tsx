@@ -3962,6 +3962,24 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
     }
   }, [isAdmin, userProfile, selectedSubject]);
 
+  const [studentSearch, setStudentSearch] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const studentSuggestions = useMemo(() => {
+    if (studentSearch.length < 2) return [];
+    const search = studentSearch.toLowerCase();
+    const list: { name: string, year: string }[] = [];
+    
+    Object.entries(schoolInfo.studentsDB).forEach(([year, students]) => {
+      students.forEach(s => {
+        if (s.name.toLowerCase().includes(search)) {
+          list.push({ name: s.name, year });
+        }
+      });
+    });
+    return list.slice(0, 10);
+  }, [studentSearch, schoolInfo.studentsDB]);
+
   const studentsInClass = useMemo(() => {
     if (!selectedClass) return [];
     // Extract year like "6º" from "6º A"
@@ -4001,6 +4019,7 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
       alert("Relatório salvo com sucesso!");
       setContent('');
       setSelectedStudent('');
+      setStudentSearch('');
       setEditingId(null);
       refresh();
     } catch (err: any) {
@@ -4014,6 +4033,7 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
     setEditingId(report.id);
     setSelectedClass(report.studentClass);
     setSelectedStudent(report.studentName);
+    setStudentSearch('');
     setSelectedSubject(report.subject);
     setSelectedBimester(report.bimester);
     setContent(report.content);
@@ -4082,17 +4102,89 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
               {schoolInfo.classes.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2 relative">
             <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Aluno</label>
-            <select 
-              value={selectedStudent} 
-              onChange={e => setSelectedStudent(e.target.value)}
-              disabled={!selectedClass}
-              className="w-full px-4 py-2 border border-border rounded-md text-sm outline-none focus:border-accent bg-white disabled:bg-slate-50"
-            >
-              <option value="">Selecione o aluno...</option>
-              {studentsInClass.map((s: any) => <option key={s.name} value={s.name}>{s.name}</option>)}
-            </select>
+            <div className="relative group">
+              <input
+                type="text"
+                placeholder={selectedClass ? "Selecione ou digite..." : "Busque por nome ou escolha turma..."}
+                value={studentSearch || selectedStudent}
+                onChange={e => {
+                  setStudentSearch(e.target.value);
+                  setSelectedStudent(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => {
+                  // Small delay to allow click on button before closing
+                  setTimeout(() => setShowSuggestions(false), 200);
+                }}
+                className="w-full px-4 py-2 border border-border rounded-md text-sm outline-none focus:border-accent bg-white pr-8 transition-all"
+              />
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300 pointer-events-none" />
+            </div>
+
+            {showSuggestions && (
+              <div className="absolute z-[110] left-0 right-0 top-full mt-1 bg-white border border-border rounded-md shadow-xl max-h-[300px] overflow-y-auto animate-in fade-in zoom-in-95 duration-200 ring-1 ring-black/5">
+                {/* Global Search Suggestions */}
+                {studentSuggestions.length > 0 && (
+                  <div className="p-1 border-b border-slate-50">
+                    <div className="px-3 py-1.5 text-[9px] font-black text-accent uppercase tracking-widest bg-accent/5 rounded mb-1">Sugestões de Busca</div>
+                    {studentSuggestions.map((s, i) => (
+                      <button
+                        key={`sug-${i}`}
+                        type="button"
+                        onMouseDown={() => {
+                          setSelectedStudent(s.name);
+                          setStudentSearch('');
+                          setShowSuggestions(false);
+                          if (!selectedClass) {
+                            const yearPref = s.year.split(' ')[0];
+                            const firstClass = schoolInfo.classes.find(c => c.startsWith(yearPref));
+                            if (firstClass) setSelectedClass(firstClass);
+                          }
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 transition-colors flex justify-between items-center group rounded-sm"
+                      >
+                        <span className="font-bold text-slate-700 group-hover:text-accent">{s.name}</span>
+                        <span className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">{s.year}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Class-specific list */}
+                {selectedClass && studentsInClass.length > 0 && (
+                  <div className="p-1">
+                    <div className="px-3 py-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 rounded mb-1">Alunos da {selectedClass}</div>
+                    {studentsInClass
+                      .filter((s: any) => !studentSearch || s.name.toLowerCase().includes(studentSearch.toLowerCase()))
+                      .map((s: any, i: number) => (
+                        <button
+                          key={`class-${i}`}
+                          type="button"
+                          onMouseDown={() => {
+                            setSelectedStudent(s.name);
+                            setStudentSearch('');
+                            setShowSuggestions(false);
+                          }}
+                          className={cn(
+                            "w-full text-left px-3 py-2 text-xs hover:bg-slate-50 transition-colors flex justify-between items-center group rounded-sm mb-px",
+                            selectedStudent === s.name ? "bg-accent/5 border-l-2 border-accent" : ""
+                          )}
+                        >
+                          <span className={cn("font-medium text-slate-600 group-hover:text-slate-900", selectedStudent === s.name && "font-bold text-accent")}>{s.name}</span>
+                          {selectedStudent === s.name && <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />}
+                        </button>
+                      ))}
+                  </div>
+                )}
+
+                {studentSuggestions.length === 0 && (!selectedClass || studentsInClass.length === 0) && studentSearch.length > 0 && (
+                  <div className="p-4 text-center text-slate-400 text-xs italic">Nenhum aluno encontrado...</div>
+                )}
+              </div>
+            )}
           </div>
           <div className="space-y-2">
             <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Disciplina</label>
