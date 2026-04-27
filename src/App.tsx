@@ -4225,6 +4225,8 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
 }
 
 function StudentReportPrintView({ reports, onBack }: { reports: StudentReport[], onBack: () => void }) {
+  const schoolInfo = getSchoolInfo();
+
   useEffect(() => {
     // Hidden browser title trick for clean prints
     const originalTitle = document.title;
@@ -4248,14 +4250,28 @@ function StudentReportPrintView({ reports, onBack }: { reports: StudentReport[],
       </div>
 
       <div className="print-content space-y-12 bg-slate-100 py-10 print:p-0 print:bg-white print:space-y-0">
-        {reports.map((report, idx) => (
-          <div 
-            key={report.id} 
-            className={cn(
-              "bg-white p-16 border border-border max-w-[210mm] mx-auto shadow-sm print:border-none print:shadow-none print:m-0 print:w-[210mm] flex flex-col print-avoid-break print:min-h-[297mm]",
-              idx === reports.length - 1 ? "" : "print:break-after-page"
-            )}
-          >
+        {reports.map((report, idx) => {
+          // Lookup full student name
+          let fullStudentName = report.studentName;
+          const classYearMatch = report.studentClass.match(/^(\d+)º/);
+          if (classYearMatch) {
+            const yearKey = `${classYearMatch[1]}º ano`;
+            const yearStudents = schoolInfo.studentsDB[yearKey] || [];
+            // Try exact or prefix match
+            const studentMatch = yearStudents.find(s => s.name.toUpperCase().startsWith(report.studentName.toUpperCase()));
+            if (studentMatch) {
+              fullStudentName = studentMatch.name;
+            }
+          }
+
+          return (
+            <div 
+              key={report.id} 
+              className={cn(
+                "bg-white p-16 border border-border max-w-[210mm] mx-auto shadow-sm print:border-none print:shadow-none print:m-0 print:w-[210mm] flex flex-col print-avoid-break print:min-h-[297mm]",
+                idx === reports.length - 1 ? "" : "print:break-after-page"
+              )}
+            >
             {/* Header */}
             <div className="border-b-2 border-primary pb-8 mb-10 flex items-center justify-between">
               <div className="flex items-center gap-6">
@@ -4278,7 +4294,7 @@ function StudentReportPrintView({ reports, onBack }: { reports: StudentReport[],
             <div className="grid grid-cols-2 gap-px bg-slate-200 border-2 border-slate-200 rounded-lg overflow-hidden mb-12 shadow-sm">
               <div className="bg-white p-4">
                 <label className="block text-[10px] font-black text-primary uppercase mb-1">Nome do Aluno:</label>
-                <div className="font-bold text-slate-800 text-lg uppercase truncate">{report.studentName}</div>
+                <div className="font-bold text-slate-800 text-lg uppercase truncate">{fullStudentName}</div>
               </div>
               <div className="bg-white p-4">
                 <label className="block text-[10px] font-black text-primary uppercase mb-1">Turma:</label>
@@ -4304,10 +4320,14 @@ function StudentReportPrintView({ reports, onBack }: { reports: StudentReport[],
             </div>
 
             {/* Footer Signatures */}
-            <div className="mt-20 pt-16 grid grid-cols-2 gap-20">
+            <div className="mt-20 pt-16 grid grid-cols-3 gap-10">
               <div className="border-t-2 border-slate-300 pt-4 text-center">
                 <div className="text-sm font-bold text-slate-800 uppercase mb-1">{report.professorName}</div>
                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Professor(a) Responsável</div>
+              </div>
+              <div className="border-t-2 border-slate-300 pt-4 text-center">
+                <div className="text-sm font-bold text-slate-300 uppercase mb-1 invisible">Responsável</div>
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Responsável</div>
               </div>
               <div className="border-t-2 border-slate-300 pt-4 text-center">
                 <div className="text-sm font-bold text-slate-300 uppercase mb-1 invisible">Coordenação</div>
@@ -4319,7 +4339,8 @@ function StudentReportPrintView({ reports, onBack }: { reports: StudentReport[],
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[4px]">Colégio Progresso Santista</p>
             </div>
           </div>
-        ))}
+        );
+      })}
       </div>
     </div>
   );
