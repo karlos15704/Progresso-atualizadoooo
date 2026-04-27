@@ -4638,6 +4638,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
   const [isBulkEditing, setIsBulkEditing] = useState(false);
   const [bulkGrades, setBulkGrades] = useState<Record<string, number>>({});
   const [savingBulk, setSavingBulk] = useState(false);
+  const [showOnlyBelowAverage, setShowOnlyBelowAverage] = useState(false);
 
   const isAuthorized = (cls: string = selectedClass, sub: string = selectedSubject) => {
     if (isAdmin) return true;
@@ -5551,32 +5552,141 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                 <button onClick={() => setLaunchingGradesFor(null)} className="p-3 hover:bg-white/10 rounded-full transition-all active:scale-90"><X className="w-7 h-7" /></button>
               </div>
               <div className="max-h-[500px] overflow-y-auto p-4 space-y-2">
+                {(launchingGradesFor.examType === 'Recuperação Bimestral' || launchingGradesFor.examType === 'Recuperação Final') && (
+                  <div className="flex items-center gap-3 p-4 bg-yellow-50 rounded-2xl border border-yellow-100 mb-4">
+                    <input 
+                      type="checkbox" 
+                      id="belowAvgToggle"
+                      checked={showOnlyBelowAverage}
+                      onChange={e => setShowOnlyBelowAverage(e.target.checked)}
+                      className="w-5 h-5 accent-slate-900 cursor-pointer"
+                    />
+                    <label htmlFor="belowAvgToggle" className="text-xs font-black text-slate-700 uppercase cursor-pointer">
+                      Ver apenas alunos com média abaixo de 6,0
+                    </label>
+                  </div>
+                )}
                 <table className="w-full border-collapse">
                   <thead className="bg-slate-50 sticky top-0 z-10">
                     <tr>
                       <th className="p-3 text-[10px] font-bold text-slate-500 uppercase text-left">Aluno</th>
-                      <th className="p-3 text-[10px] font-bold text-slate-500 uppercase text-center w-32">Nota (0-10)</th>
+                      <th className="p-3 text-[10px] font-bold text-slate-500 uppercase text-center w-40">Média Atual</th>
+                      <th className="p-3 text-[10px] font-bold text-slate-500 uppercase text-center w-32">Nota da Recuperação</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {students.map((student) => (
-                      <tr key={student.name} className="border-b border-slate-100">
-                        <td className="p-3 text-xs font-bold text-slate-700 uppercase">{student.name}</td>
-                        <td className="p-3">
-                            <input 
-                              type="number" 
-                              step="0.1"
-                              min="0"
-                              max="10"
-                              disabled={!isAuthorized(launchingGradesFor.classYear, launchingGradesFor.subject)}
-                              value={gradeInputs[student.name] || ''}
-                              onChange={e => setGradeInputs({...gradeInputs, [student.name]: parseFloat(e.target.value) || 0})}
-                              placeholder="0,0"
-                              className="w-full bg-slate-100 border-2 border-transparent focus:border-accent focus:bg-white rounded-xl px-5 py-3 text-center text-xl font-black text-slate-900 outline-none transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-inner"
-                            />
-                        </td>
-                      </tr>
-                    ))}
+                    {students.filter(student => {
+                      if (!showOnlyBelowAverage) return true;
+                      
+                      const studentResults = results.filter(r => r.studentName === student.name);
+                      
+                      if (launchingGradesFor.examType === 'Recuperação Bimestral') {
+                        const bimesterResults = studentResults.filter(r => 
+                          r.bimester === launchingGradesFor.bimester && 
+                          r.examId !== launchingGradesFor.id
+                        );
+                        
+                        const regularResults = bimesterResults.filter(r => {
+                          const ex = exams.find(e => e.id === r.examId);
+                          return ex && ex.examType !== 'Recuperação Bimestral' && ex.examType !== 'Recuperação Final';
+                        });
+
+                        const baseAvg = regularResults.length > 0 
+                          ? regularResults.reduce((acc, r) => acc + (Number(r.score) / r.maxScore * 10), 0) / regularResults.length
+                          : 0;
+                        return baseAvg < 6;
+                      }
+
+                      if (launchingGradesFor.examType === 'Recuperação Final') {
+                        // Media Anual
+                        const bimesters = ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'];
+                        const bimesterAverages = bimesters.map(bim => {
+                          const bimResults = studentResults.filter(r => r.bimester === bim);
+                          
+                          const regular = bimResults.filter(r => {
+                            const ex = exams.find(e => e.id === r.examId);
+                            return ex && ex.examType !== 'Recuperação Bimestral' && ex.examType !== 'Recuperação Final';
+                          });
+                          const recovery = bimResults.find(r => {
+                            const ex = exams.find(e => e.id === r.examId);
+                            return ex && ex.examType === 'Recuperação Bimestral';
+                          });
+
+                          const base = regular.length > 0
+                            ? regular.reduce((acc, r) => acc + (Number(r.score) / r.maxScore * 10), 0) / regular.length
+                            : 0;
+                          
+                          if (recovery) {
+                            return (base + (recovery.score / recovery.maxScore * 10)) / 2;
+                          }
+                          return base;
+                        });
+
+                        const yearlyAvg = bimesterAverages.reduce((acc, v) => acc + v, 0) / 4;
+                        return yearlyAvg < 6;
+                      }
+
+                      return true;
+                    }).map((student) => {
+                      const studentResults = results.filter(r => r.studentName === student.name);
+                      let currentAvg = 0;
+
+                      if (launchingGradesFor.examType === 'Recuperação Bimestral') {
+                        const bimesterResults = studentResults.filter(r => 
+                          r.bimester === launchingGradesFor.bimester && 
+                          r.examId !== launchingGradesFor.id
+                        );
+                        const regularResults = bimesterResults.filter(r => {
+                          const ex = exams.find(e => e.id === r.examId);
+                          return ex && ex.examType !== 'Recuperação Bimestral' && ex.examType !== 'Recuperação Final';
+                        });
+                        currentAvg = regularResults.length > 0 
+                          ? regularResults.reduce((acc, r) => acc + (Number(r.score) / r.maxScore * 10), 0) / regularResults.length
+                          : 0;
+                      } else if (launchingGradesFor.examType === 'Recuperação Final') {
+                        const bimesters = ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'];
+                        const bimesterAverages = bimesters.map(bim => {
+                          const bimResults = studentResults.filter(r => r.bimester === bim);
+                          const regular = bimResults.filter(r => {
+                            const ex = exams.find(e => e.id === r.examId);
+                            return ex && ex.examType !== 'Recuperação Bimestral' && ex.examType !== 'Recuperação Final';
+                          });
+                          const recovery = bimResults.find(r => {
+                            const ex = exams.find(e => e.id === r.examId);
+                            return ex && ex.examType === 'Recuperação Bimestral';
+                          });
+                          const base = regular.length > 0 ? regular.reduce((acc, r) => acc + (Number(r.score) / r.maxScore * 10), 0) / regular.length : 0;
+                          return recovery ? (base + (recovery.score / recovery.maxScore * 10)) / 2 : base;
+                        });
+                        currentAvg = bimesterAverages.reduce((acc, v) => acc + v, 0) / 4;
+                      }
+
+                      return (
+                        <tr key={student.name} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                          <td className="p-3 text-xs font-bold text-slate-700 uppercase">{student.name}</td>
+                          <td className="p-3 text-center">
+                             {(launchingGradesFor.examType === 'Recuperação Bimestral' || launchingGradesFor.examType === 'Recuperação Final') ? (
+                               <span className={`text-sm font-black ${currentAvg < 6 ? 'text-red-600' : 'text-blue-600'}`}>
+                                 {currentAvg.toFixed(1).replace('.', ',')}
+                               </span>
+                             ) : '-'}
+                          </td>
+                          <td className="p-3">
+                              <input 
+                                type="number" 
+                                step="0.1"
+                                min="0"
+                                max="10"
+                                disabled={!isAuthorized(launchingGradesFor.classYear, launchingGradesFor.subject)}
+                                value={gradeInputs[student.name] || ''}
+                                onChange={e => setGradeInputs({...gradeInputs, [student.name]: parseFloat(e.target.value) || 0})}
+                                placeholder="0,0"
+                                className="w-full bg-slate-100 border-2 border-transparent focus:border-accent focus:bg-white rounded-xl px-4 py-2 text-center text-lg font-black text-slate-900 outline-none transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-inner"
+                              />
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
