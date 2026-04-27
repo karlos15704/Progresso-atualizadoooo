@@ -6003,6 +6003,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
 function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exams: Exam[], isAdmin: boolean, user: User, onRefresh: () => void }) {
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   
   const schoolInfo = getSchoolInfo();
   const classes = schoolInfo.classes;
@@ -6010,18 +6011,28 @@ function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exa
 
   const userProfile = (window as any).__USER_PROFILE__;
 
-  const allPossibleStudents = Object.values(schoolInfo.studentsDB).flat();
-  const students = selectedClass 
-    ? allPossibleStudents.filter((s: any) => s.classId === selectedClass).map(s => s.name).sort()
-    : [];
+  const allPossibleStudents = Object.values(schoolInfo.studentsDB).flat() as any[];
+  
+  const studentsFiltered = useMemo(() => {
+    let list = allPossibleStudents;
+    if (selectedClass) {
+      list = list.filter((s: any) => s.classId === selectedClass);
+    }
+    if (searchTerm) {
+      list = list.filter((s: any) => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    }
+    return list.map(s => s.name).sort();
+  }, [allPossibleStudents, selectedClass, searchTerm]);
 
   const handlePrint = () => {
     window.print();
   };
 
   const handlePrintAll = () => {
+    if (studentsFiltered.length === 0) return;
+    if (studentsFiltered.length > 50 && !window.confirm(`Você está prestes a gerar ${studentsFiltered.length} boletins. Isso pode deixar o sistema lento. Deseja continuar?`)) return;
     setSelectedStudent("TODOS");
-    setTimeout(() => window.print(), 500);
+    setTimeout(() => window.print(), 800);
   };
 
   const renderBoletim = (studentName: string, isLast: boolean = false) => {
@@ -6179,53 +6190,97 @@ function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exa
   // Se nenhum aluno selecionado, mostra a lista para escolher
   if (!selectedStudent) {
     return (
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-4xl mx-auto print:hidden">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-5xl mx-auto print:hidden">
          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-           <div className="flex items-center justify-between mb-6">
-             <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-               <FileText className="w-5 h-5 text-[#3b5998]" />
-               Boletim Escolar (Padrão MEC)
-             </h2>
-             {selectedClass && students.length > 0 && (
-               <button 
-                 onClick={handlePrintAll}
-                 className="flex items-center gap-2 px-4 py-2 bg-[#3b5998] text-white rounded-lg text-sm font-bold hover:bg-opacity-90 transition-all shadow-sm mb-4 md:mb-0"
-               >
-                 <Printer className="w-4 h-4" /> Baixar Boletins da Turma
-               </button>
-             )}
+           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+             <div className="flex items-center gap-3">
+               <div className="p-3 bg-[#3b5998]/10 rounded-xl">
+                 <FileText className="w-6 h-6 text-[#3b5998]" />
+               </div>
+               <div>
+                 <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Boletins Escolares</h2>
+                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Gestão de resultados por aluno/sala</p>
+               </div>
+             </div>
+             <div className="flex flex-wrap items-center gap-2">
+               {studentsFiltered.length > 0 && (
+                 <button 
+                   onClick={handlePrintAll}
+                   className="flex items-center gap-2 px-6 py-3 bg-[#3b5998] text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-opacity-95 transition-all shadow-lg hover:shadow-[#3b5998]/40 active:scale-95"
+                 >
+                   <Printer className="w-4 h-4" /> Impressão em Lote ({studentsFiltered.length})
+                 </button>
+               )}
+             </div>
            </div>
            
-           <div className="mb-6">
-             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Selecione a Turma</label>
-             <select 
-               value={selectedClass}
-               onChange={e => setSelectedClass(e.target.value)}
-               className="w-full md:w-1/2 px-4 py-3 bg-white border-2 border-slate-300 rounded-xl outline-none focus:border-[#3b5998] font-black text-slate-800 shadow-md uppercase"
-             >
-               <option value="">FILTRAR POR TURMA</option>
-               {(isAdmin ? classes : (userProfile?.assigned_classes || [])).map(c => <option key={c} value={c}>{c}</option>)}
-             </select>
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+             <div>
+               <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest ml-1">Filtro por Turma</label>
+               <div className="relative">
+                 <School className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#3b5998]" />
+                 <select 
+                   value={selectedClass}
+                   onChange={e => setSelectedClass(e.target.value)}
+                   className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl outline-none focus:border-[#3b5998] focus:bg-white font-black text-xs text-slate-800 transition-all uppercase appearance-none"
+                 >
+                   <option value="">TODAS AS TURMAS</option>
+                   {(isAdmin ? classes : (userProfile?.assigned_classes || [])).map(c => <option key={c} value={c}>{c}</option>)}
+                 </select>
+                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+               </div>
+             </div>
+             <div>
+               <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest ml-1">Pesquisar Aluno</label>
+               <div className="relative">
+                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#3b5998]" />
+                 <input 
+                   type="text"
+                   placeholder="DIGITE O NOME DO ALUNO..."
+                   value={searchTerm}
+                   onChange={e => setSearchTerm(e.target.value)}
+                   className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl outline-none focus:border-[#3b5998] focus:bg-white font-black text-xs text-slate-800 transition-all uppercase"
+                 />
+               </div>
+             </div>
            </div>
 
-           {selectedClass ? (
-             <div className="grid grid-cols-1 justify-items-stretch md:grid-cols-2 lg:grid-cols-3 gap-3">
-               {students.map(studentName => (
-                 <button 
-                   key={studentName}
-                   onClick={() => setSelectedStudent(studentName)}
-                   className="p-4 text-left border border-slate-200 rounded-xl hover:border-[#3b5998] hover:bg-blue-50 transition-all group"
-                 >
-                   <p className="text-sm font-black text-slate-700 uppercase group-hover:text-[#3b5998]">{studentName}</p>
-                   <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 flex items-center gap-1"><Search className="w-3 h-3" /> Ver Boletim</p>
-                 </button>
-               ))}
-             </div>
-           ) : (
-             <div className="text-center py-20 bg-slate-50 border border-slate-200 border-dashed rounded-xl">
-                 <p className="text-slate-400 text-sm font-bold uppercase tracking-widest">Nenhuma turma selecionada</p>
-             </div>
-           )}
+           <div className="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden shadow-inner">
+             {studentsFiltered.length > 0 ? (
+               <div className="max-h-[600px] overflow-y-auto custom-scrollbar">
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 p-4 gap-3">
+                   {studentsFiltered.map(studentName => {
+                      const studentClass = allPossibleStudents.find(s => s.name === studentName)?.classId || 'N/A';
+                      return (
+                        <button 
+                          key={studentName}
+                          onClick={() => setSelectedStudent(studentName)}
+                          className="flex flex-col p-4 text-left bg-white border border-slate-200 rounded-2xl hover:border-[#3b5998] hover:shadow-md transition-all group active:scale-[0.98]"
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                             <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[#3b5998] group-hover:bg-[#3b5998] group-hover:text-white transition-colors">
+                               <UserIcon className="w-4 h-4" />
+                             </div>
+                             <span className="text-[9px] font-black text-[#3b5998] bg-blue-50 px-2 py-0.5 rounded-full uppercase">{studentClass}</span>
+                          </div>
+                          <p className="text-xs font-black text-slate-700 uppercase leading-tight group-hover:text-[#3b5998] transition-colors">{studentName}</p>
+                          <div className="mt-3 flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase">
+                             <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Ver Detalhes</span>
+                             <Printer className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-slate-600" />
+                          </div>
+                        </button>
+                      );
+                   })}
+                 </div>
+               </div>
+             ) : (
+               <div className="text-center py-32">
+                   <Users className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                   <p className="text-slate-400 text-sm font-black uppercase tracking-widest">Nenhum aluno encontrado</p>
+                   <p className="text-slate-300 text-[10px] font-bold uppercase mt-2">Tente ajustar seus filtros de busca</p>
+               </div>
+             )}
+           </div>
          </div>
       </motion.div>
     );
@@ -6234,24 +6289,24 @@ function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exa
   // Visualização do Boletim Múltiplo ou Individual
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-20 print:space-y-0 print:pb-0 print-container">
-      <div className="print:hidden no-print flex items-center justify-between mb-4">
+      <div className="print:hidden no-print flex items-center justify-between max-w-5xl mx-auto mb-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
         <button 
           onClick={() => setSelectedStudent(null)}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
+          className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-black uppercase hover:bg-slate-200 transition-all shadow-sm active:scale-95"
         >
           <ChevronLeft className="w-4 h-4" /> Voltar à lista
         </button>
         <button 
           onClick={handlePrint}
-          className="flex items-center gap-2 px-4 py-2 bg-[#3b5998] text-white rounded-lg text-sm font-bold hover:bg-opacity-90 transition-all shadow-sm"
+          className="flex items-center gap-2 px-6 py-2.5 bg-[#3b5998] text-white rounded-xl text-xs font-black uppercase hover:bg-opacity-95 transition-all shadow-md active:scale-95"
         >
-          <Printer className="w-4 h-4" /> Imprimir {selectedStudent === "TODOS" ? "Tudo" : "Boletim"}
+          <Printer className="w-4 h-4" /> Imprimir {selectedStudent === "TODOS" ? `Lote (${studentsFiltered.length})` : "Boletim"}
         </button>
       </div>
 
       {selectedStudent === "TODOS" ? (
         <div className="w-full h-full">
-          {students.map((student, idx) => renderBoletim(student, idx === students.length - 1))}
+          {studentsFiltered.map((student, idx) => renderBoletim(student, idx === studentsFiltered.length - 1))}
         </div>
       ) : (
         renderBoletim(selectedStudent, true)
