@@ -862,14 +862,22 @@ export default function App() {
             {view === 'diary' && <DigitalDiaryView user={user} isAdmin={isAdmin} userProfile={userProfile} />}
             {view === 'boletim' && <BoletimView results={results} exams={exams} isAdmin={isAdmin} user={user} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
           </AnimatePresence>
-          <div className="mt-16 mb-8 text-center border-t-2 border-slate-200 pt-10">
-            <div className="inline-flex flex-col items-center gap-3">
-              <div className="px-6 py-2.5 bg-slate-900 rounded-full shadow-lg shadow-slate-200 hover:scale-105 transition-transform cursor-default">
-                <p className="text-[11px] font-black uppercase tracking-[0.3em] text-white">
-                  Desenvolvido por <span className="text-accent">Antônio Carlos</span>
+          <div className="mt-20 mb-12 text-center border-t-4 border-slate-900 pt-12">
+            <div className="inline-flex flex-col items-center gap-4">
+              <div className="px-10 py-4 bg-slate-900 rounded-[2rem] shadow-2xl shadow-slate-300 hover:scale-105 transition-all transform cursor-default border-2 border-accent/20">
+                <p className="text-[13px] font-black uppercase tracking-[0.4em] text-white">
+                  Sistema de Gestão Escolar
+                </p>
+                <div className="h-px w-full bg-white/10 my-2" />
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                  Desenvolvido por <span className="text-accent text-lg ml-1 font-black underline decoration-accent/40 decoration-wavy underline-offset-4">Antônio Carlos</span>
                 </p>
               </div>
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest opacity-60">Excelência Acadêmica & Tecnologia</p>
+              <div className="flex items-center gap-3">
+                <span className="w-8 h-px bg-slate-300" />
+                <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest opacity-80">Excelência Acadêmica & Tecnologia v2.0</p>
+                <span className="w-8 h-px bg-slate-300" />
+              </div>
             </div>
           </div>
         </main>
@@ -4904,19 +4912,37 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
   const handleSaveBulkGrades = async () => {
     setSavingBulk(true);
     try {
-      const updates = Object.entries(bulkGrades).map(([key, value]) => {
+      const updates = [];
+      const errorExams = new Set();
+
+      for (const [key, value] of Object.entries(bulkGrades)) {
         const [studentName, examId] = key.split('|');
-        return {
-          exam_id: examId,
-          student_name: studentName,
-          points: value,
-          total_points: 10,
-          professor_id: user.id,
-          student_class: selectedClass,
-          bimester: selectedBimester,
-          corrected_at: new Date().toISOString()
-        };
-      });
+        const exam = exams.find(e => e.id === examId);
+        
+        // Security check for each exam in the bulk update
+        if (exam && (exam.professorId === user.id || isAdmin)) {
+          updates.push({
+            exam_id: examId,
+            student_name: studentName,
+            points: value,
+            total_points: 10,
+            professor_id: user.id,
+            student_class: selectedClass,
+            bimester: selectedBimester,
+            corrected_at: new Date().toISOString()
+          });
+        } else if (exam) {
+          errorExams.add(stripHtml(exam.title));
+        }
+      }
+
+      if (errorExams.size > 0) {
+        alert("Atenção: Você não tem permissão para editar notas das seguintes avaliações: " + Array.from(errorExams).join(', '));
+        if (updates.length === 0) {
+          setSavingBulk(false);
+          return;
+        }
+      }
 
       for (const payload of updates) {
         await supabase.from('results').upsert(payload, { onConflict: 'exam_id,student_name' });
@@ -4924,7 +4950,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
 
       setIsBulkEditing(false);
       fetchData();
-      alert("Todas as notas foram salvas com sucesso!");
+      alert("Notas salvas com sucesso!");
     } catch (err: any) {
       alert("Erro ao salvar notas: " + err.message);
     } finally {
@@ -5060,10 +5086,10 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
           <select 
             value={selectedSubject} 
             onChange={e => setSelectedSubject(e.target.value)}
-            className="w-full md:w-48 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
+            className="w-full md:w-64 bg-white border-2 border-slate-300 rounded-xl px-4 py-3 text-sm font-black text-slate-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all shadow-md cursor-pointer appearance-none"
           >
-            <option value="">Selecione a Disciplina</option>
-            {(isAdmin ? subjects : (userProfile?.assigned_subjects || [])).map(s => <option key={s} value={s}>{s}</option>)}
+            <option value="" className="font-bold text-slate-400">SELECIONE A DISCIPLINA</option>
+            {(isAdmin ? subjects : (userProfile?.assigned_subjects || [])).map(s => <option key={s} value={s} className="font-black">{s.toUpperCase()}</option>)}
           </select>
           <select 
             value={selectedBimester} 
