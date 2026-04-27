@@ -6037,7 +6037,11 @@ function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exa
 
   const renderBoletim = (studentName: string, isLast: boolean = false) => {
     const studentResults = results.filter(r => r.studentName === studentName);
-    const subjects = Array.from(new Set(exams.map(e => stripHtml(e.subject))));
+    let subjects = Array.from(new Set(exams.map(e => stripHtml(e.subject))));
+
+    if (!isAdmin && userProfile?.assigned_subjects) {
+      subjects = subjects.filter(s => userProfile.assigned_subjects.includes(s));
+    }
 
     return (
       <div key={studentName} className={cn("bg-white border text-black border-slate-300 print:border-none p-4 md:p-12 print:p-0 w-full max-w-5xl mx-auto shadow-sm print:shadow-none mb-8 print:mb-0 print:min-h-[297mm] print-avoid-break", isLast ? "" : "print:break-after-page")}>
