@@ -32,6 +32,7 @@ import {
   Edit3,
   Save,
   Search,
+  Filter,
   Mail,
   ChevronDown,
   ExternalLink,
@@ -1093,6 +1094,7 @@ const EXAM_CATEGORIES = [
   'PIII', 
   'PIV', 
   'PV', 
+  'PVI', 
   'Recuperação Bimestral', 
   'Recuperação Final',
   'Trabalho',
@@ -1424,20 +1426,6 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
   };
 
   const [newCustomSubject, setNewCustomSubject] = useState('');
-
-  const handlePromoteClasses = () => {
-    const currentClasses = configuringUser.assigned_classes || [];
-    const promoted = currentClasses.map((cls: string) => {
-      const match = cls.match(/^(\d+)(.*)$/);
-      if (match) {
-        const num = parseInt(match[1]);
-        const rest = match[2];
-        return `${num + 1}${rest}`;
-      }
-      return cls;
-    });
-    setConfiguringUser({ ...configuringUser, assigned_classes: Array.from(new Set(promoted)) });
-  };
 
   const handleSave = async () => {
     if (!title) { setValidationError('O título da prova é obrigatório.'); return; }
@@ -4639,6 +4627,18 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
   const [bulkGrades, setBulkGrades] = useState<Record<string, number>>({});
   const [savingBulk, setSavingBulk] = useState(false);
   const [showOnlyBelowAverage, setShowOnlyBelowAverage] = useState(false);
+  const [showOnlyBelowAvgMain, setShowOnlyBelowAvgMain] = useState(false);
+
+  const calculateStudentBaseAvg = (studentName: string) => {
+    const studentResults = results.filter(r => r.studentName === studentName);
+    const regularResults = studentResults.filter(r => {
+      const ex = exams.find(e => e.id === r.examId);
+      return ex && ex.examType !== 'Recuperação Bimestral' && ex.examType !== 'Recuperação Final';
+    });
+    return regularResults.length > 0 
+      ? regularResults.reduce((acc, r) => acc + (Number(r.score) / r.maxScore * 10), 0) / regularResults.length
+      : 0;
+  };
 
   const isAuthorized = (cls: string = selectedClass, sub: string = selectedSubject) => {
     if (isAdmin) return true;
@@ -4954,6 +4954,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
     setSavingBulk(true);
     try {
       const updates = [];
+      const deletions = [];
       const errorExams = new Set();
 
       for (const [key, value] of Object.entries(bulkGrades)) {
@@ -4961,8 +4962,15 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
         const exam = exams.find(e => e.id === examId);
         const existingResult = results.find(r => r.examId === examId && r.studentName === studentName);
         
-        // Security check for each exam in the bulk update
         if (exam && isAuthorized(exam.classYear, exam.subject)) {
+          // If value is empty, mark for deletion
+          if (value === null || value === undefined || value === "") {
+            if (existingResult?.id) {
+              deletions.push(existingResult.id);
+            }
+            continue;
+          }
+
           updates.push({
             ...(existingResult?.id ? { id: existingResult.id } : {}),
             exam_id: examId,
@@ -4980,13 +4988,18 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
 
       if (errorExams.size > 0) {
         alert("Atenção: Você não tem permissão para editar notas das seguintes avaliações: " + Array.from(errorExams).join(', '));
-        if (updates.length === 0) {
+        if (updates.length === 0 && deletions.length === 0) {
           setSavingBulk(false);
           return;
         }
       }
 
-      // Upsert results individually to catch specific errors
+      // Handle deletions
+      if (deletions.length > 0) {
+        await supabase.from('results').delete().in('id', deletions);
+      }
+
+      // Upsert results
       for (const payload of updates) {
         const { error } = await supabase
           .from('results')
@@ -4999,8 +5012,9 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
       }
 
       setIsBulkEditing(false);
+      setBulkGrades({});
       fetchData();
-      alert("Todas as notas foram salvas com sucesso no banco de dados!");
+      alert("Todas as notas foram salvas com sucesso!");
     } catch (err: any) {
       console.error("Erro fatal ao salvar bulk:", err);
       alert("ERRO CRÍTICO AO SALVAR: " + err.message);
@@ -5093,19 +5107,35 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
 
     setSavingGrades(true);
     try {
-      const payloads = students.map(student => {
+      const payloads = [];
+      const deletions = [];
+
+      for (const student of students) {
         const existingResult = results.find(r => r.examId === launchingGradesFor.id && r.studentName === student.name);
-        return {
+        const inputValue = gradeInputs[student.name];
+
+        if (inputValue === undefined || inputValue === null || inputValue === "") {
+          if (existingResult?.id) {
+            deletions.push(existingResult.id);
+          }
+          continue;
+        }
+
+        payloads.push({
           ...(existingResult?.id ? { id: existingResult.id } : {}),
           exam_id: launchingGradesFor.id,
           professor_id: user.id,
           student_name: student.name,
-          points: gradeInputs[student.name] !== undefined ? Number(gradeInputs[student.name]) : 0,
+          points: Number(inputValue),
           total_points: 10,
           corrected_at: new Date().toISOString(),
           student_class: selectedClass
-        };
-      });
+        });
+      }
+
+      if (deletions.length > 0) {
+        await supabase.from('results').delete().in('id', deletions);
+      }
 
       // Upsert results
       for (const payload of payloads) {
@@ -5129,6 +5159,19 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
       setSavingGrades(false);
     }
   };
+
+  const displayRegularExams = exams.filter(e => e.examType !== 'Recuperação Bimestral' && e.examType !== 'Recuperação Final');
+  const displayRecoveryExams = exams.filter(e => e.examType === 'Recuperação Bimestral' || e.examType === 'Recuperação Final');
+
+  const examSortOrder = ['PI', 'PII', 'PIII', 'PIV', 'PV', 'PVI', 'Trabalho', 'Simulado', 'Atividade'];
+  const sortedRegularExams = [...displayRegularExams].sort((a, b) => {
+    const idxA = examSortOrder.indexOf(a.examType);
+    const idxB = examSortOrder.indexOf(b.examType);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.title.localeCompare(b.title);
+  });
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-20 text-left bg-white min-h-screen text-slate-800 font-sans">
@@ -5386,6 +5429,13 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                     <h3 className="font-black text-slate-900 text-base tracking-tight uppercase">QUADRO CONSOLIDADO (BOLETIM PRÉVIA)</h3>
                   </div>
                   <div className="flex gap-2">
+                    <button 
+                      onClick={() => setShowOnlyBelowAvgMain(!showOnlyBelowAvgMain)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${showOnlyBelowAvgMain ? 'bg-red-600 text-white shadow-lg ring-2 ring-red-100' : 'bg-white text-slate-700 border border-slate-200 hover:border-red-400 hover:text-red-600'}`}
+                    >
+                      <Filter className="w-3.5 h-3.5" />
+                      {showOnlyBelowAvgMain ? 'Vendo Recuperação' : 'Filtro Recuperação'}
+                    </button>
                     {isBulkEditing ? (
                       <>
                         <button 
@@ -5433,86 +5483,120 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                     <thead>
                       <tr className="bg-slate-900 border-b-2 border-slate-800">
                         <th className="p-5 text-xs font-black text-white text-left uppercase sticky left-0 bg-slate-900 z-10 w-80 border-r border-white/10 tracking-widest">Aluno</th>
-                        {exams.map(exam => (
+                        {sortedRegularExams.map(exam => (
                            <th key={exam.id} className="p-5 text-xs font-black text-white text-center uppercase min-w-[130px] border-r border-white/10 tracking-widest leading-tight">
                              {stripHtml(exam.title)}
                            </th>
                         ))}
-                        <th className="p-5 text-xs font-black text-slate-300 text-center uppercase bg-slate-800 tracking-widest border-r border-white/10">Média Base</th>
-                        <th className="p-5 text-xs font-black text-accent text-center uppercase bg-slate-800 tracking-widest">Média Final</th>
+                        <th className="p-5 text-xs font-black text-slate-300 text-center uppercase bg-slate-800 tracking-widest border-r border-white/10">Média</th>
+                        {displayRecoveryExams.map(exam => (
+                           <th key={exam.id} className="p-5 text-xs font-black text-red-400 text-center uppercase min-w-[130px] border-r border-white/10 tracking-widest leading-tight">
+                             {stripHtml(exam.title)}
+                           </th>
+                        ))}
+                        <th className="p-5 text-xs font-black text-accent text-center uppercase bg-slate-800 tracking-widest">Nota Final</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
-                      {students.map(student => {
-                        const studentResults = results.filter(r => r.studentName === student.name);
-                        
-                        // Separate Regular Exams from Recovery
-                        const regularResults = studentResults.filter(r => {
-                          const exam = exams.find(e => e.id === r.examId);
-                          return exam && exam.examType !== 'Recuperação Bimestral';
-                        });
-                        
-                        const recoveryResult = studentResults.find(r => {
-                          const exam = exams.find(e => e.id === r.examId);
-                          return exam && exam.examType === 'Recuperação Bimestral';
-                        });
+                      {students
+                        .filter(student => !showOnlyBelowAvgMain || calculateStudentBaseAvg(student.name) < 6)
+                        .map(student => {
+                          const studentResults = results.filter(r => r.studentName === student.name);
+                          
+                          // Separate Regular Exams from Recovery
+                          const regularResults = studentResults.filter(r => {
+                            const exam = exams.find(e => e.id === r.examId);
+                            return exam && exam.examType !== 'Recuperação Bimestral' && exam.examType !== 'Recuperação Final';
+                          });
+                          
+                          const recoveryResult = studentResults.find(r => {
+                            const exam = exams.find(e => e.id === r.examId);
+                            return exam && (exam.examType === 'Recuperação Bimestral' || exam.examType === 'Recuperação Final');
+                          });
 
-                        // Base Average (Regular Exams)
-                        const baseAvg = regularResults.length > 0 
-                          ? (regularResults.reduce((acc, r) => acc + (Number(r.score) / r.maxScore * 10), 0) / regularResults.length)
-                          : 0;
-                        
-                        // Final Bimonthly Grade with Recovery formula
-                        // (Average + Recovery) / 2
-                        let finalBimesterGrade = baseAvg;
-                        if (recoveryResult) {
-                          const recoveryScore = (recoveryResult.score / recoveryResult.maxScore * 10);
-                          finalBimesterGrade = (baseAvg + recoveryScore) / 2;
-                        }
+                          // Base Average (Regular Exams)
+                          const baseAvg = regularResults.length > 0 
+                            ? (regularResults.reduce((acc, r) => acc + (Number(r.score) / r.maxScore * 10), 0) / regularResults.length)
+                            : 0;
+                          
+                          // Final Bimonthly Grade with Recovery formula
+                          let finalBimesterGrade = baseAvg;
+                          if (recoveryResult) {
+                            const recoveryScore = (recoveryResult.score / recoveryResult.maxScore * 10);
+                            finalBimesterGrade = (baseAvg + recoveryScore) / 2;
+                          }
 
-                        const avgDisplay = baseAvg.toFixed(1);
-                        const finalDisplay = finalBimesterGrade.toFixed(1);
-                        
-                        return (
-                          <tr key={student.name} className="hover:bg-slate-50 transition-colors group">
-                            <td className="p-5 font-black text-slate-900 text-sm uppercase sticky left-0 bg-white border-r-2 border-slate-100 shadow-[3px_0_15px_rgba(0,0,0,0.1)] flex justify-between items-center min-w-[320px]">
-                              <span className="truncate pr-4 leading-relaxed tracking-tight">{student.name}</span>
-                              {!isBulkEditing && (
-                                <button onClick={() => showStudentDetails(student.name)} className="text-accent hover:scale-125 transition-all opacity-0 group-hover:opacity-100" title="Ver Histórico">
-                                  <Search className="w-4 h-4 shadow-sm" />
-                                </button>
-                              )}
-                            </td>
-                            {exams.map(exam => {
-                                const res = studentResults.find(r => r.examId === exam.id);
-                                const normalizedScore = res ? (res.score / res.maxScore * 10) : null;
-                                const key = `${student.name}|${exam.id}`;
-                                
-                                return (
-                                  <td key={exam.id} className="p-5 text-center text-sm font-black border-r border-slate-100">
-                                    {isBulkEditing ? (
-                                      <input 
-                                        type="number"
-                                        step="0.1"
-                                        min="0"
-                                        max="10"
-                                        value={bulkGrades[key] !== undefined ? bulkGrades[key] : (normalizedScore || '')}
-                                        onChange={e => setBulkGrades({...bulkGrades, [key]: parseFloat(e.target.value) || 0})}
-                                        className="w-16 bg-slate-50 border-2 border-slate-200 rounded-lg p-1 text-center font-black focus:border-accent outline-none"
-                                      />
-                                    ) : (
-                                      <span className={normalizedScore !== null ? (normalizedScore >= 6 ? (exam.examType === 'Recuperação Bimestral' ? 'text-purple-600' : 'text-blue-700') : 'text-red-600') : 'text-slate-300 font-bold'}>
-                                        {normalizedScore !== null ? normalizedScore.toFixed(1).replace('.', ',') : '-'}
-                                      </span>
-                                    )}
-                                  </td>
-                                );
-                            })}
-                            <td className="p-5 text-center text-sm font-black bg-slate-50 border-x border-slate-200">
-                              <span className={Number(avgDisplay) >= 6 ? 'text-blue-800' : 'text-red-700'}>
-                                {avgDisplay.replace('.', ',')}
-                              </span>
-                            </td>
+                          const avgDisplay = baseAvg.toFixed(1);
+                          const finalDisplay = finalBimesterGrade.toFixed(1);
+                          const isEligible = baseAvg < 6;
+                          
+                          return (
+                            <tr key={student.name} className="hover:bg-slate-50 transition-colors group">
+                              <td className="p-5 font-black text-slate-900 text-sm uppercase sticky left-0 bg-white border-r-2 border-slate-100 shadow-[3px_0_15px_rgba(0,0,0,0.1)] flex justify-between items-center min-w-[320px]">
+                                <span className="truncate pr-4 leading-relaxed tracking-tight">{student.name}</span>
+                                {!isBulkEditing && (
+                                  <button onClick={() => showStudentDetails(student.name)} className="text-accent hover:scale-125 transition-all opacity-0 group-hover:opacity-100" title="Ver Histórico">
+                                    <Search className="w-4 h-4 shadow-sm" />
+                                  </button>
+                                )}
+                              </td>
+                              {sortedRegularExams.map(exam => {
+                                  const res = studentResults.find(r => r.examId === exam.id);
+                                  const normalizedScore = res ? (res.score / res.maxScore * 10) : null;
+                                  const key = `${student.name}|${exam.id}`;
+                                  
+                                  return (
+                                    <td key={exam.id} className="p-5 text-center text-sm font-black border-r border-slate-100">
+                                      {isBulkEditing ? (
+                                        <input 
+                                          type="number"
+                                          step="0.1"
+                                          min="0"
+                                          max="10"
+                                          value={bulkGrades[key] !== undefined ? bulkGrades[key] : (normalizedScore !== null ? normalizedScore : '')}
+                                          onChange={e => setBulkGrades({...bulkGrades, [key]: e.target.value})}
+                                          className="w-16 bg-slate-50 border-2 border-slate-200 rounded-lg p-1 text-center font-black focus:border-accent outline-none"
+                                        />
+                                      ) : (
+                                        <span className={normalizedScore !== null ? (normalizedScore >= 6 ? 'text-blue-700' : 'text-red-600') : 'text-slate-300 font-bold'}>
+                                          {normalizedScore !== null ? normalizedScore.toFixed(1).replace('.', ',') : '-'}
+                                        </span>
+                                      )}
+                                    </td>
+                                  );
+                              })}
+                              <td className="p-5 text-center text-sm font-black bg-slate-50 border-x border-slate-200">
+                                <span className={Number(avgDisplay) >= 6 ? 'text-blue-800' : 'text-red-700'}>
+                                  {avgDisplay.replace('.', ',')}
+                                </span>
+                              </td>
+                              {displayRecoveryExams.map(exam => {
+                                  const res = studentResults.find(r => r.examId === exam.id);
+                                  const normalizedScore = res ? (res.score / res.maxScore * 10) : null;
+                                  const key = `${student.name}|${exam.id}`;
+                                  
+                                  return (
+                                    <td key={exam.id} className={`p-5 text-center text-sm font-black border-r border-slate-100 bg-red-50/30 ${!isEligible ? 'opacity-30' : ''}`}>
+                                      {isBulkEditing ? (
+                                        <input 
+                                          type="number"
+                                          step="0.1"
+                                          min="0"
+                                          max="10"
+                                          disabled={!isEligible}
+                                          value={bulkGrades[key] !== undefined ? bulkGrades[key] : (normalizedScore !== null ? normalizedScore : '')}
+                                          onChange={e => setBulkGrades({...bulkGrades, [key]: e.target.value})}
+                                          placeholder={!isEligible ? 'N/A' : ''}
+                                          className="w-16 bg-white border-2 border-slate-200 rounded-lg p-1 text-center font-black focus:border-accent outline-none disabled:bg-slate-200"
+                                        />
+                                      ) : (
+                                        <span className={normalizedScore !== null ? (normalizedScore >= 6 ? 'text-purple-600' : 'text-red-600') : 'text-slate-300 font-bold'}>
+                                          {normalizedScore !== null ? normalizedScore.toFixed(1).replace('.', ',') : (isEligible ? '-' : '—')}
+                                        </span>
+                                      )}
+                                    </td>
+                                  );
+                              })}
                             <td className="p-5 text-center text-base font-black bg-blue-50/50">
                               <span className={Number(finalDisplay) >= 6 ? 'text-blue-900 underline decoration-2 underline-offset-4' : 'text-red-800 underline decoration-2 underline-offset-4'}>
                                 {finalDisplay.replace('.', ',')}
@@ -5677,10 +5761,10 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                                 step="0.1"
                                 min="0"
                                 max="10"
-                                disabled={!isAuthorized(launchingGradesFor.classYear, launchingGradesFor.subject)}
-                                value={gradeInputs[student.name] || ''}
-                                onChange={e => setGradeInputs({...gradeInputs, [student.name]: parseFloat(e.target.value) || 0})}
-                                placeholder="0,0"
+                                disabled={!isAuthorized(launchingGradesFor.classYear, launchingGradesFor.subject) || ((launchingGradesFor.examType === 'Recuperação Bimestral' || launchingGradesFor.examType === 'Recuperação Final') && currentAvg >= 6)}
+                                value={gradeInputs[student.name] !== undefined ? gradeInputs[student.name] : ''}
+                                onChange={e => setGradeInputs({...gradeInputs, [student.name]: e.target.value})}
+                                placeholder={((launchingGradesFor.examType === 'Recuperação Bimestral' || launchingGradesFor.examType === 'Recuperação Final') && currentAvg >= 6) ? 'N/A' : '0,0'}
                                 className="w-full bg-slate-100 border-2 border-transparent focus:border-accent focus:bg-white rounded-xl px-4 py-2 text-center text-lg font-black text-slate-900 outline-none transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-inner"
                               />
                           </td>
