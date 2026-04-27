@@ -191,6 +191,7 @@ interface StudentReport {
   subject: string;
   content: string;
   professorId: string;
+  professorName?: string;
   bimester: string;
   createdAt: any;
   updatedAt: any;
@@ -624,7 +625,11 @@ export default function App() {
     };
 
     const fetchStudentReports = async () => {
-      let query = supabase.from('student_reports').select('*').order('created_at', { ascending: false });
+      let query = supabase.from('student_reports').select(`
+        *,
+        users:professor_id ( professional_name )
+      `).order('created_at', { ascending: false });
+      
       if (!isAdmin) {
         query = query.eq('professor_id', user.id);
       }
@@ -637,6 +642,7 @@ export default function App() {
           subject: r.subject,
           content: r.report_text,
           professorId: r.professor_id,
+          professorName: (r as any).users?.professional_name || 'Professor não identificado',
           bimester: r.bimester,
           createdAt: r.created_at,
           updatedAt: r.updated_at
@@ -4005,19 +4011,41 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
     }
   };
 
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredReports = useMemo(() => {
+    return reports.filter(r => {
+      const matchesSearch = r.studentName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            r.studentClass.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            r.subject.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesSearch;
+    });
+  }, [reports, searchQuery]);
+
   return (
     <div className="space-y-8 max-w-5xl mx-auto pb-20">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h2 className="text-xl font-bold text-primary">Relatórios Individuais do Aluno</h2>
-        {isAdmin && (
-          <button 
-            onClick={() => onPrintAll(reports)} 
-            className="bg-accent text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-accent/90 shadow-sm"
-          >
-            <Printer className="w-4 h-4" />
-            Imprimir Todos ({reports.length})
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {isAdmin && filteredReports.length > 0 && searchQuery.length > 2 && (
+            <button 
+              onClick={() => onPrintAll(filteredReports)} 
+              className="bg-accent text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-accent/90 shadow-sm transition-all"
+            >
+              <Printer className="w-4 h-4" />
+              Imprimir Consolidado ({filteredReports.length})
+            </button>
+          )}
+          {isAdmin && searchQuery === '' && (
+            <button 
+              onClick={() => onPrintAll(reports)} 
+              className="bg-slate-800 text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-slate-900 shadow-sm transition-all"
+            >
+              <Printer className="w-4 h-4" />
+              Imprimir Tudo ({reports.length})
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-white p-6 rounded-lg border border-border shadow-sm space-y-6">
@@ -4106,8 +4134,18 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
       </div>
 
       <div className="bg-white rounded-lg border border-border overflow-hidden shadow-sm">
-        <div className="px-5 py-4 border-b border-border bg-slate-50">
-          <h3 className="text-base font-bold text-primary">Meus Relatórios Enviados</h3>
+        <div className="px-5 py-4 border-b border-border bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <h3 className="text-base font-bold text-primary">Relatórios Enviados</h3>
+          <div className="relative w-full md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Buscar por aluno, turma ou disciplina..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-border rounded-md text-sm outline-none focus:border-accent bg-white"
+            />
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm text-left">
@@ -4115,18 +4153,20 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
               <tr className="bg-slate-50/50">
                 <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider">Aluno</th>
                 <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider">Turma</th>
-                <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider">Disciplina</th>
+                {isAdmin && <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider font-mono">Professor</th>}
+                <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider border-l border-slate-100">Disciplina</th>
                 <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider">Bimestre</th>
                 <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider font-mono">Data</th>
                 <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {reports.map(r => (
+              {filteredReports.map(r => (
                 <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-5 py-4 font-bold text-slate-700">{r.studentName}</td>
                   <td className="px-5 py-4 text-slate-600 font-mono text-xs">{r.studentClass}</td>
-                  <td className="px-5 py-4 text-slate-600 font-bold">{r.subject}</td>
+                  {isAdmin && <td className="px-5 py-4 text-slate-500 text-[11px] font-medium leading-tight max-w-[120px]">{r.professorName}</td>}
+                  <td className="px-5 py-4 text-slate-600 font-bold border-l border-slate-100">{r.subject}</td>
                   <td className="px-5 py-4">
                     <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase whitespace-nowrap">{r.bimester}</span>
                   </td>
@@ -4220,7 +4260,11 @@ function StudentReportPrintView({ reports, onBack }: { reports: StudentReport[],
                 <label className="block text-[10px] font-black text-primary uppercase mb-1">Turma:</label>
                 <div className="font-black text-primary text-xl uppercase tracking-widest">{report.studentClass}</div>
               </div>
-              <div className="bg-white p-4 col-span-2 border-t border-slate-100">
+              <div className="bg-white p-4">
+                <label className="block text-[10px] font-black text-primary uppercase mb-1">Disciplina:</label>
+                <div className="font-bold text-slate-800 text-sm">{report.subject}</div>
+              </div>
+              <div className="bg-white p-4">
                 <label className="block text-[10px] font-black text-primary uppercase mb-1">Data da Emissão:</label>
                 <div className="text-sm font-bold text-slate-700">{new Date(report.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
               </div>
@@ -4238,10 +4282,12 @@ function StudentReportPrintView({ reports, onBack }: { reports: StudentReport[],
             {/* Footer Signatures */}
             <div className="mt-20 pt-16 grid grid-cols-2 gap-20">
               <div className="border-t-2 border-slate-300 pt-4 text-center">
-                <div className="text-xs font-black text-slate-700 uppercase tracking-widest">Professor(a) Responsável</div>
+                <div className="text-sm font-bold text-slate-800 uppercase mb-1">{report.professorName}</div>
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Professor(a) Responsável</div>
               </div>
               <div className="border-t-2 border-slate-300 pt-4 text-center">
-                <div className="text-xs font-black text-slate-700 uppercase tracking-widest">Coordenação Pedagógica</div>
+                <div className="text-sm font-bold text-slate-300 uppercase mb-1 invisible">Coordenação</div>
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coordenação Pedagógica</div>
               </div>
             </div>
 
