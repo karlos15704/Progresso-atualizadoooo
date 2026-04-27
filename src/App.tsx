@@ -3994,8 +3994,8 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
     const search = studentSearch.toLowerCase();
     const list: { name: string, year: string }[] = [];
     
-    Object.entries(schoolInfo.studentsDB).forEach(([year, students]) => {
-      students.forEach(s => {
+    Object.entries(schoolInfo.studentsDB).forEach(([year, students]: [string, any]) => {
+      students.forEach((s: any) => {
         if (s.name.toLowerCase().includes(search)) {
           list.push({ name: s.name, year });
         }
@@ -4952,7 +4952,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
           updates.push({
             exam_id: examId,
             student_name: studentName,
-            points: value,
+            points: Number(value),
             total_points: 10,
             professor_id: user.id,
             student_class: selectedClass,
@@ -4972,15 +4972,26 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
         }
       }
 
+      // Upsert results individually to catch specific errors
       for (const payload of updates) {
-        await supabase.from('results').upsert(payload, { onConflict: 'exam_id,student_name' });
+        const { error } = await supabase
+          .from('results')
+          .upsert(payload, { 
+            onConflict: 'exam_id,student_name' 
+          });
+          
+        if (error) {
+          console.error("Erro no upsert bulk:", error);
+          throw new Error(`Falha ao salvar nota de ${payload.student_name}: ${error.message}`);
+        }
       }
 
       setIsBulkEditing(false);
       fetchData();
-      alert("Notas salvas com sucesso!");
+      alert("Todas as notas foram salvas com sucesso no banco de dados!");
     } catch (err: any) {
-      alert("Erro ao salvar notas: " + err.message);
+      console.error("Erro fatal ao salvar bulk:", err);
+      alert("ERRO CRÍTICO AO SALVAR: " + err.message);
     } finally {
       setSavingBulk(false);
     }
@@ -5064,11 +5075,13 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
     // Apenas o professor responsável ou admin
     if (launchingGradesFor.professorId !== user.id && !isAdmin) {
       alert("Acesso Negado: Apenas o professor responsável por esta avaliação pode lançar ou editar as notas.");
+      setSavingGrades(false);
       return;
     }
 
     if (!isAuthorized(launchingGradesFor.classYear, launchingGradesFor.subject)) {
-      alert("Acesso Negado: Você não está atribuído a esta disciplina e turma.");
+      alert("Acesso Negado: Você não está atribuído a esta disciplina e turma nesta sala.");
+      setSavingGrades(false);
       return;
     }
 
@@ -5078,14 +5091,14 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
         exam_id: launchingGradesFor.id,
         professor_id: user.id,
         student_name: student.name,
-        points: gradeInputs[student.name] || 0,
+        points: gradeInputs[student.name] !== undefined ? Number(gradeInputs[student.name]) : 0,
         total_points: 10,
         corrected_at: new Date().toISOString(),
         student_class: selectedClass,
         bimester: launchingGradesFor.bimester || selectedBimester
       }));
 
-      // Upsert results individually to ensure conflict resolution works correctly
+      // Upsert results
       for (const payload of payloads) {
         const { error } = await supabase
           .from('results')
@@ -5095,7 +5108,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
           
         if (error) {
           console.error("Erro no upsert:", error);
-          throw error;
+          throw new Error(`Falha ao salvar nota de ${payload.student_name}: ${error.message}`);
         }
       }
       
@@ -5103,6 +5116,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
       fetchData();
       alert("Notas salvas com sucesso!");
     } catch (err: any) {
+      console.error("Erro completo ao salvar:", err);
       alert("Erro ao salvar notas: " + err.message);
     } finally {
       setSavingGrades(false);
@@ -5417,15 +5431,40 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                              {stripHtml(exam.title)}
                            </th>
                         ))}
-                        <th className="p-5 text-xs font-black text-accent text-center uppercase bg-slate-800 tracking-widest">Média Bimestral</th>
+                        <th className="p-5 text-xs font-black text-slate-300 text-center uppercase bg-slate-800 tracking-widest border-r border-white/10">Média Base</th>
+                        <th className="p-5 text-xs font-black text-accent text-center uppercase bg-slate-800 tracking-widest">Média Final</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
                       {students.map(student => {
                         const studentResults = results.filter(r => r.studentName === student.name);
-                        const avg = studentResults.length > 0 
-                          ? (studentResults.reduce((acc, r) => acc + (Number(r.score) / r.maxScore * 10), 0) / studentResults.length).toFixed(1)
-                          : '0.0';
+                        
+                        // Separate Regular Exams from Recovery
+                        const regularResults = studentResults.filter(r => {
+                          const exam = exams.find(e => e.id === r.examId);
+                          return exam && exam.examType !== 'Recuperação Bimestral';
+                        });
+                        
+                        const recoveryResult = studentResults.find(r => {
+                          const exam = exams.find(e => e.id === r.examId);
+                          return exam && exam.examType === 'Recuperação Bimestral';
+                        });
+
+                        // Base Average (Regular Exams)
+                        const baseAvg = regularResults.length > 0 
+                          ? (regularResults.reduce((acc, r) => acc + (Number(r.score) / r.maxScore * 10), 0) / regularResults.length)
+                          : 0;
+                        
+                        // Final Bimonthly Grade with Recovery formula
+                        // (Average + Recovery) / 2
+                        let finalBimesterGrade = baseAvg;
+                        if (recoveryResult) {
+                          const recoveryScore = (recoveryResult.score / recoveryResult.maxScore * 10);
+                          finalBimesterGrade = (baseAvg + recoveryScore) / 2;
+                        }
+
+                        const avgDisplay = baseAvg.toFixed(1);
+                        const finalDisplay = finalBimesterGrade.toFixed(1);
                         
                         return (
                           <tr key={student.name} className="hover:bg-slate-50 transition-colors group">
@@ -5455,16 +5494,21 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                                         className="w-16 bg-slate-50 border-2 border-slate-200 rounded-lg p-1 text-center font-black focus:border-accent outline-none"
                                       />
                                     ) : (
-                                      <span className={normalizedScore !== null ? (normalizedScore >= 6 ? 'text-blue-700' : 'text-red-600') : 'text-slate-300 font-bold'}>
+                                      <span className={normalizedScore !== null ? (normalizedScore >= 6 ? (exam.examType === 'Recuperação Bimestral' ? 'text-purple-600' : 'text-blue-700') : 'text-red-600') : 'text-slate-300 font-bold'}>
                                         {normalizedScore !== null ? normalizedScore.toFixed(1).replace('.', ',') : '-'}
                                       </span>
                                     )}
                                   </td>
                                 );
                             })}
-                            <td className="p-5 text-center text-sm font-black bg-blue-50/50">
-                              <span className={Number(avg) >= 6 ? 'text-blue-800 underline decoration-2 underline-offset-4' : 'text-red-700 underline decoration-2 underline-offset-4'}>
-                                {avg.replace('.', ',')}
+                            <td className="p-5 text-center text-sm font-black bg-slate-50 border-x border-slate-200">
+                              <span className={Number(avgDisplay) >= 6 ? 'text-blue-800' : 'text-red-700'}>
+                                {avgDisplay.replace('.', ',')}
+                              </span>
+                            </td>
+                            <td className="p-5 text-center text-base font-black bg-blue-50/50">
+                              <span className={Number(finalDisplay) >= 6 ? 'text-blue-900 underline decoration-2 underline-offset-4' : 'text-red-800 underline decoration-2 underline-offset-4'}>
+                                {finalDisplay.replace('.', ',')}
                               </span>
                             </td>
                           </tr>
@@ -5755,13 +5799,15 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
   );
 }
 
-function BoletimView({ results, exams, user }: { results: Result[], exams: Exam[], isAdmin: boolean, user: User, onRefresh: () => void }) {
+function BoletimView({ results, exams, user, isAdmin }: { results: Result[], exams: Exam[], isAdmin: boolean, user: User, onRefresh: () => void }) {
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
   
   const schoolInfo = getSchoolInfo();
   const classes = schoolInfo.classes;
   const bimesters = ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'];
+
+  const userProfile = (window as any).__USER_PROFILE__;
 
   const allPossibleStudents = Object.values(schoolInfo.studentsDB).flat();
   const students = selectedClass 
@@ -5838,27 +5884,57 @@ function BoletimView({ results, exams, user }: { results: Result[], exams: Exam[
                  <tr><td colSpan={6} className="p-4 text-center text-xs italic">Nenhuma disciplina avaliada.</td></tr>
               )}
               {subjects.map(subject => {
-                const rowBim = bimesters.map(bim => {
-                  const resultsSubjectPath = studentResults.filter(r => r.bimester === bim);
-                  const bimScoresObj = resultsSubjectPath.filter(r => {
-                     const ex = exams.find(e => e.id === r.examId);
-                     return ex && stripHtml(ex.subject) === subject;
+                const rowBimFinals: (number | null)[] = bimesters.map(bim => {
+                  const subjectBimResults = studentResults.filter(r => {
+                      const ex = exams.find(e => e.id === r.examId);
+                      return r.bimester === bim && ex && stripHtml(ex.subject) === subject;
                   });
                   
-                  if (bimScoresObj.length === 0) return null;
-                  const bimAvg = bimScoresObj.reduce((acc, r) => acc + ((r.score / r.maxScore) * 10), 0) / bimScoresObj.length;
-                  return bimAvg;
+                  if (subjectBimResults.length === 0) return null;
+
+                  // Separate Regular from Recovery
+                  const regular = subjectBimResults.filter(r => {
+                    const ex = exams.find(e => e.id === r.examId);
+                    return ex && ex.examType !== 'Recuperação Bimestral';
+                  });
+                  const recovery = subjectBimResults.find(r => {
+                    const ex = exams.find(e => e.id === r.examId);
+                    return ex && ex.examType === 'Recuperação Bimestral';
+                  });
+
+                  const baseAvg = regular.length > 0
+                    ? regular.reduce((acc, r) => acc + ((r.score / r.maxScore) * 10), 0) / regular.length
+                    : 0;
+                  
+                  if (recovery) {
+                    const recScore = (recovery.score / recovery.maxScore) * 10;
+                    return (baseAvg + recScore) / 2;
+                  }
+                  
+                  return baseAvg;
                 });
 
-                const bimsComNota = rowBim.filter(b => b !== null) as number[];
-                const mediaFinal = bimsComNota.length > 0 
-                  ? bimsComNota.reduce((acc, curr) => acc + curr, 0) / 4 // MEC usually divides by 4 for the final average
+                // Recuperação Final
+                const yearRecovery = studentResults.find(r => {
+                  const ex = exams.find(e => e.id === r.examId);
+                  return ex && stripHtml(ex.subject) === subject && ex.examType === 'Recuperação Final';
+                });
+
+                const bimsComNota = rowBimFinals.filter(b => b !== null) as number[];
+                const mediaAnualBase = bimsComNota.length > 0 
+                  ? bimsComNota.reduce((acc, curr) => (acc || 0) + (curr || 0), 0) / 4 
                   : 0;
+
+                let mediaFinalTotal = mediaAnualBase;
+                if (yearRecovery) {
+                   const recFinalScore = (yearRecovery.score / yearRecovery.maxScore) * 10;
+                   mediaFinalTotal = (mediaAnualBase + recFinalScore) / 2;
+                }
 
                 return (
                   <tr key={subject}>
                     <td className="border-r border-black p-2 pl-3 text-[11px] font-black uppercase">{stripHtml(subject)}</td>
-                    {rowBim.map((avg, i) => (
+                    {rowBimFinals.map((avg, i) => (
                       <td key={i} className="border-r border-black p-2 text-center text-[13px] font-bold">
                          {avg !== null ? (
                            <span>{avg.toFixed(1).replace('.', ',')}</span>
@@ -5867,7 +5943,9 @@ function BoletimView({ results, exams, user }: { results: Result[], exams: Exam[
                     ))}
                     <td className="border-black p-2 text-center text-[14px] font-black bg-slate-50">
                       {bimsComNota.length > 0 ? (
-                         <span>{mediaFinal.toFixed(1).replace('.', ',')}</span>
+                         <span className={mediaFinalTotal >= 6 ? 'text-blue-900' : 'text-red-700'}>
+                           {mediaFinalTotal.toFixed(1).replace('.', ',')}
+                         </span>
                       ) : '-'}
                     </td>
                   </tr>
@@ -5880,7 +5958,7 @@ function BoletimView({ results, exams, user }: { results: Result[], exams: Exam[
         {/* REGRAS */}
         <div className="mt-4 border border-black p-3 text-[9px] uppercase font-bold text-slate-700 rounded-sm">
            <p>Critério de Aprovação: Média Final igual ou superior a 6,0 (seis).</p>
-           <p>Cálculo da Média: Soma-se a média dos 4 bimestres e divide-se por 4.</p>
+           <p>Cálculo da Média: Soma-se a média dos 4 bimestres e divide-se por 4. (Média + Recuperação) / 2.</p>
         </div>
 
         {/* FOOTER ASSINATURAS */}
@@ -5921,10 +5999,10 @@ function BoletimView({ results, exams, user }: { results: Result[], exams: Exam[
              <select 
                value={selectedClass}
                onChange={e => setSelectedClass(e.target.value)}
-               className="w-full md:w-1/2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-[#3b5998] font-bold text-slate-700"
+               className="w-full md:w-1/2 px-4 py-3 bg-white border-2 border-slate-300 rounded-xl outline-none focus:border-[#3b5998] font-black text-slate-800 shadow-md uppercase"
              >
-               <option value="">Todas as Turmas (Filtro)</option>
-               {classes.map(c => <option key={c} value={c}>{c}</option>)}
+               <option value="">FILTRAR POR TURMA</option>
+               {(isAdmin ? classes : (userProfile?.assigned_classes || [])).map(c => <option key={c} value={c}>{c}</option>)}
              </select>
            </div>
 
