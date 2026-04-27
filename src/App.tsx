@@ -3955,6 +3955,14 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
   const [editingId, setEditingId] = useState<string | null>(null);
   const [schoolInfo] = useState(getSchoolInfo());
 
+  // Filtering state for the list
+  const [filterClass, setFilterClass] = useState('');
+  const [filterStudent, setFilterStudent] = useState('');
+  const [filterSubject, setFilterSubject] = useState('');
+  const [filterBimester, setFilterBimester] = useState('');
+  const [listSearch, setListSearch] = useState('');
+  const [showListSuggestions, setShowListSuggestions] = useState(false);
+
   // Initialize subject if user is a professor
   useEffect(() => {
     if (!isAdmin && userProfile?.assigned_subjects?.length > 0 && !selectedSubject) {
@@ -4055,12 +4063,26 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
 
   const filteredReports = useMemo(() => {
     return reports.filter(r => {
-      const matchesSearch = r.studentName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            r.studentClass.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            r.subject.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesSearch;
+      const matchesTextSearch = !searchQuery || 
+                               r.studentName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                               r.studentClass.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                               r.subject.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesClass = !filterClass || r.studentClass === filterClass;
+      const matchesStudent = !filterStudent || r.studentName.toLowerCase().includes(filterStudent.toLowerCase());
+      const matchesSubject = !filterSubject || r.subject === filterSubject;
+      const matchesBimester = !filterBimester || r.bimester === filterBimester;
+
+      return matchesTextSearch && matchesClass && matchesStudent && matchesSubject && matchesBimester;
     });
-  }, [reports, searchQuery]);
+  }, [reports, searchQuery, filterClass, filterStudent, filterSubject, filterBimester]);
+
+  const listStudentSuggestions = useMemo(() => {
+    if (listSearch.length < 2) return [];
+    const search = listSearch.toLowerCase();
+    const students = Array.from(new Set(reports.map(r => r.studentName)));
+    return students.filter(name => name.toLowerCase().includes(search)).slice(0, 5);
+  }, [listSearch, reports]);
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto pb-20">
@@ -4250,17 +4272,94 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
       </div>
 
       <div className="bg-white rounded-lg border border-border overflow-hidden shadow-sm">
-        <div className="px-5 py-4 border-b border-border bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <h3 className="text-base font-bold text-primary">Relatórios Enviados</h3>
-          <div className="relative w-full md:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Buscar por aluno, turma ou disciplina..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-border rounded-md text-sm outline-none focus:border-accent bg-white"
-            />
+        <div className="px-5 py-4 border-b border-border bg-slate-50 flex flex-col gap-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <h3 className="text-base font-bold text-primary">Relatórios Enviados</h3>
+            <div className="relative w-full md:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Busca rápida geral..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-border rounded-md text-sm outline-none focus:border-accent bg-white shadow-inner"
+              />
+            </div>
+          </div>
+
+          {/* Advanced Filters */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Filtrar Turma</label>
+              <select 
+                value={filterClass} 
+                onChange={e => setFilterClass(e.target.value)}
+                className="w-full px-3 py-1.5 border border-border rounded-md text-[13px] outline-none bg-white font-medium"
+              >
+                <option value="">Todas as turmas</option>
+                {schoolInfo.classes.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1 relative">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Filtrar Aluno</label>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  placeholder="Nome do aluno..."
+                  value={listSearch || filterStudent}
+                  onChange={e => {
+                    setListSearch(e.target.value);
+                    setFilterStudent(e.target.value);
+                    setShowListSuggestions(true);
+                  }}
+                  onFocus={() => setShowListSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowListSuggestions(false), 200)}
+                  className="w-full px-3 py-1.5 border border-border rounded-md text-[13px] outline-none bg-white pr-7 font-medium"
+                />
+                { (listSearch || filterStudent) && (
+                  <button onClick={() => { setListSearch(''); setFilterStudent(''); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500">×</button>
+                )}
+              </div>
+              {showListSuggestions && listStudentSuggestions.length > 0 && (
+                <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-border rounded-md shadow-lg py-1 max-h-40 overflow-y-auto">
+                  {listStudentSuggestions.map((name, i) => (
+                    <button
+                      key={i}
+                      onMouseDown={() => {
+                        setFilterStudent(name);
+                        setListSearch('');
+                        setShowListSuggestions(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 font-bold text-slate-700"
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Filtrar Disciplina</label>
+              <select 
+                value={filterSubject} 
+                onChange={e => setFilterSubject(e.target.value)}
+                className="w-full px-3 py-1.5 border border-border rounded-md text-[13px] outline-none bg-white font-medium"
+              >
+                <option value="">Todas disciplinas</option>
+                {schoolInfo.subjects.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Filtrar Bimestre</label>
+              <select 
+                value={filterBimester} 
+                onChange={e => setFilterBimester(e.target.value)}
+                className="w-full px-3 py-1.5 border border-border rounded-md text-[13px] outline-none bg-white font-medium"
+              >
+                <option value="">Todos bimesters</option>
+                {['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'].map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
           </div>
         </div>
         <div className="overflow-x-auto">
