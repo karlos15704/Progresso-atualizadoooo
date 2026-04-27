@@ -31,6 +31,7 @@ import {
   Edit2,
   Search,
   Mail,
+  ChevronDown,
   ExternalLink,
   Copy,
   RotateCcw,
@@ -4078,11 +4079,29 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
   }, [reports, searchQuery, filterClass, filterStudent, filterSubject, filterBimester]);
 
   const listStudentSuggestions = useMemo(() => {
-    if (listSearch.length < 2) return [];
-    const search = listSearch.toLowerCase();
-    const students = Array.from(new Set(reports.map(r => r.studentName)));
-    return students.filter(name => name.toLowerCase().includes(search)).slice(0, 5);
-  }, [listSearch, reports]);
+    // Get unique student names from the reports themselves
+    let students = Array.from(new Set(reports.map(r => r.studentName)));
+    
+    // Sort alphabetically
+    students.sort((a, b) => a.localeCompare(b));
+
+    // If there's a search term, filter by it
+    if (listSearch) {
+      const search = listSearch.toLowerCase();
+      return students.filter(name => name.toLowerCase().includes(search));
+    }
+    
+    // If a class is selected, prioritize students from that class
+    if (filterClass) {
+      const classStudents = Array.from(new Set(
+        reports.filter(r => r.studentClass === filterClass).map(r => r.studentName)
+      ));
+      classStudents.sort((a, b) => a.localeCompare(b));
+      return classStudents.length > 0 ? classStudents : students;
+    }
+
+    return students;
+  }, [listSearch, reports, filterClass]);
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto pb-20">
@@ -4305,7 +4324,7 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
               <div className="relative">
                 <input 
                   type="text" 
-                  placeholder="Nome do aluno..."
+                  placeholder={filterClass ? "Escolha o aluno..." : "Todos os alunos"}
                   value={listSearch || filterStudent}
                   onChange={e => {
                     setListSearch(e.target.value);
@@ -4314,14 +4333,28 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
                   }}
                   onFocus={() => setShowListSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowListSuggestions(false), 200)}
-                  className="w-full px-3 py-1.5 border border-border rounded-md text-[13px] outline-none bg-white pr-7 font-medium"
+                  className="w-full px-3 py-1.5 border border-border rounded-md text-[13px] outline-none bg-white pr-7 font-medium cursor-pointer"
                 />
-                { (listSearch || filterStudent) && (
-                  <button onClick={() => { setListSearch(''); setFilterStudent(''); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500">×</button>
-                )}
+                <button 
+                  type="button"
+                  onClick={() => setShowListSuggestions(!showListSuggestions)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
               </div>
               {showListSuggestions && listStudentSuggestions.length > 0 && (
-                <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-border rounded-md shadow-lg py-1 max-h-40 overflow-y-auto">
+                <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-border rounded-md shadow-lg py-1 max-h-56 overflow-y-auto animate-in fade-in slide-in-from-top-1">
+                  <button
+                    onMouseDown={() => {
+                      setFilterStudent('');
+                      setListSearch('');
+                      setShowListSuggestions(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs font-bold text-slate-400 hover:bg-slate-50 uppercase tracking-widest border-b border-slate-50"
+                  >
+                    Limpar Filtro
+                  </button>
                   {listStudentSuggestions.map((name, i) => (
                     <button
                       key={i}
@@ -4330,7 +4363,10 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
                         setListSearch('');
                         setShowListSuggestions(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 font-bold text-slate-700"
+                      className={cn(
+                        "w-full text-left px-3 py-2 text-[12px] hover:bg-slate-50 font-bold transition-colors",
+                        filterStudent === name ? "text-accent bg-accent/5" : "text-slate-700"
+                      )}
                     >
                       {name}
                     </button>
@@ -4642,7 +4678,23 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
         .eq('subject', selectedSubject)
         .eq('bimester', selectedBimester);
       
-      setExams(examData || []);
+      setExams((examData || []).map(exam => {
+        const meta = exam.answer_key?._metadata || {};
+        return {
+          ...exam,
+          answerKey: exam.answer_key,
+          studyGuide: exam.study_guide,
+          professorId: exam.professor_id,
+          examType: exam.exam_type || meta.examType,
+          examDate: exam.exam_date || meta.examDate,
+          examTime: exam.exam_time || meta.examTime,
+          classYear: exam.class_year || meta.classYear,
+          fontSize: meta.fontSize,
+          fontFamily: meta.fontFamily,
+          content: exam.content,
+          createdAt: exam.created_at
+        };
+      }));
 
       // Fetch Results
       const { data: resultData } = await supabase
@@ -4651,7 +4703,16 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
         .eq('student_class', selectedClass)
         .eq('bimester', selectedBimester);
       
-      setResults(resultData || []);
+      setResults((resultData || []).map(r => ({
+        ...r,
+        examId: r.exam_id,
+        professorId: r.professor_id,
+        studentName: r.student_name,
+        studentClass: r.student_class,
+        score: r.points,
+        maxScore: r.total_points,
+        correctedAt: r.corrected_at
+      })));
 
       // Filter Students
       const allStudentsFiltered = Object.values(schoolInfo.studentsDB).flat();
@@ -4898,21 +4959,27 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
     try {
       const payloads = students.map(student => ({
         exam_id: launchingGradesFor.id,
-        exam_type: launchingGradesFor.exam_type,
+        professor_id: user.id,
         student_name: student.name,
+        points: gradeInputs[student.name] || 0,
+        total_points: 10,
+        corrected_at: new Date().toISOString(),
         student_class: selectedClass,
-        subject: selectedSubject,
-        bimester: selectedBimester,
-        score: gradeInputs[student.name] || 0,
-        max_score: 10,
-        professor_id: user.id
+        bimester: launchingGradesFor.bimester || selectedBimester
       }));
 
-      // Upsert results
+      // Upsert results individually to ensure conflict resolution works correctly
       for (const payload of payloads) {
-        await supabase.from('results').upsert(payload, { 
-          onConflict: 'exam_id,student_name' 
-        });
+        const { error } = await supabase
+          .from('results')
+          .upsert(payload, { 
+            onConflict: 'exam_id,student_name' 
+          });
+          
+        if (error) {
+          console.error("Erro no upsert:", error);
+          throw error;
+        }
       }
       
       setLaunchingGradesFor(null);
