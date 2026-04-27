@@ -861,7 +861,7 @@ export default function App() {
             {view === 'diary' && <DigitalDiaryView user={user} isAdmin={isAdmin} userProfile={userProfile} />}
             {view === 'boletim' && <BoletimView results={results} exams={exams} isAdmin={isAdmin} user={user} userProfile={userProfile} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
           </AnimatePresence>
-          <div className="mt-20 mb-12 text-center border-t-4 border-slate-900 pt-12">
+          <div className="mt-20 mb-12 text-center border-t-4 border-slate-900 pt-12 print:hidden">
             <div className="inline-flex flex-col items-center gap-4">
               <div className="px-10 py-4 bg-slate-900 rounded-[2rem] shadow-2xl shadow-slate-300 hover:scale-105 transition-all transform cursor-default border-2 border-accent/20">
                 <p className="text-[13px] font-black uppercase tracking-[0.4em] text-white">
@@ -6046,7 +6046,7 @@ function BoletimView({ results, exams, user, isAdmin, userProfile, onRefresh }: 
     }
 
     return (
-      <div key={studentName} className={cn("bg-white border text-black border-slate-300 print:border-none p-4 md:p-12 print:p-8 w-full max-w-5xl mx-auto shadow-sm print:shadow-none mb-8 print:mb-0 print:min-h-[297mm] print:break-inside-avoid print-avoid-break flex flex-col", isLast ? "" : "print:break-after-page")}>
+      <div key={studentName} className={cn("bg-white text-black p-4 md:p-12 print:p-8 w-full max-w-5xl mx-auto mb-8 print:mb-0 print:min-h-[297mm] print:break-inside-avoid print-avoid-break flex flex-col", isLast ? "" : "print:break-after-page")}>
         {/* HEADER BOLETIM MEK */}
         <div className="flex flex-col sm:flex-row items-center justify-between border-b-4 border-black pb-4 mb-8 gap-4">
            <div className="flex items-center gap-6">
