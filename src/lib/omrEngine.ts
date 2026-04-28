@@ -198,8 +198,13 @@ export async function scanBubbleSheet(
       bestOption = "";
     }
 
-    results[qIdx] = bestOption;
-    if (bestOption === correctAnswers[qIdx].correctAnswer) scoreValue += qPoints;
+    results[correctAnswers[qIdx].id] = bestOption;
+    const studentAns = (bestOption || "").toString().trim().toUpperCase();
+    const correctAns = (correctAnswers[qIdx].correctAnswer || "").toString().trim().toUpperCase();
+    
+    if (studentAns !== "" && studentAns === correctAns) {
+      scoreValue += qPoints;
+    }
     bubbleIdx++;
   }
 

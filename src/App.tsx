@@ -1902,7 +1902,7 @@ function CorrectExamView({ user, exams, setView, setRefreshTrigger }: { user: Us
   const [correcting, setCorrecting] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [mode, setMode] = useState<'ai' | 'scan' | 'manual'>('ai');
-  const [manualAnswers, setManualAnswers] = useState<Record<number, string>>({});
+  const [manualAnswers, setManualAnswers] = useState<Record<string | number, string>>({});
   const [studentName, setStudentName] = useState('');
   const [studentClass, setStudentClass] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1951,10 +1951,12 @@ function CorrectExamView({ user, exams, setView, setRefreshTrigger }: { user: Us
       let score = 0;
       let maxScore = 0;
       
-      selectedExam.questions.forEach((q, idx) => {
+      selectedExam.questions.forEach((q) => {
         const questionPoints = parseFloat(String(q.points || 1));
         maxScore += questionPoints;
-        if (manualAnswers[idx] === q.correctAnswer) {
+        const studentAns = (manualAnswers[q.id] || "").toString().trim().toUpperCase();
+        const correctAns = (q.correctAnswer || "").toString().trim().toUpperCase();
+        if (studentAns !== "" && studentAns === correctAns) {
           score += questionPoints;
         }
       });
@@ -2214,10 +2216,10 @@ function CorrectExamView({ user, exams, setView, setRefreshTrigger }: { user: Us
                         {['A', 'B', 'C', 'D', 'E'].map(opt => (
                           <button
                             key={opt}
-                            onClick={() => setManualAnswers({...manualAnswers, [idx]: opt})}
+                            onClick={() => setManualAnswers({...manualAnswers, [q.id]: opt})}
                             className={cn(
                               "w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold transition-all",
-                              manualAnswers[idx] === opt ? "bg-accent border-accent text-white" : "bg-white border-border text-slate-400"
+                              manualAnswers[q.id] === opt ? "bg-accent border-accent text-white" : "bg-white border-border text-slate-400"
                             )}
                           >
                             {opt}
@@ -3024,7 +3026,7 @@ function ReportsView({ exams, results }: { exams: Exam[], results: Result[] }) {
 
     exam.questions.forEach((q, index) => {
       const qNum = (index + 1).toString();
-      const studentAnswer = r.answers[qNum] || r.answers[q.id];
+      const studentAnswer = r.answers[q.id] || r.answers[index.toString()] || r.answers[qNum];
       const isCorrect = studentAnswer && studentAnswer.toUpperCase() === q.correctAnswer?.toUpperCase();
       
       const key = `${exam.id}-${q.id}`;

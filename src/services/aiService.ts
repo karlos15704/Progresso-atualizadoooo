@@ -47,7 +47,7 @@ export async function correctExamFromImage(
   `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-1.5-flash",
     contents: [
       {
         parts: [
@@ -93,9 +93,10 @@ export async function correctExamFromImage(
     questions.forEach((q, idx) => {
       const qNum = String(idx + 1);
       const studentAnswer = (rawResult.answers[qNum] || "").toString().trim().toUpperCase();
-      finalAnswers[idx] = studentAnswer; // Keep 0-based internal mapping
+      finalAnswers[q.id] = studentAnswer; // Keep ID-based internal mapping
 
-      if (q.type !== 'essay' && studentAnswer === q.correctAnswer.toUpperCase()) {
+      const correctAnswer = (q.correctAnswer || "").toString().trim().toUpperCase();
+      if (q.type !== 'essay' && studentAnswer === correctAnswer && studentAnswer !== "") {
         calculatedScore += parseFloat(q.points || 1);
       }
     });
