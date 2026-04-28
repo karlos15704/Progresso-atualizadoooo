@@ -56,22 +56,33 @@ async function startServer() {
   app.post("/api/ai/correct", async (req, res) => {
     const { imageBase64, mimeType, examTitle, questions } = req.body;
     
-    let apiKey = process.env.GEMINI_API_KEY;
-    // Fallback to user provided key if env var is missing or placeholder
-    if (!apiKey || apiKey.includes('YOUR_API_KEY') || apiKey === "undefined") {
-      apiKey = "AIzaSyAbys1NNQUFudQtfIgl0erLav0kBEndPS0"; 
+    // Prioritize KarlosAPI, then use GEMINI_API_KEY as fallback
+    let apiKey = (process.env.KarlosAPI || "").trim();
+    if (!apiKey || apiKey === "" || apiKey === "undefined") {
+      apiKey = (process.env.GEMINI_API_KEY || "").trim();
     }
 
-    if (!apiKey) {
-      return res.status(500).json({ error: "Gemini API Key missing." });
+    if (!apiKey || apiKey === "" || apiKey === "undefined" || apiKey.includes('YOUR_API_KEY')) {
+      return res.status(401).json({ 
+        error: "Chave da API não encontrada. Adicione o segredo 'KarlosAPI' ou 'GEMINI_API_KEY' em Settings > Secrets." 
+      });
     }
 
     try {
       const { GoogleGenAI, Type } = await import("@google/genai");
       const client = new GoogleGenAI({ apiKey });
 
-      const prompt = `Analise a imagem da prova: "${examTitle}". Estão presentes ${questions.length} questões. Extraia: studentName, studentClass, e um objeto answers onde a chave é o número da questão (ex: "1") e o valor é a resposta (A, B, C, D, E ou texto). Retorne também um campo 'feedback' curto.`;
+      const questionsContext = questions.map((q: any, idx: number) => `Q${idx + 1}: ${q.type === 'essay' ? 'Dissertativa' : 'Múltipla Escolha'}`).join(', ');
+      const prompt = `Analise a imagem da prova: "${examTitle}". Extraia os seguintes dados estruturados:
+1. studentName: Nome completo do aluno conforme escrito na prova.
+2. studentClass: Turma/Série do aluno.
+3. answers: Um objeto onde a chave é APENAS o número da questão (ex: "1", "2") e o valor é a resposta encontrada.
+   - Para questões de múltipla escolha, extraia apenas a letra da opção (A, B, C, D ou E).
+   - Para questões dissertativas, extraia o texto escrito.
+   - Foram identificadas as seguintes questões no sistema: ${questionsContext}.
+4. feedback: Um comentário curto e motivador sobre o desempenho geral visível.`;
 
+      // Use a stable model name
       const response = await client.models.generateContent({
         model: "gemini-1.5-flash",
         contents: [
@@ -106,21 +117,47 @@ async function startServer() {
         }
       });
 
-      res.json(JSON.parse(response.text || "{}"));
+      let responseText = response.text || "{}";
+      // Ensure we clean potential markdown backticks if any
+      responseText = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
+      
+      try {
+        const parsed = JSON.parse(responseText);
+        res.json(parsed);
+      } catch (parseErr) {
+        console.error("JSON Parse Error on AI response:", responseText);
+        res.status(500).json({ error: "A IA retornou um formato inválido. Tente novamente." });
+      }
     } catch (err: any) {
       console.error("AI Server Error:", err);
-      res.status(500).json({ error: err.message || "Erro ao processar correção na IA." });
+      
+      const status = err.status || 500;
+      let errorMessage = "Erro ao processar correção. ";
+
+      if (status === 429) {
+        errorMessage = "Limite de quota excedido (Rate Limit). Por favor, aguarde alguns segundos e tente novamente.";
+      } else if (status === 503) {
+        errorMessage = "O serviço de IA está temporariamente sobrecarregado (Alta Demanda). Por favor, tente novamente em instantes.";
+      } else if (err.message && err.message.includes("API key not valid")) {
+        errorMessage += "A Chave API configurada parece ser inválida. Verifique em Settings > Secrets.";
+      } else {
+        errorMessage += err.message || "Erro desconhecido na IA.";
+      }
+      
+      res.status(status).json({ error: errorMessage });
     }
   });
 
   app.post("/api/ai/study-guide", async (req, res) => {
     const { content } = req.body;
-    let apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey || apiKey.includes('YOUR_API_KEY') || apiKey === "undefined") {
-      apiKey = "AIzaSyAbys1NNQUFudQtfIgl0erLav0kBEndPS0"; 
+    let apiKey = (process.env.KarlosAPI || "").trim();
+    if (!apiKey || apiKey === "" || apiKey === "undefined") {
+      apiKey = (process.env.GEMINI_API_KEY || "").trim();
     }
-
-    if (!apiKey) return res.json({ guide: "Guia manual: " + content });
+    
+    if (!apiKey || apiKey === "" || apiKey === "undefined" || apiKey.includes('YOUR_API_KEY')) {
+      return res.json({ guide: "Guia manual (API não configurada): " + content });
+    }
 
     try {
       const { GoogleGenAI } = await import("@google/genai");
@@ -130,9 +167,15 @@ async function startServer() {
         contents: [{ role: 'user', parts: [{ text: `Crie um guia de estudos em Markdown para alunos com base em: "${content}".` }] }]
       });
       res.json({ guide: response.text });
-    } catch (err) {
+    } catch (err: any) {
       console.error("AI Guide Error:", err);
-      res.json({ guide: "Guia manual (erro): " + content });
+      let errorMessage = "Guia manual (erro): ";
+      if (err.status === 429) {
+        errorMessage = "Erro de quota (Rate Limit). Tente novamente em instantes.";
+      } else {
+        errorMessage += err.message || content;
+      }
+      res.json({ guide: errorMessage });
     }
   });
 

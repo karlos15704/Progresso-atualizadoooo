@@ -13,7 +13,12 @@ export async function correctExamFromImage(
   examTitle: string,
   questions: any[]
 ): Promise<CorrectionResult> {
-  const maxTotalScore = questions.reduce((sum: number, q: any) => sum + parseFloat(q.points || 1), 0);
+  const calculatePoints = (p: any) => {
+    const val = parseFloat(p);
+    return isNaN(val) ? 1 : val;
+  };
+
+  const maxTotalScore = questions.reduce((sum: number, q: any) => sum + calculatePoints(q.points), 0);
 
   try {
     console.log(`[AI Service] Requesting correction from server for: ${examTitle}`);
@@ -38,7 +43,28 @@ export async function correctExamFromImage(
 
     questions.forEach((q, idx) => {
       const qNum = String(idx + 1);
-      const studentRaw = (rawResult.answers?.[qNum] || "").toString().trim().toUpperCase();
+      
+      // Try multiple ways to find the answer (case insensitive match of the key)
+      let studentRaw = "";
+      if (rawResult.answers) {
+        // Direct match
+        studentRaw = rawResult.answers[qNum] || "";
+        // If not found, try common labels like "Q1", "Q 1", "Questão 1"
+        if (!studentRaw) {
+          const possibleKeys = [
+            `Q${qNum}`, `Q ${qNum}`, `QUESTÃO ${qNum}`, `QUESTAO ${qNum}`, `QUESTION ${qNum}`,
+            `Q${qNum}:`, `Q ${qNum}:`
+          ];
+          for (const key of Object.keys(rawResult.answers)) {
+            if (possibleKeys.includes(key.toUpperCase())) {
+              studentRaw = rawResult.answers[key];
+              break;
+            }
+          }
+        }
+      }
+
+      studentRaw = (studentRaw || "").toString().trim().toUpperCase();
       
       // Robust matching for multiple choice: extract first A-E if it exists
       let studentAnswer = studentRaw;
@@ -56,10 +82,17 @@ export async function correctExamFromImage(
         if (match) correctAnswer = match[1];
       }
 
-      console.log(`[AI Match] Q${qNum}: Student="${studentAnswer}" (Raw: "${studentRaw}"), Correct="${correctAnswer}"`);
-
-      if (q.type !== 'essay' && studentAnswer === correctAnswer && studentAnswer !== "") {
-        calculatedScore += parseFloat(q.points || 1);
+      // Exact match for objective questions
+      if (q.type !== 'essay') {
+        if (studentAnswer === correctAnswer && studentAnswer !== "") {
+          calculatedScore += calculatePoints(q.points);
+          console.log(`[AI Match] Q${qNum} SUCCESS: Student="${studentAnswer}", Correct="${correctAnswer}" (+${calculatePoints(q.points)} pts)`);
+        } else {
+          console.log(`[AI Match] Q${qNum} FAIL: Student="${studentAnswer}", Correct="${correctAnswer}"`);
+        }
+      } else {
+        // Essay questions are recorded but not auto-scored here (usually professor reviews them)
+        console.log(`[AI Match] Q${qNum} (ESSAY): Recorded answer.`);
       }
     });
 
@@ -67,8 +100,8 @@ export async function correctExamFromImage(
       studentName: rawResult.studentName || "Não identificado",
       studentClass: rawResult.studentClass || "",
       answers: finalAnswers,
-      score: calculatedScore,
-      maxScore: maxTotalScore,
+      score: Number(calculatedScore.toFixed(2)),
+      maxScore: Number(maxTotalScore.toFixed(2)),
       feedback: rawResult.feedback || ""
     };
   } catch (e: any) {
