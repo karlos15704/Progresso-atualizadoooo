@@ -39,13 +39,10 @@ export async function correctExamFromImage(
     
     Instruções estritas:
     1. Identifique e extraia o nome do estudante e também a sua turma (class) da imagem, se houver.
-    2. Leia quais respostas o estudante deu para cada questão.
-    3. Construa o \`answers\` object onde a chave é o ID da questão e o valor é a resposta extraída (letra ou texto).
-    4. Calcule a nota final (\`score\`) somando o valor (\`points\`) de cada questão corretada. 
-       - Se for múltipla escolha, compare exatamente com \`correctOption\`.
-       - Se for dissertativa, avalie a proximidade com o gabarito.
-    5. O \`maxScore\` total desta prova é ${maxTotalScore}.
-    6. Crie um \`feedback\` curto para o aluno.
+    2. Leia quais alternativas o estudante marcou para cada questão (ex: bolinhas preenchidas).
+    3. Construa o \`answers\` object onde a chave é o número da questão e o valor é a letra marcada pelo estudante (ex: "1": "A"). Se estiver rasurado ou em branco, coloque "".
+    4. Calcule a nota final (\`score\`) somando o valor (\`points\`) SOMENTE das questões em que o estudante acertou. O \`maxScore\` total desta prova é ${maxTotalScore}.
+    5. Crie um \`feedback\` curto para o aluno (ex: "Excelente!", "Estude mais o tópico X").
   `;
 
   const response = await ai.models.generateContent({

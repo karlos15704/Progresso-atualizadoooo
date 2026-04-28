@@ -1891,7 +1891,7 @@ function CorrectExamView({ user, exams, setView, setRefreshTrigger }: { user: Us
   const [batchResults, setBatchResults] = useState<any[]>([]);
   const [correcting, setCorrecting] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [mode, setMode] = useState<'ai' | 'manual'>('ai');
+  const [mode, setMode] = useState<'ai' | 'manual'>('manual');
   const [manualAnswers, setManualAnswers] = useState<Record<number, string>>({});
   const [studentName, setStudentName] = useState('');
   const [studentClass, setStudentClass] = useState('');
@@ -2073,13 +2073,13 @@ function CorrectExamView({ user, exams, setView, setRefreshTrigger }: { user: Us
             onClick={() => setMode('manual')}
             className={cn("px-4 py-1.5 rounded-md text-xs font-bold transition-all", mode === 'manual' ? "bg-white text-accent shadow-sm" : "text-slate-500")}
           >
-            Lançamento Manual
+            Manual (Teclado)
           </button>
           <button 
             onClick={() => setMode('ai')}
             className={cn("px-4 py-1.5 rounded-md text-xs font-bold transition-all", mode === 'ai' ? "bg-white text-accent shadow-sm" : "text-slate-500")}
           >
-            Correção Inteligente (IA)
+            Digital Scan (Foto)
           </button>
         </div>
       </div>
@@ -2225,14 +2225,15 @@ function CorrectExamView({ user, exams, setView, setRefreshTrigger }: { user: Us
           </div>
         ) : (
           <>
-            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg flex gap-3 text-left">
-              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shrink-0 shadow-sm border border-blue-100">
-                <Scan className="w-5 h-5 text-accent" />
-              </div>
-              <div className="text-[12px] text-blue-900 leading-relaxed">
-                <p className="font-bold">Correção com Inteligência Artificial:</p>
-                <p className="mt-1">Nossa IA consegue ler fotos de provas, identificar o nome do aluno e corrigir tanto questões de múltipla escolha quanto dissertativas automaticamente.</p>
-                <p className="mt-2 text-[10px] opacity-70">Dica: Fotos nítidas e com boa iluminação garantem melhores resultados.</p>
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex gap-3 text-left">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+              <div className="text-[12px] text-amber-800 leading-relaxed">
+                <p className="font-bold">Como usar o Scanner Digital:</p>
+                <ol className="list-decimal ml-4 mt-1 space-y-1">
+                  <li>Clique em "Baixar Folha de Respostas" acima e imprima.</li>
+                  <li>O aluno deve preencher as bolinhas com caneta preta ou azul escura.</li>
+                  <li>Tire uma foto bem de cima, focando nos 4 quadrados pretos.</li>
+                </ol>
               </div>
             </div>
 
