@@ -66,33 +66,28 @@ export async function correctExamFromImage(
 
       studentRaw = (studentRaw || "").toString().trim().toUpperCase();
       
-      // Robust matching for multiple choice: extract first A-E if it exists
-      let studentAnswer = studentRaw;
-      if (q.type !== 'essay') {
-        const match = studentRaw.match(/([A-E])/);
-        if (match) studentAnswer = match[1];
-      }
-      
-      finalAnswers[q.id] = studentAnswer;
+      // Helper to extract choice (A-E)
+      const extractChoice = (text: string) => {
+        const cleaned = text.trim().toUpperCase();
+        // Look for single letter A-E at start or surrounded by boundaries
+        const match = cleaned.match(/\b([A-E])\b/) || cleaned.match(/^([A-E])/);
+        return match ? match[1] : (cleaned.length === 1 ? cleaned : "");
+      };
 
-      const correctAnswerRaw = (q.correctAnswer || "").toString().trim().toUpperCase();
-      let correctAnswer = correctAnswerRaw;
-      if (q.type !== 'essay') {
-        const match = correctAnswerRaw.match(/([A-E])/);
-        if (match) correctAnswer = match[1];
-      }
+      let studentAnswer = extractChoice(studentRaw);
+      let correctAnswer = extractChoice(q.correctAnswer || "");
 
-      // Exact match for objective questions
       if (q.type !== 'essay') {
         if (studentAnswer === correctAnswer && studentAnswer !== "") {
           calculatedScore += calculatePoints(q.points);
           console.log(`[AI Match] Q${qNum} SUCCESS: Student="${studentAnswer}", Correct="${correctAnswer}" (+${calculatePoints(q.points)} pts)`);
         } else {
-          console.log(`[AI Match] Q${qNum} FAIL: Student="${studentAnswer}", Correct="${correctAnswer}"`);
+          console.log(`[AI Match] Q${qNum} FAIL: Student="${studentAnswer}" (Raw: "${studentRaw}"), Correct="${correctAnswer}" (Raw: "${q.correctAnswer}")`);
         }
+        finalAnswers[q.id] = studentAnswer || studentRaw;
       } else {
-        // Essay questions are recorded but not auto-scored here (usually professor reviews them)
         console.log(`[AI Match] Q${qNum} (ESSAY): Recorded answer.`);
+        finalAnswers[q.id] = studentRaw;
       }
     });
 

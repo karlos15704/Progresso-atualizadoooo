@@ -75,16 +75,16 @@ async function startServer() {
       const questionsContext = questions.map((q: any, idx: number) => `Q${idx + 1}: ${q.type === 'essay' ? 'Dissertativa' : 'Múltipla Escolha'}`).join(', ');
       const prompt = `Analise a imagem da prova: "${examTitle}". Extraia os seguintes dados estruturados:
 1. studentName: Nome completo do aluno conforme escrito na prova.
-2. studentClass: Turma/Série do aluno.
-3. answers: Um objeto onde a chave é APENAS o número da questão (ex: "1", "2") e o valor é a resposta encontrada.
-   - Para questões de múltipla escolha, extraia apenas a letra da opção (A, B, C, D ou E).
-   - Para questões dissertativas, extraia o texto escrito.
-   - Foram identificadas as seguintes questões no sistema: ${questionsContext}.
-4. feedback: Um comentário curto e motivador sobre o desempenho geral visível.`;
+2. studentClass: Turma/Série do aluno (ex: "3º ano A").
+3. answers: Um objeto JSON onde a chave é o número da questão em string (ex: "1", "2") e o valor é a resposta extraída.
+   - Para questões de múltipla escolha: Extraia APENAS a letra da opção escolhida (A, B, C, D ou E). Se houver rasura, identifique a opção que parece ser a final.
+   - Para questões dissertativas: Transcreva o texto escrito pelo aluno.
+   - O sistema espera as seguintes questões: ${questionsContext}.
+4. feedback: Um comentário curto, amigável e motivador sobre o desempenho do aluno observado na correção.`;
 
-      // Use a stable model name
+      // Use the recommended model for text and vision tasks from the skill
       const response = await client.models.generateContent({
-        model: "gemini-1.5-flash-latest",
+        model: "gemini-3-flash-preview",
         contents: [
           {
             role: "user",
@@ -163,8 +163,8 @@ async function startServer() {
       const { GoogleGenAI } = await import("@google/genai");
       const client = new GoogleGenAI({ apiKey });
       const response = await client.models.generateContent({
-        model: "gemini-1.5-flash-latest",
-        contents: [{ role: 'user', parts: [{ text: `Crie um guia de estudos em Markdown para alunos com base em: "${content}".` }] }]
+        model: "gemini-3-flash-preview",
+        contents: [{ role: 'user', parts: [{ text: `Crie um guia de estudos em Markdown para alunos com base em: "${content}". Use títulos (##), listas e negrito para organizar.` }] }]
       });
       res.json({ guide: response.text });
     } catch (err: any) {
