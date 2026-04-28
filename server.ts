@@ -124,7 +124,8 @@ async function startServer() {
 
     try {
       const { GoogleGenAI, Type } = await import("@google/genai");
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
+      const model = (genAI as any).getGenerativeModel({ model: "gemini-1.5-flash" });
 
       const prompt = `
         Você é um assistente de correção de provas experiente. 
@@ -139,10 +140,10 @@ async function startServer() {
         4. Não tente calcular a nota.
       `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+      const result = await model.generateContent({
         contents: [
           {
+            role: "user",
             parts: [
               { text: prompt },
               {
@@ -154,7 +155,7 @@ async function startServer() {
             ],
           },
         ],
-        config: {
+        generationConfig: {
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -172,9 +173,11 @@ async function startServer() {
         }
       });
 
-      res.json(JSON.parse(response.text || "{}"));
+      const responseText = result.response.text();
+      res.json(JSON.parse(responseText));
     } catch (err: any) {
       console.error("Erro na correção IA:", err);
+      // Return JSON even on error
       res.status(500).json({ error: err.message || "Erro interno na correção IA." });
     }
   });
@@ -185,14 +188,12 @@ async function startServer() {
 
     try {
       const { GoogleGenAI } = await import("@google/genai");
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
+      const model = (genAI as any).getGenerativeModel({ model: "gemini-1.5-flash" });
 
       const prompt = `Com base nos seguintes conteúdos: "${content}", crie um guia de estudos estruturado para os alunos. Inclua tópicos principais, explicações breves e dicas de estudo. Formate em Markdown.`;
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt
-      });
-      res.json({ guide: response.text || "" });
+      const result = await model.generateContent(prompt);
+      res.json({ guide: result.response.text() });
     } catch (err) {
       res.json({ guide: "Guia manual: " + content });
     }
