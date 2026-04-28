@@ -37,11 +37,10 @@ export async function scanBubbleSheet(
 
   // 2. Local Adaptive Binarization
   const binary = new Uint8Array(width * height);
-  const gridSize = Math.floor(width / 8); 
+  const gridSize = Math.floor(width / 10); 
   
   for (let gy = 0; gy < height; gy += gridSize) {
     for (let gx = 0; gx < width; gx += gridSize) {
-      // Calculate local average in this grid
       let localSum = 0;
       let count = 0;
       const endY = Math.min(gy + gridSize, height);
@@ -55,7 +54,10 @@ export async function scanBubbleSheet(
       }
       
       const localAvg = localSum / count;
-      const localThreshold = localAvg * 0.85; 
+      // Use a more robust thresholding. 
+      // Subtracting a constant helps with gray backgrounds/shadows.
+      const thresholdOffset = localAvg > 128 ? 40 : 25;
+      const localThreshold = localAvg - thresholdOffset; 
 
       for (let y = gy; y < endY; y++) {
         for (let x = gx; x < endX; x++) {
@@ -66,10 +68,9 @@ export async function scanBubbleSheet(
   }
 
   // 3. Find Markers (4 black squares)
-  // We search in the corners (30% margin) for the most solid black squares
   const findMarker = (quad: 'tl' | 'tr' | 'bl' | 'br') => {
-    const marginW = width * 0.35;
-    const marginH = height * 0.35;
+    const marginW = width * 0.30;
+    const marginH = height * 0.30;
     let startX = 0, startY = 0, endX = marginW, endY = marginH;
 
     if (quad === 'tr') { startX = width - marginW; endX = width; }
@@ -77,11 +78,11 @@ export async function scanBubbleSheet(
     if (quad === 'br') { startX = width - marginW; endX = width; startY = height - marginH; endY = height; }
 
     let bestMarker = { x: 0, y: 0, area: 0 };
-    const step = Math.max(1, Math.floor(width / 800)); 
-    const winSize = Math.floor(width * 0.04); 
+    const step = Math.max(1, Math.floor(width / 1000));
+    const winSize = Math.floor(width * 0.03); // Slightly smaller window for more precision
 
-    for (let y = Math.floor(startY); y < Math.floor(endY); y += step * 3) {
-      for (let x = Math.floor(startX); x < Math.floor(endX); x += step * 3) {
+    for (let y = Math.floor(startY + winSize); y < Math.floor(endY - winSize); y += step * 4) {
+      for (let x = Math.floor(startX + winSize); x < Math.floor(endX - winSize); x += step * 4) {
         if (binary[y * width + x] === 1) {
           let density = 0;
           const s = Math.floor(winSize / 2);
@@ -150,11 +151,13 @@ export async function scanBubbleSheet(
       // TL: 10,10 | TR: 190,10 | BL: 10,280 | BR: 190,280
       // Width: 180mm | Height: 270mm
       
-      // X: Starts at 60mm in PDF, TL is at 10mm -> 50mm relative
-      const normX = (50 + (oIdx * 20)) / 180; 
+      // X: Starts at 60mm in PDF. Center of marker is at 15mm (10+5).
+      // relX = 60 - 15 = 45
+      const normX = (45 + (oIdx * 20)) / 180; 
       
-      // Y: Starts at 110mm in PDF, circle is at y-1 -> 109mm. TL is at 10mm -> 99mm relative
-      const normY = (99 + (bubbleIdx * 8)) / 270; 
+      // Y: Starts at 110mm in PDF, circle is at y-1 -> 109mm. Center of marker is at 15mm (10+5).
+      // relY = 109 - 15 = 94
+      const normY = (94 + (bubbleIdx * 8)) / 270; 
       
       // Bilinear interpolation to handle rotation/skew
       const topX = tl.x + (tr.x - tl.x) * normX;
@@ -180,7 +183,8 @@ export async function scanBubbleSheet(
       }
 
       // Density threshold: A marked circle should have significant "blackness"
-      if (blackCount > maxBlack && blackCount > (r * r * 0.8)) { 
+      // We lower the threshold (0.45 * r^2) to be more tolerant of partial fills or pencil marks
+      if (blackCount > maxBlack && blackCount > (r * r * 0.45)) { 
         maxBlack = blackCount;
         bestOption = options[oIdx];
       }
