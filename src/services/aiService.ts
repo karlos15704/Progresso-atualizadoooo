@@ -1,5 +1,3 @@
-import { GoogleGenAI, Type } from "@google/genai";
-
 export interface CorrectionResult {
   studentName: string;
   studentClass?: string;
@@ -9,10 +7,6 @@ export interface CorrectionResult {
   feedback: string;
 }
 
-// AI Initialization - Skill requirement: Use process.env.GEMINI_API_KEY
-const apiKey = process.env.GEMINI_API_KEY || "";
-const ai = new GoogleGenAI({ apiKey });
-
 export async function correctExamFromImage(
   imageBase64: string,
   mimeType: string,
@@ -21,50 +15,22 @@ export async function correctExamFromImage(
 ): Promise<CorrectionResult> {
   const maxTotalScore = questions.reduce((sum: number, q: any) => sum + parseFloat(q.points || 1), 0);
 
-  if (!apiKey || apiKey === "") {
-    throw new Error("Chave da API Gemini não encontrada. Por favor, adicione GEMINI_API_KEY nos Segredos (Settings > Secrets).");
-  }
-
   try {
-    console.log(`[AI Service] Starting Frontend Gemini correction for: ${examTitle}`);
+    console.log(`[AI Service] Requesting correction from server for: ${examTitle}`);
     
-    // Using gemini-1.5-flash for better stability/speed in this context
-    const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: `Analise a imagem da prova: "${examTitle}". Estão presentes ${questions.length} questões. Extraia: studentName, studentClass, e um objeto answers onde a chave é o número da questão (ex: "1") e o valor é a resposta (A, B, C, D, E ou texto). Retorne também um campo 'feedback' curto.` },
-            {
-              inlineData: {
-                mimeType: mimeType || "image/jpeg",
-                data: imageBase64,
-              },
-            },
-          ],
-        },
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            studentName: { type: Type.STRING },
-            studentClass: { type: Type.STRING },
-            answers: { 
-              type: Type.OBJECT,
-              description: "Map of question number to student's answer"
-            },
-            feedback: { type: Type.STRING }
-          },
-          required: ["studentName", "answers", "feedback"]
-        }
-      }
+    const response = await fetch("/api/ai/correct", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageBase64, mimeType, examTitle, questions })
     });
 
-    const rawResult = JSON.parse(response.text || "{}");
-    console.log(`[AI Service] Gemini Success result for: ${examTitle}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Erro do servidor (${response.status}): ${errorText}`);
+    }
+
+    const rawResult = await response.json();
+    console.log(`[AI Service] Correction received successfully`);
     
     // Local Score Calculation (Robust)
     let calculatedScore = 0;
@@ -106,24 +72,25 @@ export async function correctExamFromImage(
       feedback: rawResult.feedback || ""
     };
   } catch (e: any) {
-    console.error("Gemini correction error:", e);
-    throw new Error(e.message || "Falha ao processar o resultado da correção com Gemini.");
+    console.error("AI correction error:", e);
+    throw new Error(e.message || "Falha ao processar a correção.");
   }
 }
 
 export async function generateStudyGuide(content: string): Promise<string> {
-  if (!apiKey || apiKey === "") {
-    return "Guia manual (Chave API não configurada): " + content;
-  }
-
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: `Crie um guia de estudos em Markdown para alunos com base em: "${content}".`,
+    const response = await fetch("/api/ai/study-guide", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content })
     });
-    return response.text || "Sem guia de estudos gerado.";
+    
+    if (!response.ok) return "Guia manual: " + content;
+    
+    const data = await response.json();
+    return data.guide || "Sem guia de estudos gerado.";
   } catch (error) {
-    console.warn("Gemini generation failed", error);
+    console.warn("AI guide generation failed", error);
     return "Guia manual: " + content;
   }
 }
