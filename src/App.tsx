@@ -44,7 +44,7 @@ import {
 } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
-import { generateStudyGuide } from './services/aiService';
+import { generateStudyGuide, correctExamFromImage } from './services/aiService';
 import { exportToPDF, exportMultipleToPDF } from './lib/pdfUtils';
 import { LOGO_VINHO, LOGO_COC } from './assets';
 import DefaultEditor from 'react-simple-wysiwyg';
@@ -1891,7 +1891,7 @@ function CorrectExamView({ user, exams, setView, setRefreshTrigger }: { user: Us
   const [batchResults, setBatchResults] = useState<any[]>([]);
   const [correcting, setCorrecting] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [mode, setMode] = useState<'scan' | 'manual'>('manual');
+  const [mode, setMode] = useState<'ai' | 'scan' | 'manual'>('ai');
   const [manualAnswers, setManualAnswers] = useState<Record<number, string>>({});
   const [studentName, setStudentName] = useState('');
   const [studentClass, setStudentClass] = useState('');
@@ -2009,7 +2009,17 @@ function CorrectExamView({ user, exams, setView, setRefreshTrigger }: { user: Us
         ctx?.drawImage(img, 0, 0);
 
         try {
-          const scanResult = await scanBubbleSheet(canvas, selectedExam.questions);
+          let scanResult;
+          if (mode === 'ai') {
+            scanResult = await correctExamFromImage(
+              imgData.split(',')[1],
+              "image/jpeg",
+              selectedExam.title,
+              selectedExam.questions
+            );
+          } else {
+            scanResult = await scanBubbleSheet(canvas, selectedExam.questions);
+          }
           
           const resultData: any = {
             exam_id: selectedExamId,
@@ -2060,10 +2070,16 @@ function CorrectExamView({ user, exams, setView, setRefreshTrigger }: { user: Us
         <h2 className="text-xl font-bold text-primary">Correção</h2>
         <div className="flex bg-slate-100 p-1 rounded-lg">
           <button 
+            onClick={() => setMode('ai')}
+            className={cn("px-4 py-1.5 rounded-md text-xs font-bold transition-all", mode === 'ai' ? "bg-white text-accent shadow-sm" : "text-slate-500")}
+          >
+            Correção por IA (Mais Preciso)
+          </button>
+          <button 
             onClick={() => setMode('manual')}
             className={cn("px-4 py-1.5 rounded-md text-xs font-bold transition-all", mode === 'manual' ? "bg-white text-accent shadow-sm" : "text-slate-500")}
           >
-            Manual (Teclado)
+            Manual
           </button>
           <button 
             onClick={() => setMode('scan')}
@@ -2215,15 +2231,12 @@ function CorrectExamView({ user, exams, setView, setRefreshTrigger }: { user: Us
           </div>
         ) : (
           <>
-            <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex gap-3 text-left">
-              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-              <div className="text-[12px] text-amber-800 leading-relaxed">
-                <p className="font-bold">Como usar o Scanner Digital:</p>
-                <ol className="list-decimal ml-4 mt-1 space-y-1">
-                  <li>Clique em "Baixar Folha de Respostas" acima e imprima.</li>
-                  <li>O aluno deve preencher as bolinhas com caneta preta ou azul escura.</li>
-                  <li>Tire uma foto bem de cima, focando nos 4 quadrados pretos.</li>
-                </ol>
+            <div className="bg-indigo-50 border border-indigo-200 p-4 rounded-lg flex gap-3 text-left">
+              <Sparkles className="w-5 h-5 text-indigo-600 shrink-0" />
+              <div className="text-[12px] text-indigo-900 leading-relaxed">
+                <p className="font-bold">Correção com Inteligência Artificial (Gratuita):</p>
+                <p className="mt-1">A IA do Gemini analisa a foto da prova e identifica as respostas automaticamente. É o método mais confiável para fotos tiradas pelo celular.</p>
+                <p className="mt-2 text-[10px] opacity-70">Aviso: Não é necessário configurar nenhuma chave, o sistema já utiliza a tecnologia integrada do Google.</p>
               </div>
             </div>
 
