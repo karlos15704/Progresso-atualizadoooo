@@ -40,7 +40,8 @@ import {
   RotateCcw,
   Menu,
   Settings,
-  Scan
+  Scan,
+  Sparkles
 } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
@@ -510,11 +511,20 @@ export default function App() {
 
   // Auth Listener
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.warn("Session error detected:", error.message);
+        if (error.message.includes('Refresh Token Not Found')) {
+          supabase.auth.signOut();
+        }
+      }
       handleUser(session?.user ?? null);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+         // Force clear state on explicit sign out or update errors
+      }
       handleUser(session?.user ?? null);
     });
 
