@@ -55,13 +55,21 @@ async function startServer() {
   // AI Routes
   app.post("/api/ai/correct", async (req, res) => {
     const { imageBase64, mimeType, examTitle, questions } = req.body;
-    const apiKey = process.env.GEMINI_API_KEY;
+    
+    // Check for API Key in env or fallback to user provided one
+    let apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey.includes('YOUR_API_KEY') || apiKey === "undefined") {
+      apiKey = "AIzaSyCsdeVta7u2kw60hgz2xayGWMFbi1x8muo"; 
+      console.warn("Using fallback/user-provided Gemini API key.");
+    }
 
     if (!apiKey) {
-      return res.status(500).json({ error: "Configuração incompleta: GEMINI_API_KEY não encontrada nos Segredos." });
+      console.error("GEMINI_API_KEY not found.");
+      return res.status(500).json({ error: "Chave da API Gemini não encontrada. Adicione GEMINI_API_KEY aos Segredos." });
     }
 
     try {
+      console.log(`[${new Date().toISOString()}] Processing AI correction for: ${examTitle}`);
       const { GoogleGenAI, Type } = await import("@google/genai");
       const client = new GoogleGenAI({ apiKey });
 
@@ -101,17 +109,27 @@ async function startServer() {
         }
       });
 
-      res.json(JSON.parse(response.text || "{}"));
+      const responseText = response.text || "{}";
+      console.log(`[${new Date().toISOString()}] AI Correction Success.`);
+      res.json(JSON.parse(responseText));
     } catch (err: any) {
-      console.error("Erro na correção IA:", err);
-      res.status(500).json({ error: err.message || "Erro ao processar correção." });
+      console.error("AI Correction Error details:", err);
+      // Log more details if it's a Gemini error
+      if (err.response) {
+        console.error("Gemini Response Error:", JSON.stringify(err.response));
+      }
+      res.status(500).json({ error: err.message || "Erro interno na correção IA." });
     }
   });
 
   app.post("/api/ai/study-guide", async (req, res) => {
     const { content } = req.body;
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return res.json({ guide: "Guia manual (API Key faltando): " + content });
+    let apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey.includes('YOUR_API_KEY') || apiKey === "undefined") {
+      apiKey = "AIzaSyCsdeVta7u2kw60hgz2xayGWMFbi1x8muo"; 
+    }
+
+    if (!apiKey) return res.json({ guide: "Guia manual: " + content });
 
     try {
       const { GoogleGenAI } = await import("@google/genai");
@@ -122,7 +140,8 @@ async function startServer() {
       });
       res.json({ guide: response.text });
     } catch (err) {
-      res.json({ guide: "Guia manual (Erro na API): " + content });
+      console.error("AI Guide Error:", err);
+      res.json({ guide: "Guia manual (erro na geração): " + content });
     }
   });
 
