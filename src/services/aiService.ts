@@ -22,27 +22,28 @@ export async function correctExamFromImage(
 
   const ai = new GoogleGenAI({ apiKey });
   
-  // Mapping for the AI
-  const expectedAnswers = questions.map((q: any) => ({
-    questionId: q.id,
-    correctOption: q.correctAnswer,
+  // Mapping for the AI - using indices for easier matching
+  const aiQuestions = questions.map((q: any, index: number) => ({
+    index: index + 1,
+    type: q.type || 'multiple',
+    options: q.options || [],
     points: parseFloat(q.points || 1)
   }));
-  const maxTotalScore = expectedAnswers.reduce((sum: number, q: any) => sum + q.points, 0);
+  
+  const maxTotalScore = questions.reduce((sum: number, q: any) => sum + parseFloat(q.points || 1), 0);
 
   const prompt = `
-    Você é um assistente de correção de provas e avaliações. 
+    Você é um assistente de correção de provas experiente. 
     Analise a imagem da prova/gabarito de título "${examTitle}".
     
-    Abaixo está a lista oficial de respostas esperadas ("correctOption") e o valor (peso) de cada questão ("points"):
-    ${JSON.stringify(expectedAnswers, null, 2)}
+    A prova possui ${questions.length} questões.
+    Extraia as respostas do estudante para cada questão.
     
     Instruções estritas:
-    1. Identifique e extraia o nome do estudante e também a sua turma (class) da imagem, se houver.
-    2. Leia quais alternativas o estudante marcou para cada questão (ex: bolinhas preenchidas).
-    3. Construa o \`answers\` object onde a chave é o número da questão e o valor é a letra marcada pelo estudante (ex: "1": "A"). Se estiver rasurado ou em branco, coloque "".
-    4. Calcule a nota final (\`score\`) somando o valor (\`points\`) SOMENTE das questões em que o estudante acertou. O \`maxScore\` total desta prova é ${maxTotalScore}.
-    5. Crie um \`feedback\` curto para o aluno (ex: "Excelente!", "Estude mais o tópico X").
+    1. Identifique e extraia o NOME DO ESTUDANTE e a TURMA (class) da imagem. Se não encontrar, retorne strings vazias.
+    2. Liste o que o estudante marcou em cada questão (A, B, C, D, E ou texto para dissertativas).
+    3. Retorne o objeto \`answers\` onde a chave é o NÚMERO da questão (começando em 1) e o valor é a resposta extraída.
+    4. Não tente calcular a nota, eu farei isso.
   `;
 
   const response = await ai.models.generateContent({
@@ -69,29 +70,46 @@ export async function correctExamFromImage(
           studentClass: { type: Type.STRING },
           answers: { 
             type: Type.OBJECT,
-            description: "Mapeamento de número da questão para resposta extraída"
+            description: "Mapeamento do número da questão para a resposta (ex: {\"1\": \"A\", \"2\": \"texto...\"})"
           },
-          score: { type: Type.NUMBER },
-          maxScore: { type: Type.NUMBER },
           feedback: { type: Type.STRING }
         },
-        required: ["studentName", "answers", "score", "maxScore", "feedback"]
+        required: ["studentName", "answers", "feedback"]
       }
     }
   });
 
   if (!response.text) {
-    throw new Error("A Inteligência Artificial não retornou uma resposta válida. Tente com uma foto mais nítida.");
+    throw new Error("A Inteligência Artificial não retornou uma resposta válida.");
   }
 
-  let text = response.text.trim();
-  if (text.startsWith("```json")) text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-  else if (text.startsWith("```")) text = text.replace(/```/g, "").trim();
-
   try {
-    return JSON.parse(text);
+    const rawResult = JSON.parse(response.text.replace(/```json|```/g, "").trim());
+    
+    // Local Score Calculation (Robust)
+    let calculatedScore = 0;
+    const finalAnswers: Record<string, string> = {};
+
+    questions.forEach((q, idx) => {
+      const qNum = String(idx + 1);
+      const studentAnswer = (rawResult.answers[qNum] || "").toString().trim().toUpperCase();
+      finalAnswers[idx] = studentAnswer; // Keep 0-based internal mapping
+
+      if (q.type !== 'essay' && studentAnswer === q.correctAnswer.toUpperCase()) {
+        calculatedScore += parseFloat(q.points || 1);
+      }
+    });
+
+    return {
+      studentName: rawResult.studentName || "Não identificado",
+      studentClass: rawResult.studentClass || "",
+      answers: finalAnswers,
+      score: calculatedScore,
+      maxScore: maxTotalScore,
+      feedback: rawResult.feedback || ""
+    };
   } catch (e) {
-    console.error("Parse error:", text);
+    console.error("Parse or Logic error:", e);
     throw new Error("Falha ao processar o resultado da correção.");
   }
 }

@@ -145,6 +145,7 @@ export async function scanBubbleSheet(
 
     let bestOption = "";
     let maxBlack = -1;
+    const r = Math.floor(width * 0.015); 
 
     for (let oIdx = 0; oIdx < 5; oIdx++) {
       // PDF Template coordinates alignment
@@ -170,7 +171,6 @@ export async function scanBubbleSheet(
 
       let blackCount = 0;
       // Search radius - matching circle size (3mm in 180mm is ~1.6% of width)
-      const r = Math.floor(width * 0.015); 
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
           const sx = Math.floor(px + dx), sy = Math.floor(py + dy);
@@ -183,12 +183,21 @@ export async function scanBubbleSheet(
       }
 
       // Density threshold: A marked circle should have significant "blackness"
-      // We lower the threshold (0.45 * r^2) to be more tolerant of partial fills or pencil marks
-      if (blackCount > maxBlack && blackCount > (r * r * 0.45)) { 
+      // We check if the density is significant enough compared to the search area
+      // And we perform a relative comparison between options in a row
+      if (blackCount > maxBlack) { 
         maxBlack = blackCount;
         bestOption = options[oIdx];
       }
     }
+
+    // Dynamic threshold based on the max blackness found in this row
+    // If the best option is not black enough (e.g. less than 20% of max possible or absolute threshold), it's blank.
+    const totalPossibleWeighted = r * r * 1.5; // Approximation of area * weight
+    if (maxBlack < totalPossibleWeighted * 0.3) { 
+      bestOption = "";
+    }
+
     results[qIdx] = bestOption;
     if (bestOption === correctAnswers[qIdx].correctAnswer) scoreValue += qPoints;
     bubbleIdx++;
