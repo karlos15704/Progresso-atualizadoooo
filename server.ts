@@ -84,7 +84,7 @@ async function startServer() {
 
       // Use a stable model name
       const response = await client.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-1.5-flash-latest",
         contents: [
           {
             role: "user",
@@ -163,7 +163,7 @@ async function startServer() {
       const { GoogleGenAI } = await import("@google/genai");
       const client = new GoogleGenAI({ apiKey });
       const response = await client.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-1.5-flash-latest",
         contents: [{ role: 'user', parts: [{ text: `Crie um guia de estudos em Markdown para alunos com base em: "${content}".` }] }]
       });
       res.json({ guide: response.text });
