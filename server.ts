@@ -52,6 +52,80 @@ async function startServer() {
     });
   });
 
+  // AI Routes
+  app.post("/api/ai/correct", async (req, res) => {
+    const { imageBase64, mimeType, examTitle, questions } = req.body;
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({ error: "Configuração incompleta: GEMINI_API_KEY não encontrada nos Segredos." });
+    }
+
+    try {
+      const { GoogleGenAI, Type } = await import("@google/genai");
+      const client = new GoogleGenAI({ apiKey });
+
+      const prompt = `Analise a imagem da prova: "${examTitle}". Estão presentes ${questions.length} questões. Extraia: studentName, studentClass, e um objeto answers onde a chave é o número da questão (ex: "1") e o valor é a resposta (A, B, C, D, E ou texto). Retorne também um campo 'feedback' curto.`;
+
+      const response = await client.models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: prompt },
+              {
+                inlineData: {
+                  mimeType: mimeType || "image/jpeg",
+                  data: imageBase64,
+                },
+              },
+            ],
+          },
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              studentName: { type: Type.STRING },
+              studentClass: { type: Type.STRING },
+              answers: { 
+                type: Type.OBJECT,
+                description: "Map of question number to student's answer"
+              },
+              feedback: { type: Type.STRING }
+            },
+            required: ["studentName", "answers", "feedback"]
+          }
+        }
+      });
+
+      res.json(JSON.parse(response.text || "{}"));
+    } catch (err: any) {
+      console.error("Erro na correção IA:", err);
+      res.status(500).json({ error: err.message || "Erro ao processar correção." });
+    }
+  });
+
+  app.post("/api/ai/study-guide", async (req, res) => {
+    const { content } = req.body;
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return res.json({ guide: "Guia manual (API Key faltando): " + content });
+
+    try {
+      const { GoogleGenAI } = await import("@google/genai");
+      const client = new GoogleGenAI({ apiKey });
+      const response = await client.models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: [{ role: 'user', parts: [{ text: `Crie um guia de estudos em Markdown para alunos com base em: "${content}".` }] }]
+      });
+      res.json({ guide: response.text });
+    } catch (err) {
+      res.json({ guide: "Guia manual (Erro na API): " + content });
+    }
+  });
+
   // Admin route to create a professor account
   app.post("/api/admin/create-professor", async (req, res) => {
     const { username, fullName, password, assignedSubjects } = req.body;
