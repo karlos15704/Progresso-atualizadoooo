@@ -44,7 +44,7 @@ import {
 } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
-import { correctExamFromImage, generateStudyGuide } from './services/aiService';
+import { generateStudyGuide } from './services/aiService';
 import { exportToPDF, exportMultipleToPDF } from './lib/pdfUtils';
 import { LOGO_VINHO, LOGO_COC } from './assets';
 import DefaultEditor from 'react-simple-wysiwyg';
@@ -1891,7 +1891,7 @@ function CorrectExamView({ user, exams, setView, setRefreshTrigger }: { user: Us
   const [batchResults, setBatchResults] = useState<any[]>([]);
   const [correcting, setCorrecting] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [mode, setMode] = useState<'ai' | 'manual'>('manual');
+  const [mode, setMode] = useState<'scan' | 'manual'>('manual');
   const [manualAnswers, setManualAnswers] = useState<Record<number, string>>({});
   const [studentName, setStudentName] = useState('');
   const [studentClass, setStudentClass] = useState('');
@@ -2009,17 +2009,7 @@ function CorrectExamView({ user, exams, setView, setRefreshTrigger }: { user: Us
         ctx?.drawImage(img, 0, 0);
 
         try {
-          let scanResult;
-          if (mode === 'ai') {
-            scanResult = await correctExamFromImage(
-              imgData.split(',')[1], // Just the base64 part
-              "image/jpeg",
-              selectedExam.title,
-              selectedExam.questions
-            );
-          } else {
-            scanResult = await scanBubbleSheet(canvas, selectedExam.questions);
-          }
+          const scanResult = await scanBubbleSheet(canvas, selectedExam.questions);
           
           const resultData: any = {
             exam_id: selectedExamId,
@@ -2076,8 +2066,8 @@ function CorrectExamView({ user, exams, setView, setRefreshTrigger }: { user: Us
             Manual (Teclado)
           </button>
           <button 
-            onClick={() => setMode('ai')}
-            className={cn("px-4 py-1.5 rounded-md text-xs font-bold transition-all", mode === 'ai' ? "bg-white text-accent shadow-sm" : "text-slate-500")}
+            onClick={() => setMode('scan')}
+            className={cn("px-4 py-1.5 rounded-md text-xs font-bold transition-all", mode === 'scan' ? "bg-white text-accent shadow-sm" : "text-slate-500")}
           >
             Digital Scan (Foto)
           </button>
