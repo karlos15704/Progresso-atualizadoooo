@@ -116,13 +116,16 @@ async function startServer() {
 
   // API Routes moved to frontend (aiService.ts) matches now in server
   app.post("/api/ai/correct", async (req, res) => {
+    console.log("Recebida requisição em /api/ai/correct");
     const { imageBase64, mimeType, examTitle, questions } = req.body;
     
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ error: "GEMINI_API_KEY não configurada no servidor." });
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "MY_GEMINI_API_KEY") {
+      console.error("GEMINI_API_KEY não configurada ou usando valor padrão.");
+      return res.status(500).json({ error: "A GEMINI_API_KEY não está configurada nos Segredos do projeto. Por favor, adicione-a nas configurações." });
     }
 
     try {
+      console.log(`Iniciando correção para: ${examTitle}`);
       const { GoogleGenAI, Type } = await import("@google/genai");
       const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
       const model = (genAI as any).getGenerativeModel({ model: "gemini-1.5-flash" });

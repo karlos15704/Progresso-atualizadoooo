@@ -23,8 +23,15 @@ export async function correctExamFromImage(
     });
 
     if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || "Falha na comunicação com o servidor de IA.");
+      const text = await response.text();
+      let errorMsg = "Falha na comunicação com o servidor de IA.";
+      try {
+        const err = JSON.parse(text);
+        errorMsg = err.error || errorMsg;
+      } catch (e) {
+        errorMsg = `Erro do servidor (${response.status}): ${text.substring(0, 100)}...`;
+      }
+      throw new Error(errorMsg);
     }
 
     const rawResult = await response.json();
