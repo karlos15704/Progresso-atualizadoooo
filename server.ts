@@ -114,7 +114,89 @@ async function startServer() {
     next();
   });
 
-  // API Routes moved to frontend (aiService.ts)
+  // API Routes moved to frontend (aiService.ts) matches now in server
+  app.post("/api/ai/correct", async (req, res) => {
+    const { imageBase64, mimeType, examTitle, questions } = req.body;
+    
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ error: "GEMINI_API_KEY não configurada no servidor." });
+    }
+
+    try {
+      const { GoogleGenAI, Type } = await import("@google/genai");
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+      const prompt = `
+        Você é um assistente de correção de provas experiente. 
+        Analise a imagem da prova/gabarito de título "${examTitle}".
+        A prova possui ${questions.length} questões.
+        Extraia as respostas do estudante para cada questão.
+        
+        Instruções estritas:
+        1. Identifique e extraia o NOME DO ESTUDANTE e a TURMA (class) da imagem. Se não encontrar, retorne strings vazias.
+        2. Liste o que o estudante marcou em cada questão (A, B, C, D, E ou texto para dissertativas).
+        3. Retorne o objeto \`answers\` onde a chave é o NÚMERO da questão (começando em 1) e o valor é a resposta extraída.
+        4. Não tente calcular a nota.
+      `;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [
+          {
+            parts: [
+              { text: prompt },
+              {
+                inlineData: {
+                  mimeType: mimeType || "image/jpeg",
+                  data: imageBase64,
+                },
+              },
+            ],
+          },
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              studentName: { type: Type.STRING },
+              studentClass: { type: Type.STRING },
+              answers: { 
+                type: Type.OBJECT,
+                description: "Mapeamento do número da questão para a resposta (ex: {\"1\": \"A\", \"2\": \"texto...\"})"
+              },
+              feedback: { type: Type.STRING }
+            },
+            required: ["studentName", "answers", "feedback"]
+          }
+        }
+      });
+
+      res.json(JSON.parse(response.text || "{}"));
+    } catch (err: any) {
+      console.error("Erro na correção IA:", err);
+      res.status(500).json({ error: err.message || "Erro interno na correção IA." });
+    }
+  });
+
+  app.post("/api/ai/study-guide", async (req, res) => {
+    const { content } = req.body;
+    if (!process.env.GEMINI_API_KEY) return res.json({ guide: "Guia manual: " + content });
+
+    try {
+      const { GoogleGenAI } = await import("@google/genai");
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+      const prompt = `Com base nos seguintes conteúdos: "${content}", crie um guia de estudos estruturado para os alunos. Inclua tópicos principais, explicações breves e dicas de estudo. Formate em Markdown.`;
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt
+      });
+      res.json({ guide: response.text || "" });
+    } catch (err) {
+      res.json({ guide: "Guia manual: " + content });
+    }
+  });
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

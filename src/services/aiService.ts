@@ -1,5 +1,3 @@
-import { GoogleGenAI, Type } from "@google/genai";
-
 export interface CorrectionResult {
   studentName: string;
   studentClass?: string;
@@ -15,76 +13,21 @@ export async function correctExamFromImage(
   examTitle: string,
   questions: any[]
 ): Promise<CorrectionResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === "undefined" || apiKey === "MY_GEMINI_API_KEY") {
-    throw new Error("A chave da API Gemini não está configurada corretamente. Adicione sua GEMINI_API_KEY nos segredos/configurações do projeto.");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
-  
-  // Mapping for the AI - using indices for easier matching
-  const aiQuestions = questions.map((q: any, index: number) => ({
-    index: index + 1,
-    type: q.type || 'multiple',
-    options: q.options || [],
-    points: parseFloat(q.points || 1)
-  }));
-  
   const maxTotalScore = questions.reduce((sum: number, q: any) => sum + parseFloat(q.points || 1), 0);
 
-  const prompt = `
-    Você é um assistente de correção de provas experiente. 
-    Analise a imagem da prova/gabarito de título "${examTitle}".
-    
-    A prova possui ${questions.length} questões.
-    Extraia as respostas do estudante para cada questão.
-    
-    Instruções estritas:
-    1. Identifique e extraia o NOME DO ESTUDANTE e a TURMA (class) da imagem. Se não encontrar, retorne strings vazias.
-    2. Liste o que o estudante marcou em cada questão (A, B, C, D, E ou texto para dissertativas).
-    3. Retorne o objeto \`answers\` onde a chave é o NÚMERO da questão (começando em 1) e o valor é a resposta extraída.
-    4. Não tente calcular a nota, eu farei isso.
-  `;
-
-  const response = await ai.models.generateContent({
-    model: "gemini-1.5-flash",
-    contents: [
-      {
-        parts: [
-          { text: prompt },
-          {
-            inlineData: {
-              mimeType: mimeType || "image/jpeg",
-              data: imageBase64,
-            },
-          },
-        ],
-      },
-    ],
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          studentName: { type: Type.STRING },
-          studentClass: { type: Type.STRING },
-          answers: { 
-            type: Type.OBJECT,
-            description: "Mapeamento do número da questão para a resposta (ex: {\"1\": \"A\", \"2\": \"texto...\"})"
-          },
-          feedback: { type: Type.STRING }
-        },
-        required: ["studentName", "answers", "feedback"]
-      }
-    }
-  });
-
-  if (!response.text) {
-    throw new Error("A Inteligência Artificial não retornou uma resposta válida.");
-  }
-
   try {
-    const rawResult = JSON.parse(response.text.replace(/```json|```/g, "").trim());
+    const response = await fetch("/api/ai/correct", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageBase64, mimeType, examTitle, questions })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || "Falha na comunicação com o servidor de IA.");
+    }
+
+    const rawResult = await response.json();
     
     // Local Score Calculation (Robust)
     let calculatedScore = 0;
@@ -109,32 +52,21 @@ export async function correctExamFromImage(
       maxScore: maxTotalScore,
       feedback: rawResult.feedback || ""
     };
-  } catch (e) {
-    console.error("Parse or Logic error:", e);
-    throw new Error("Falha ao processar o resultado da correção.");
+  } catch (e: any) {
+    console.error("AI correction error:", e);
+    throw new Error(e.message || "Falha ao processar o resultado da correção.");
   }
 }
 
 export async function generateStudyGuide(content: string): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === "undefined" || apiKey === "MY_GEMINI_API_KEY") {
-    return "Guia manual: " + content;
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
-  
-  const prompt = `
-    Com base nos seguintes conteúdos: "${content}", crie um guia de estudos estruturado para os alunos.
-    Inclua tópicos principais, explicações breves e dicas de estudo.
-    Formate em Markdown.
-  `;
-
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt
+    const response = await fetch("/api/ai/study-guide", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content })
     });
-    return response.text || "Sem guia de estudos gerado.";
+    const data = await response.json();
+    return data.guide || "Sem guia de estudos gerado.";
   } catch (error) {
     console.warn("AI generation failed", error);
     return "Guia manual: " + content;
