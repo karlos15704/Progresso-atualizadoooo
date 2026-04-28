@@ -146,16 +146,17 @@ export async function scanBubbleSheet(
     let maxBlack = -1;
 
     for (let oIdx = 0; oIdx < 5; oIdx++) {
-      // PDF Template coordinates (More precise mapping)
-      // Marker centers at 15mm and 195mm (width 180mm)
-      // Bubble centers at 60mm + j*20mm
-      const normX = (45 + (oIdx * 20)) / 180; 
+      // PDF Template coordinates alignment
+      // TL: 10,10 | TR: 190,10 | BL: 10,280 | BR: 190,280
+      // Width: 180mm | Height: 270mm
       
-      // Marker centers at 15mm and 285mm (height 270mm)
-      // Bubble centers at 109mm + bubbleIdx*8mm
-      const normY = (94 + (bubbleIdx * 8)) / 270; 
+      // X: Starts at 60mm in PDF, TL is at 10mm -> 50mm relative
+      const normX = (50 + (oIdx * 20)) / 180; 
       
-      // Bilinear interpolation
+      // Y: Starts at 110mm in PDF, circle is at y-1 -> 109mm. TL is at 10mm -> 99mm relative
+      const normY = (99 + (bubbleIdx * 8)) / 270; 
+      
+      // Bilinear interpolation to handle rotation/skew
       const topX = tl.x + (tr.x - tl.x) * normX;
       const botX = bl.x + (br.x - bl.x) * normX;
       const topY = tl.y + (tr.y - tl.y) * normX;
@@ -165,19 +166,21 @@ export async function scanBubbleSheet(
       const py = topY + (botY - topY) * normY;
 
       let blackCount = 0;
-      // Search radius - slightly larger than the bubble (3mm in 180mm = ~1.6% of width)
-      const r = Math.floor(width * 0.012); 
+      // Search radius - matching circle size (3mm in 180mm is ~1.6% of width)
+      const r = Math.floor(width * 0.015); 
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
           const sx = Math.floor(px + dx), sy = Math.floor(py + dy);
-          if (sx >= 0 && sx < width && sy >= 0 && sy < height && binary[sy * width + sx] === 1) blackCount++;
+          if (sx >= 0 && sx < width && sy >= 0 && sy < height && binary[sy * width + sx] === 1) {
+            // Give more weight to center pixels
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist <= r) blackCount += (1 - dist/r);
+          }
         }
       }
 
-      // Density threshold: A marked circle is ~80% of its bounding box area
-      // We check if the density is significant enough compared to the search area
-      const totalArea = (2 * r + 1) * (2 * r + 1);
-      if (blackCount > maxBlack && blackCount > (totalArea * 0.25)) { 
+      // Density threshold: A marked circle should have significant "blackness"
+      if (blackCount > maxBlack && blackCount > (r * r * 0.8)) { 
         maxBlack = blackCount;
         bestOption = options[oIdx];
       }
