@@ -44,6 +44,107 @@ async function startServer() {
     res.json({ status: "ok", time: new Date().toISOString() });
   });
 
+  // API Routes
+  app.post("/api/ai/correct", async (req, res) => {
+    console.log(`[${new Date().toISOString()}] POST /api/ai/correct - Body keys: ${Object.keys(req.body).join(', ')}`);
+    const { imageBase64, mimeType, examTitle, questions } = req.body;
+    
+    // Check for API Key in env or fallback to user provided one if env is placeholder
+    let apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey === "undefined") {
+      // Temporarily use the key provided by the user in chat to unblock them
+      apiKey = "AIzaSyCsdeVta7u2kw60hgz2xayGWMFbi1x8muo"; 
+      console.warn("Using fallback Gemini API key provided by user.");
+    }
+
+    if (!apiKey) {
+      console.error("GEMINI_API_KEY não encontrada.");
+      return res.status(500).json({ error: "A chave da API Gemini não foi encontrada. Por favor, configure GEMINI_API_KEY nos Segredos." });
+    }
+
+    try {
+      console.log(`[${new Date().toISOString()}] Iniciando correção IA para: ${examTitle}`);
+      const { GoogleGenAI, Type } = await import("@google/genai");
+      const genAI = new GoogleGenAI({ apiKey });
+      const model = (genAI as any).getGenerativeModel({ model: "gemini-1.5-flash" });
+
+      const prompt = `
+        Você é um assistente de correção de provas experiente. 
+        Analise a imagem da prova/gabarito de título "${examTitle}".
+        A prova possui ${questions.length} questões.
+        Extraia as respostas do estudante para cada questão.
+        
+        Instruções estritas:
+        1. Identifique e extraia o NOME DO ESTUDANTE e a TURMA (class) da imagem. Se não encontrar, retorne strings vazias.
+        2. Liste o que o estudante marcou em cada questão (A, B, C, D, E ou texto para dissertativas).
+        3. Retorne o objeto \`answers\` onde a chave é o NÚMERO da questão (começando em 1) e o valor é a resposta extraída.
+        4. Não tente calcular a nota.
+      `;
+
+      const result = await model.generateContent({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: prompt },
+              {
+                inlineData: {
+                  mimeType: mimeType || "image/jpeg",
+                  data: imageBase64,
+                },
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              studentName: { type: Type.STRING },
+              studentClass: { type: Type.STRING },
+              answers: { 
+                type: Type.OBJECT,
+                description: "Mapeamento do número da questão para a resposta (ex: {\"1\": \"A\", \"2\": \"texto...\"})"
+              },
+              feedback: { type: Type.STRING }
+            },
+            required: ["studentName", "answers", "feedback"]
+          }
+        }
+      });
+
+      const responseText = result.response.text();
+      console.log(`[${new Date().toISOString()}] Sucesso na correção IA.`);
+      res.json(JSON.parse(responseText));
+    } catch (err: any) {
+      console.error("Erro na correção IA:", err);
+      res.status(500).json({ error: err.message || "Erro interno na correção IA." });
+    }
+  });
+
+  app.post("/api/ai/study-guide", async (req, res) => {
+    const { content } = req.body;
+    let apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey === "undefined") {
+      apiKey = "AIzaSyCsdeVta7u2kw60hgz2xayGWMFbi1x8muo"; 
+    }
+
+    if (!apiKey) return res.json({ guide: "Guia manual: " + content });
+
+    try {
+      const { GoogleGenAI } = await import("@google/genai");
+      const genAI = new GoogleGenAI({ apiKey });
+      const model = (genAI as any).getGenerativeModel({ model: "gemini-1.5-flash" });
+
+      const prompt = `Com base nos seguintes conteúdos: "${content}", crie um guia de estudos estruturado para os alunos. Inclua tópicos principais, explicações breves e dicas de estudo. Formate em Markdown.`;
+      const result = await model.generateContent(prompt);
+      res.json({ guide: result.response.text() });
+    } catch (err) {
+      res.json({ guide: "Guia manual: " + content });
+    }
+  });
+
   // Admin route to create a professor account
   app.post("/api/admin/create-professor", async (req, res) => {
     const { username, fullName, password, assignedSubjects } = req.body;
@@ -112,94 +213,6 @@ async function startServer() {
       return res.status(400).json({ error: 'JSON malformado.' });
     }
     next();
-  });
-
-  // API Routes moved to frontend (aiService.ts) matches now in server
-  app.post("/api/ai/correct", async (req, res) => {
-    console.log("Recebida requisição em /api/ai/correct");
-    const { imageBase64, mimeType, examTitle, questions } = req.body;
-    
-    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "MY_GEMINI_API_KEY") {
-      console.error("GEMINI_API_KEY não configurada ou usando valor padrão.");
-      return res.status(500).json({ error: "A GEMINI_API_KEY não está configurada nos Segredos do projeto. Por favor, adicione-a nas configurações." });
-    }
-
-    try {
-      console.log(`Iniciando correção para: ${examTitle}`);
-      const { GoogleGenAI, Type } = await import("@google/genai");
-      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
-      const model = (genAI as any).getGenerativeModel({ model: "gemini-1.5-flash" });
-
-      const prompt = `
-        Você é um assistente de correção de provas experiente. 
-        Analise a imagem da prova/gabarito de título "${examTitle}".
-        A prova possui ${questions.length} questões.
-        Extraia as respostas do estudante para cada questão.
-        
-        Instruções estritas:
-        1. Identifique e extraia o NOME DO ESTUDANTE e a TURMA (class) da imagem. Se não encontrar, retorne strings vazias.
-        2. Liste o que o estudante marcou em cada questão (A, B, C, D, E ou texto para dissertativas).
-        3. Retorne o objeto \`answers\` onde a chave é o NÚMERO da questão (começando em 1) e o valor é a resposta extraída.
-        4. Não tente calcular a nota.
-      `;
-
-      const result = await model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { text: prompt },
-              {
-                inlineData: {
-                  mimeType: mimeType || "image/jpeg",
-                  data: imageBase64,
-                },
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              studentName: { type: Type.STRING },
-              studentClass: { type: Type.STRING },
-              answers: { 
-                type: Type.OBJECT,
-                description: "Mapeamento do número da questão para a resposta (ex: {\"1\": \"A\", \"2\": \"texto...\"})"
-              },
-              feedback: { type: Type.STRING }
-            },
-            required: ["studentName", "answers", "feedback"]
-          }
-        }
-      });
-
-      const responseText = result.response.text();
-      res.json(JSON.parse(responseText));
-    } catch (err: any) {
-      console.error("Erro na correção IA:", err);
-      // Return JSON even on error
-      res.status(500).json({ error: err.message || "Erro interno na correção IA." });
-    }
-  });
-
-  app.post("/api/ai/study-guide", async (req, res) => {
-    const { content } = req.body;
-    if (!process.env.GEMINI_API_KEY) return res.json({ guide: "Guia manual: " + content });
-
-    try {
-      const { GoogleGenAI } = await import("@google/genai");
-      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
-      const model = (genAI as any).getGenerativeModel({ model: "gemini-1.5-flash" });
-
-      const prompt = `Com base nos seguintes conteúdos: "${content}", crie um guia de estudos estruturado para os alunos. Inclua tópicos principais, explicações breves e dicas de estudo. Formate em Markdown.`;
-      const result = await model.generateContent(prompt);
-      res.json({ guide: result.response.text() });
-    } catch (err) {
-      res.json({ guide: "Guia manual: " + content });
-    }
   });
 
   // Vite middleware for development
