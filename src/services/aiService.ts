@@ -67,10 +67,26 @@ export async function correctExamFromImage(
 
     questions.forEach((q, idx) => {
       const qNum = String(idx + 1);
-      const studentAnswer = (rawResult.answers?.[qNum] || "").toString().trim().toUpperCase();
+      const studentRaw = (rawResult.answers?.[qNum] || "").toString().trim().toUpperCase();
+      
+      // Robust matching for multiple choice: extract first A-E if it exists
+      let studentAnswer = studentRaw;
+      if (q.type !== 'essay') {
+        const match = studentRaw.match(/([A-E])/);
+        if (match) studentAnswer = match[1];
+      }
+      
       finalAnswers[q.id] = studentAnswer;
 
-      const correctAnswer = (q.correctAnswer || "").toString().trim().toUpperCase();
+      const correctAnswerRaw = (q.correctAnswer || "").toString().trim().toUpperCase();
+      let correctAnswer = correctAnswerRaw;
+      if (q.type !== 'essay') {
+        const match = correctAnswerRaw.match(/([A-E])/);
+        if (match) correctAnswer = match[1];
+      }
+
+      console.log(`[AI Match] Q${qNum}: Student="${studentAnswer}" (Raw: "${studentRaw}"), Correct="${correctAnswer}"`);
+
       if (q.type !== 'essay' && studentAnswer === correctAnswer && studentAnswer !== "") {
         calculatedScore += parseFloat(q.points || 1);
       }

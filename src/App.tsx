@@ -1433,7 +1433,7 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
       id: questions.length + 1,
       type: type,
       text: '',
-      options: type === 'objective' ? ['', '', '', ''] : [],
+      options: type === 'objective' ? ['', '', '', '', ''] : [],
       correctAnswer: type === 'objective' ? 'A' : '',
       points: 1,
       imageSize: 100,
@@ -1843,7 +1843,7 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
 
               {q.type !== 'essay' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                  {['A', 'B', 'C', 'D'].map((opt, optIdx) => (
+                  {['A', 'B', 'C', 'D', 'E'].map((opt, optIdx) => (
                     <div key={opt} className="flex items-center gap-3">
                       <button 
                         onClick={() => {
@@ -1954,8 +1954,21 @@ function CorrectExamView({ user, exams, setView, setRefreshTrigger }: { user: Us
       selectedExam.questions.forEach((q) => {
         const questionPoints = parseFloat(String(q.points || 1));
         maxScore += questionPoints;
-        const studentAns = (manualAnswers[q.id] || "").toString().trim().toUpperCase();
-        const correctAns = (q.correctAnswer || "").toString().trim().toUpperCase();
+        
+        const studentRaw = (manualAnswers[q.id] || "").toString().trim().toUpperCase();
+        let studentAns = studentRaw;
+        if (q.type !== 'essay') {
+          const match = studentRaw.match(/([A-E])/);
+          if (match) studentAns = match[1];
+        }
+
+        const correctRaw = (q.correctAnswer || "").toString().trim().toUpperCase();
+        let correctAns = correctRaw;
+        if (q.type !== 'essay') {
+          const match = correctRaw.match(/([A-E])/);
+          if (match) correctAns = match[1];
+        }
+
         if (studentAns !== "" && studentAns === correctAns) {
           score += questionPoints;
         }
@@ -3909,14 +3922,16 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
                     </div>
                   ) : (
                     <div className="flex flex-col items-start w-fit mx-auto space-y-1">
-                      {['a', 'b', 'c', 'd'].map((letter, i) => (
-                        <div key={letter} className="flex gap-2">
-                          <span className="text-sm font-bold">{letter})</span>
-                          <SafeHTML 
-                            html={q.options[i] || ''} 
-                            className="text-sm q-text-html-container" 
-                          />
-                        </div>
+                      {['a', 'b', 'c', 'd', 'e'].map((letter, i) => (
+                        q.options[i] && (
+                          <div key={letter} className="flex gap-2">
+                            <span className="text-sm font-bold">{letter})</span>
+                            <SafeHTML 
+                              html={q.options[i]} 
+                              className="text-sm q-text-html-container" 
+                            />
+                          </div>
+                        )
                       ))}
                     </div>
                   )}
