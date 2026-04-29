@@ -552,7 +552,8 @@ export default function App() {
   const handleUser = async (currentUser: User | null) => {
     if (currentUser) {
       try {
-        const isUserMaster = currentUser.email?.toLowerCase() === 'cps@cps.local';
+        const isAdminEmail = ['cps@cps.local', 'karlos15704@gmail.com'].includes(currentUser.email?.toLowerCase() || '');
+        const isUserMaster = isAdminEmail;
         const { data: profile, error } = await supabase.from('users').select('*').eq('uid', currentUser.id).maybeSingle();
         
         if (error && error.code !== 'PGRST116') {
@@ -573,7 +574,7 @@ export default function App() {
           };
           await supabase.from('users').insert(newProfile);
           setUserProfile(newProfile);
-          setIsAdmin(isUserMaster || newProfile.role === 'admin');
+          setIsAdmin(true);
         } else {
           // Check if role needs sync for master account
           if (isUserMaster && profile.role !== 'admin') {
@@ -910,22 +911,31 @@ export default function App() {
             {view === 'boletim' && <BoletimView results={results} exams={exams} isAdmin={isAdmin} user={user} userProfile={userProfile} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
             {view === 'cronograma' && <CronogramaEstudosView exams={exams} isAdmin={isAdmin} schoolInfo={getSchoolInfo()} bimesters={['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre']} userProfile={userProfile} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
           </AnimatePresence>
-          <div className="mt-20 mb-12 text-center border-t-4 border-slate-900 pt-12 print:hidden">
-            <div className="inline-flex flex-col items-center gap-4">
-              <div className="px-10 py-4 bg-slate-900 rounded-[2rem] shadow-2xl shadow-slate-300 hover:scale-105 transition-all transform cursor-default border-2 border-accent/20">
-                <p className="text-[13px] font-black uppercase tracking-[0.4em] text-white">
+          <div className="mt-16 mb-12 text-center border-t border-slate-200 pt-12 print:hidden">
+            <div className="inline-flex flex-col items-center gap-3">
+              <motion.div 
+                whileHover={{ 
+                  scale: 1.05, 
+                  rotate: [0, -1, 1, -1, 0, 2, -2, 0],
+                  transition: { duration: 0.4 }
+                }}
+                whileTap={{ scale: 0.98 }}
+                className="px-6 py-3 bg-slate-950 dark:bg-slate-900 rounded-2xl shadow-xl shadow-slate-200 dark:shadow-none cursor-default border border-slate-800"
+              >
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-1">
                   Sistema de Gestão Escolar
                 </p>
-                <div className="h-px w-full bg-white/10 my-2" />
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                  Desenvolvido por <span className="text-accent text-lg ml-1 font-black underline decoration-accent/40 decoration-wavy underline-offset-4">Antônio Carlos</span>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-white">
+                  Desenvolvido por <span className="text-accent font-black animate-pulse">Antônio Carlos</span>
                 </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="w-8 h-px bg-slate-300" />
-                <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest opacity-80">Excelência Acadêmica & Tecnologia v2.0</p>
-                <span className="w-8 h-px bg-slate-300" />
-              </div>
+              </motion.div>
+              <motion.div 
+                animate={{ opacity: [0.4, 1, 0.4] }}
+                transition={{ duration: 3, repeat: Infinity }}
+                className="flex items-center gap-2"
+              >
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Tecnologia & Inovação</p>
+              </motion.div>
             </div>
           </div>
         </main>
@@ -1337,18 +1347,18 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                               >
                                 <Download className="w-4 h-4" />
                               </button>
-                              {(isAdmin || exam.professorId === user.id || (userProfile && exam.professorId === userProfile.id)) && (
+                              {(isAdmin || exam.professorId === user.id || (userProfile && (exam.professorId === userProfile.id || exam.professorId === userProfile.uid))) && (
                                 <>
                                   <button 
                                     onClick={() => onEditExam(exam)}
-                                    className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                    className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-all active:scale-90"
                                     title="Editar"
                                   >
                                     <Pencil className="w-4 h-4" />
                                   </button>
                                   <button 
                                     onClick={() => onDeleteExam(exam.id)}
-                                    className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                                    className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-all active:scale-90"
                                     title="Excluir"
                                   >
                                     <Trash2 className="w-4 h-4" />
