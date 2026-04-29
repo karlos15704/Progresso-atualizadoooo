@@ -68,55 +68,76 @@ async function startServer() {
       });
     }
 
-    try {
-      const { GoogleGenAI, Type } = await import("@google/genai");
-      const client = new GoogleGenAI({ apiKey });
+    const { GoogleGenAI, Type } = await import("@google/genai");
+    const client = new GoogleGenAI({ apiKey });
 
-      const questionsContext = questions.map((q: any, idx: number) => `Q${idx + 1}: ${q.type === 'essay' ? 'Dissertativa' : 'Múltipla Escolha'}`).join(', ');
-      const prompt = `Analise a imagem da prova: "${examTitle}". Extraia os seguintes dados estruturados:
+    const questionsContext = questions.map((q: any, idx: number) => {
+      const typeStr = q.type === 'essay' ? 'Dissertativa' : 'Múltipla Escolha';
+      const gabaritoStr = q.type !== 'essay' ? `(Gabarito esperado: ${q.correctAnswer})` : '(Transcrever texto)';
+      return `Q${idx + 1}: ${typeStr} ${gabaritoStr}`;
+    }).join(', ');
+
+    const prompt = `Analise a imagem da prova: "${examTitle}". Extraia os seguintes dados estruturados:
 1. studentName: Nome completo do aluno conforme escrito na prova.
 2. studentClass: Turma/Série do aluno (ex: "3º ano A").
 3. answers: Um objeto JSON onde a chave é o número da questão em string (ex: "1", "2") e o valor é a resposta extraída.
-   - Para questões de múltipla escolha: Extraia APENAS a letra da opção escolhida (A, B, C, D ou E). Se houver rasura, identifique a opção que parece ser a final.
+   - Para questões de múltipla escolha: Compare com o gabarito esperado e extraia APENAS a letra da opção escolhida (A, B, C, D ou E). Se houver rasura, identifique a opção final.
    - Para questões dissertativas: Transcreva o texto escrito pelo aluno.
-   - O sistema espera as seguintes questões: ${questionsContext}.
+   - O sistema espera as seguintes questões e gabaritos: ${questionsContext}.
 4. feedback: Um comentário curto, amigável e motivador sobre o desempenho do aluno observado na correção.`;
 
-      // Use the recommended model for text and vision tasks from the skill
-      const response = await client.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { text: prompt },
-              {
-                inlineData: {
-                  mimeType: mimeType || "image/jpeg",
-                  data: imageBase64,
+    const maxRetries = 2;
+    let attempt = 0;
+    
+    const executeAttempt = async (): Promise<any> => {
+      try {
+        const response = await client.models.generateContent({
+          model: "gemini-2.0-flash",
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: prompt },
+                {
+                  inlineData: {
+                    mimeType: mimeType || "image/jpeg",
+                    data: imageBase64,
+                  },
                 },
-              },
-            ],
-          },
-        ],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              studentName: { type: Type.STRING },
-              studentClass: { type: Type.STRING },
-              answers: { 
-                type: Type.OBJECT,
-                description: "Map of question number to student's answer"
-              },
-              feedback: { type: Type.STRING }
+              ],
             },
-            required: ["studentName", "answers", "feedback"]
+          ],
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                studentName: { type: Type.STRING },
+                studentClass: { type: Type.STRING },
+                answers: { 
+                  type: Type.OBJECT,
+                  description: "Map of question number to student's answer"
+                },
+                feedback: { type: Type.STRING }
+              },
+              required: ["studentName", "answers", "feedback"]
+            }
           }
+        });
+        return response;
+      } catch (err: any) {
+        if (err.status === 429 && attempt < maxRetries) {
+          attempt++;
+          console.log(`[AI Retry] Attempt ${attempt} after 429 error...`);
+          await new Promise(resolve => setTimeout(resolve, 3000 * attempt)); // wait 3s, 6s
+          return executeAttempt();
         }
-      });
+        throw err;
+      }
+    };
 
+    try {
+      const response = await executeAttempt();
       let responseText = response.text || "{}";
       // Ensure we clean potential markdown backticks if any
       responseText = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
@@ -135,9 +156,11 @@ async function startServer() {
       let errorMessage = "Erro ao processar correção. ";
 
       if (status === 429) {
-        errorMessage = "Limite de quota excedido (Rate Limit). Por favor, aguarde alguns segundos e tente novamente.";
+        errorMessage = "Limite de quota excedido (Rate Limit). Por favor, aguarde cerca de 1 minuto e tente novamente. Se o problema persistir, use uma chave API com mais quota.";
       } else if (status === 503) {
         errorMessage = "O serviço de IA está temporariamente sobrecarregado (Alta Demanda). Por favor, tente novamente em instantes.";
+      } else if (err.status === 404) {
+        errorMessage = "Modelo Gemini 1.5 Flash não disponível nesta região/chave. Tente usar KarlosAPI em Settings > Secrets.";
       } else if (err.message && err.message.includes("API key not valid")) {
         errorMessage += "A Chave API configurada parece ser inválida. Verifique em Settings > Secrets.";
       } else {
@@ -162,10 +185,27 @@ async function startServer() {
     try {
       const { GoogleGenAI } = await import("@google/genai");
       const client = new GoogleGenAI({ apiKey });
-      const response = await client.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ role: 'user', parts: [{ text: `Crie um guia de estudos em Markdown para alunos com base em: "${content}". Use títulos (##), listas e negrito para organizar.` }] }]
-      });
+      
+      const maxRetries = 1;
+      let attempt = 0;
+      
+      const executeGuideAttempt = async (): Promise<any> => {
+        try {
+          return await client.models.generateContent({
+            model: "gemini-2.0-flash",
+            contents: [{ role: 'user', parts: [{ text: `Crie um guia de estudos em Markdown para alunos com base em: "${content}". Use títulos (##), listas e negrito para organizar.` }] }]
+          });
+        } catch (err: any) {
+          if (err.status === 429 && attempt < maxRetries) {
+            attempt++;
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            return executeGuideAttempt();
+          }
+          throw err;
+        }
+      };
+
+      const response = await executeGuideAttempt();
       res.json({ guide: response.text });
     } catch (err: any) {
       console.error("AI Guide Error:", err);

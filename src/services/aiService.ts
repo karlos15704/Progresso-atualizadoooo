@@ -68,19 +68,24 @@ export async function correctExamFromImage(
       
       // Helper to extract choice (A-E)
       const extractChoice = (text: string) => {
-        const cleaned = text.trim().toUpperCase();
-        // Look for single letter A-E at start or surrounded by boundaries
-        const match = cleaned.match(/\b([A-E])\b/) || cleaned.match(/^([A-E])/);
-        return match ? match[1] : (cleaned.length === 1 ? cleaned : "");
+        if (!text) return "";
+        const cleaned = text.toString().trim().toUpperCase();
+        // Look for single letter A-E at start or surrounded by boundaries, or just a single char
+        const match = cleaned.match(/\b([A-E])\b/) || cleaned.match(/^([A-E])($|[\s\)\.])/);
+        if (match) return match[1];
+        // Fallback for when the string is JUST the choice letter or something like "A)"
+        const singleCharMatch = cleaned.replace(/[^A-E]/g, '');
+        return singleCharMatch.length === 1 ? singleCharMatch : (cleaned.length === 1 && /[A-E]/.test(cleaned) ? cleaned : "");
       };
 
       let studentAnswer = extractChoice(studentRaw);
       let correctAnswer = extractChoice(q.correctAnswer || "");
 
       if (q.type !== 'essay') {
-        if (studentAnswer === correctAnswer && studentAnswer !== "") {
+        const isCorrect = studentAnswer === correctAnswer && studentAnswer !== "";
+        if (isCorrect) {
           calculatedScore += calculatePoints(q.points);
-          console.log(`[AI Match] Q${qNum} SUCCESS: Student="${studentAnswer}", Correct="${correctAnswer}" (+${calculatePoints(q.points)} pts)`);
+          console.log(`[AI Match] Q${qNum} SUCCESS: Student="${studentAnswer}" (Raw: "${studentRaw}"), Correct="${correctAnswer}" (+${calculatePoints(q.points)} pts)`);
         } else {
           console.log(`[AI Match] Q${qNum} FAIL: Student="${studentAnswer}" (Raw: "${studentRaw}"), Correct="${correctAnswer}" (Raw: "${q.correctAnswer}")`);
         }
