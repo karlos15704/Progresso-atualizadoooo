@@ -1242,7 +1242,7 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                 <select 
                   value={bimesterFilter}
                   onChange={e => setBimesterFilter(e.target.value)}
-                  className="text-[10px] font-black border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 outline-none bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 uppercase tracking-wider shadow-sm focus:ring-2 focus:ring-primary/10 transition-all"
+                  className="text-[10px] font-black border-2 border-black dark:border-slate-700 rounded-lg px-3 py-1.5 outline-none bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.1)] focus:ring-0 transition-all"
                 >
                   <option value="">Bimestres</option>
                   <option value="1º Bimestre">1º Bim.</option>
@@ -1254,7 +1254,7 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                 <select 
                    value={classFilter}
                    onChange={e => setClassFilter(e.target.value)}
-                   className="text-[10px] font-black border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 outline-none bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 uppercase tracking-wider shadow-sm focus:ring-2 focus:ring-primary/10 transition-all"
+                   className="text-[10px] font-black border-2 border-black dark:border-slate-700 rounded-lg px-3 py-1.5 outline-none bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.1)] focus:ring-0 transition-all"
                 >
                   <option value="">Turmas</option>
                   {schoolInfo.classes.map(c => (
@@ -1265,7 +1265,7 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                 <select 
                    value={categoryFilter}
                    onChange={e => setCategoryFilter(e.target.value)}
-                   className="text-[10px] font-black border border-slate-200 rounded-lg px-3 py-1.5 outline-none bg-white uppercase tracking-wider shadow-sm focus:ring-2 focus:ring-primary/10 transition-all"
+                   className="text-[10px] font-black border-2 border-black dark:border-slate-700 rounded-lg px-3 py-1.5 outline-none bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.1)] focus:ring-0 transition-all"
                 >
                   <option value="">Tipos</option>
                   {EXAM_CATEGORIES.map(cat => (
@@ -1274,103 +1274,102 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                 </select>
               </div>
             </div>
-            <button onClick={() => setShowAll(!showAll)} className="text-[10px] bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-lg font-black uppercase tracking-widest hover:bg-slate-50 transition-colors shadow-sm self-start sm:self-center">
+            <button 
+              onClick={() => setShowAll(!showAll)} 
+              className="text-[10px] bg-white dark:bg-slate-900 border-2 border-black dark:border-slate-700 text-slate-900 dark:text-slate-100 px-4 py-2 rounded-lg font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.1)] self-start sm:self-center active:translate-x-0.5 active:translate-y-0.5"
+            >
               {showAll ? 'Ver Resumo' : 'Expandir Tudo'}
             </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="bg-[#f8fafc]">
-                  <th className="text-left px-5 py-3 text-[#4a5568] font-semibold border-b border-border">Identificador</th>
-                  <th className="text-left px-5 py-3 text-[#4a5568] font-semibold border-b border-border">Turma</th>
-                  <th className="text-left px-5 py-3 text-[#4a5568] font-semibold border-b border-border">Bimestre</th>
-                  <th className="text-left px-5 py-3 text-[#4a5568] font-semibold border-b border-border">Matéria</th>
-                  <th className="text-left px-5 py-3 text-[#4a5568] font-semibold border-b border-border">Tipo</th>
-                  <th className="text-left px-5 py-3 text-[#4a5568] font-semibold border-b border-border">Data</th>
-                  <th className="text-left px-5 py-3 text-[#4a5568] font-semibold border-b border-border">Status</th>
-                  <th className="text-left px-5 py-3 text-[#4a5568] font-semibold border-b border-border">Ações</th>
+                <tr className="bg-slate-50 dark:bg-slate-800/50 transition-colors">
+                  <th className="text-left px-4 py-3 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">ID</th>
+                  <th className="text-left px-4 py-3 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">Turma</th>
+                  <th className="text-left px-4 py-3 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">Matéria</th>
+                  <th className="text-left px-4 py-3 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">Tipo</th>
+                  <th className="text-left px-4 py-3 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">Data</th>
+                  <th className="text-left px-4 py-3 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">Status</th>
+                  <th className="text-right px-4 py-3 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">Ações</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {displayExams.length > 0 ? (
                   Array.from(new Set(displayExams.map(e => e.bimester || '1º Bimestre'))).map(bim => (
                     <React.Fragment key={bim}>
-                      <tr className="bg-slate-50/50">
-                        <td colSpan={8} className="px-5 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-border">
+                      <tr className="bg-slate-50/30 dark:bg-slate-800/20">
+                        <td colSpan={7} className="px-4 py-2 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                           {bim}
                         </td>
                       </tr>
                       {displayExams.filter(e => (e.bimester || '1º Bimestre') === bim).map(exam => (
-                        <tr key={exam.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-5 py-3 border-b border-border font-medium text-slate-600">#PRV-{exam.id.slice(-4).toUpperCase()}</td>
-                          <td className="px-5 py-3 border-b border-border text-slate-700 font-bold">{exam.classYear || '--'}</td>
-                          <td className="px-5 py-3 border-b border-border text-slate-600 font-medium">
-                            <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] uppercase font-bold">
-                              {exam.bimester || '1º Bim.'}
+                        <tr key={exam.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                          <td className="px-4 py-3 font-mono text-[11px] text-slate-400 dark:text-slate-600">
+                            #{exam.id.slice(-4).toUpperCase()}
+                          </td>
+                          <td className="px-4 py-3 text-slate-900 dark:text-slate-200 font-bold whitespace-nowrap">
+                            {exam.classYear || '--'}
+                          </td>
+                          <td className="px-4 py-3 text-slate-700 dark:text-slate-300 font-medium max-w-[200px] truncate" title={stripHtml(exam.subject)}>
+                            {stripHtml(exam.subject)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-block px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold uppercase">
+                              {stripHtml(exam.examType)}
                             </span>
                           </td>
-                          <td className="px-5 py-3 border-b border-border text-slate-700">{stripHtml(exam.subject)}</td>
-                          <td className="px-5 py-3 border-b border-border text-slate-700">{stripHtml(exam.examType)}</td>
-                          <td className="px-5 py-3 border-b border-border text-slate-500">{new Date(exam.createdAt).toLocaleDateString()}</td>
-                          <td className="px-5 py-3 border-b border-border">
+                          <td className="px-4 py-3 text-slate-500 dark:text-slate-500 text-[11px] whitespace-nowrap">
+                            {new Date(exam.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3">
                             <span className={cn(
-                              "px-2 py-1 rounded-full text-[11px] font-bold uppercase",
-                              results.some(r => r.examId === exam.id) ? "bg-[#c6f6d5] text-[#22543d]" : "bg-[#feebc8] text-[#744210]"
+                              "px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tight",
+                              results.some(r => r.examId === exam.id) 
+                                ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 line-through decoration-1" 
+                                : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
                             )}>
                               {results.some(r => r.examId === exam.id) ? 'Corrigida' : 'Pendente'}
                             </span>
                           </td>
-                          <td className="px-5 py-3 border-b border-border text-slate-500 flex items-center gap-3">
-                            <button 
-                              onClick={() => {
-                                onSelectPrintExam(exam);
-                                setView('print');
-                              }}
-                              className="text-accent font-bold hover:underline flex items-center gap-1"
-                              title="Imprimir Prova + Gabarito"
-                            >
-                              <Printer className="w-4 h-4" />
-                              <span className="hidden xl:inline">Imprimir</span>
-                            </button>
-                            {isAdmin && (
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
                               <button 
-                                onClick={() => onReassignProfessor(exam)}
-                                className="text-amber-600 font-bold hover:underline flex items-center gap-1"
-                                title="Reatribuir Professor"
+                                onClick={() => {
+                                  onSelectPrintExam(exam);
+                                  setView('print');
+                                }}
+                                className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                                title="Imprimir"
                               >
-                                <Users className="w-4 h-4" />
-                                <span className="hidden xl:inline">Reatribuir</span>
+                                <Printer className="w-4 h-4" />
                               </button>
-                            )}
-                            <button 
-                              onClick={() => generatePrintableAnswerSheet(exam, LOGO_VINHO, [""])}
-                              className="text-blue-500 font-bold hover:underline flex items-center gap-1"
-                              title="Baixar Gabarito OMR"
-                            >
-                              <Download className="w-4 h-4" />
-                              <span className="hidden xl:inline">Gabarito</span>
-                            </button>
-                            {(isAdmin || exam.professorId === user.id) && (
-                              <>
-                                <button 
-                                  onClick={() => onEditExam(exam)}
-                                  className="text-slate-500 font-bold hover:text-primary flex items-center gap-1"
-                                  title="Editar Prova"
-                                >
-                                  <Pencil className="w-4 h-4" />
-                                  <span className="hidden xl:inline">Editar</span>
-                                </button>
-                                <button 
-                                  onClick={() => onDeleteExam(exam.id)}
-                                  className="text-red-400 font-bold hover:text-red-600 flex items-center gap-1"
-                                  title="Excluir Prova"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                  <span className="hidden xl:inline">Excluir</span>
-                                </button>
-                              </>
-                            )}
+                              <button 
+                                onClick={() => generatePrintableAnswerSheet(exam, LOGO_VINHO, [""])}
+                                className="p-1.5 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                                title="OMR"
+                              >
+                                <Download className="w-4 h-4" />
+                              </button>
+                              {(isAdmin || exam.professorId === user.id) && (
+                                <>
+                                  <button 
+                                    onClick={() => onEditExam(exam)}
+                                    className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                    title="Editar"
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => onDeleteExam(exam.id)}
+                                    className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                                    title="Excluir"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1378,7 +1377,12 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="px-5 py-10 text-center text-slate-400">Nenhuma prova encontrada para este filtro.</td>
+                    <td colSpan={7} className="px-5 py-20 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <Search className="w-8 h-8 text-slate-200 dark:text-slate-800" />
+                        <p className="text-slate-400 dark:text-slate-600 font-medium">Nenhuma prova encontrada.</p>
+                      </div>
+                    </td>
                   </tr>
                 )}
               </tbody>
