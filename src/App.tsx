@@ -882,7 +882,7 @@ export default function App() {
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-[30px] pb-32 lg:pb-[30px] bg-[#f8fafc] print:overflow-visible print:p-0 print:static print:block print-container">
           <AnimatePresence mode="wait">
-            {view === 'dashboard' && <DashboardView user={user} isAdmin={isAdmin} exams={exams} results={results} setView={setView} onSelectPrintExam={setSelectedPrintExam} onEditExam={e => { setExamToEdit(e); setView('create'); }} onDeleteExam={handleDeleteExam} professors={professors} onReassignProfessor={setExamBeingReassigned} />}
+            {view === 'dashboard' && <DashboardView user={user} isAdmin={isAdmin} exams={exams} results={results} setView={setView} onSelectPrintExam={setSelectedPrintExam} onEditExam={e => { setExamToEdit(e); setView('create'); }} onDeleteExam={handleDeleteExam} professors={professors} onReassignProfessor={setExamBeingReassigned} userProfile={userProfile} />}
             {view === 'create' && <CreateExamView user={user} userProfile={userProfile} setView={setView} examToEdit={examToEdit} onExamSaved={() => { setExamToEdit(null); setRefreshTrigger(prev => prev + 1); setView('dashboard'); }} />}
             {view === 'correct' && <CorrectExamView user={user} exams={exams} setView={setView} setRefreshTrigger={setRefreshTrigger} />}
             {view === 'guides' && <GuidesView exams={exams} />}
@@ -1160,7 +1160,7 @@ const EXAM_CATEGORIES = [
   'Atividade'
 ];
 
-function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintExam, onEditExam, onDeleteExam, professors, onReassignProfessor }: { 
+function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintExam, onEditExam, onDeleteExam, professors, onReassignProfessor, userProfile }: { 
   user: User, 
   isAdmin: boolean, 
   exams: Exam[], 
@@ -1170,7 +1170,8 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
   onEditExam: (exam: Exam) => void, 
   onDeleteExam: (id: string) => void,
   professors: any[],
-  onReassignProfessor: (exam: Exam) => void
+  onReassignProfessor: (exam: Exam) => void,
+  userProfile: any
 }) {
   const schoolInfo = getSchoolInfo();
   const [showAll, setShowAll] = useState(false);
@@ -1336,7 +1337,7 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                               >
                                 <Download className="w-4 h-4" />
                               </button>
-                              {(isAdmin || exam.professorId === user.id) && (
+                              {(isAdmin || exam.professorId === user.id || (userProfile && exam.professorId === userProfile.id)) && (
                                 <>
                                   <button 
                                     onClick={() => onEditExam(exam)}
@@ -6222,7 +6223,7 @@ function CronogramaEstudosView({
     
     try {
       await supabase.from('exams').insert({
-        professor_id: userProfile.id,
+        professor_id: userProfile.uid,
         class_year: selectedClass,
         subject: newContentData.subject,
         exam_type: newContentData.examType,
