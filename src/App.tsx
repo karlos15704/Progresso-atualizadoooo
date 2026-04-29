@@ -70,6 +70,7 @@ import {
   Cell
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
+import confetti from 'canvas-confetti';
 import { cn } from './lib/utils';
 
 // Professional Safe HTML Cleaner (especially for Word-to-Web pasted content)
@@ -941,31 +942,89 @@ export default function App() {
             {view === 'boletim' && <BoletimView results={results} exams={exams} isAdmin={isAdmin} user={user} userProfile={userProfile} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
             {view === 'cronograma' && <CronogramaEstudosView exams={exams} isAdmin={isAdmin} schoolInfo={getSchoolInfo()} bimesters={['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre']} userProfile={userProfile} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
           </AnimatePresence>
-          <div className="mt-16 mb-12 text-center border-t border-slate-200 pt-12 print:hidden">
-            <div className="inline-flex flex-col items-center gap-3">
+          <div className="mt-16 mb-12 text-center border-t border-slate-200 dark:border-slate-800 pt-12 print:hidden overflow-hidden relative">
+            <div className="inline-flex flex-col items-center gap-4 relative z-10">
               <motion.div 
-                whileHover={{ 
-                  scale: 1.05, 
-                  rotate: [0, -1, 1, -1, 0, 2, -2, 0],
-                  transition: { duration: 0.4 }
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ 
+                  y: [0, -10, 0],
+                  opacity: 1
                 }}
-                whileTap={{ scale: 0.98 }}
-                className="px-6 py-3 bg-slate-950 dark:bg-slate-900 rounded-2xl shadow-xl shadow-slate-200 dark:shadow-none cursor-default border border-slate-800"
+                transition={{ 
+                  y: { duration: 4, repeat: Infinity, ease: "easeInOut" },
+                  opacity: { duration: 0.5 }
+                }}
+                whileHover={{ 
+                  scale: 1.15, 
+                  rotate: [0, -5, 10, -10, 5, 0]
+                }}
+                transition={{
+                  scale: { type: "spring", stiffness: 400, damping: 10 },
+                  rotate: { duration: 0.5, ease: "backOut" }
+                }}
+                whileTap={{ scale: 0.8 }}
+                onClick={() => {
+                  confetti({
+                    particleCount: 150,
+                    startVelocity: 30,
+                    spread: 360,
+                    origin: { x: Math.random(), y: Math.random() - 0.2 }
+                  });
+                }}
+                className="relative px-10 py-5 bg-slate-950 dark:bg-slate-900 rounded-[3rem] shadow-2xl shadow-accent/30 cursor-pointer border-2 border-slate-800 group overflow-hidden"
               >
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-1">
+                {/* Rainbow background on hover */}
+                <motion.div 
+                  className="absolute inset-0 bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 opacity-0 group-hover:opacity-10 transition-opacity"
+                />
+                {/* Decorative particles */}
+                <motion.div 
+                  animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="absolute -top-2 -left-2 w-4 h-4 bg-accent rounded-full blur-sm" 
+                />
+                <motion.div 
+                  animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0.5, 0.2] }}
+                  transition={{ duration: 3, repeat: Infinity, delay: 1 }}
+                  className="absolute -bottom-1 -right-3 w-6 h-6 bg-blue-500 rounded-full blur-md" 
+                />
+
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 mb-1 group-hover:text-accent transition-colors">
                   Sistema de Gestão Escolar
                 </p>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-white">
-                  Desenvolvido por <span className="text-accent font-black animate-pulse">Antônio Carlos</span>
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-white">Desenvolvido por</span>
+                  <motion.span 
+                    animate={{ 
+                      color: ["#ff3b30", "#ff9500", "#ffcc00", "#4cd964", "#5ac8fa", "#007aff", "#5856d6", "#ff3b30"],
+                    }}
+                    transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                    className="text-lg font-black italic tracking-tighter drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]"
+                  >
+                    Antônio Carlos
+                  </motion.span>
+                </div>
+              </motion.div>
+
+              <div className="flex items-center gap-4">
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                  className="text-accent/40"
+                >
+                  <Sparkles className="w-4 h-4" />
+                </motion.div>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-default">
+                  Tecnologia & Inovação v2.5
                 </p>
-              </motion.div>
-              <motion.div 
-                animate={{ opacity: [0.4, 1, 0.4] }}
-                transition={{ duration: 3, repeat: Infinity }}
-                className="flex items-center gap-2"
-              >
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Tecnologia & Inovação</p>
-              </motion.div>
+                <motion.div 
+                  animate={{ rotate: -360 }}
+                  transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                  className="text-blue-400/40"
+                >
+                  <Sparkles className="w-4 h-4" />
+                </motion.div>
+              </div>
             </div>
           </div>
         </main>
@@ -2595,6 +2654,12 @@ function SettingsView({ user, userProfile, onPasswordChange }: { user: User, use
           return;
         }
         await onPasswordChange(newPassword);
+        confetti({
+          particleCount: 150,
+          spread: 80,
+          origin: { y: 0.7 },
+          colors: ['#ff3b30', '#4cd964', '#007aff', '#ffcc00']
+        });
         setNewPassword('');
         setConfirmPassword('');
       }
@@ -2749,6 +2814,12 @@ function AdminView({ user, onResetPassword }: { user: User, onResetPassword: (ui
     setLoading(true);
     try {
       await onResetPassword(resettingPwUser.uid, newPwVal);
+      confetti({
+        particleCount: 100,
+        spread: 90,
+        origin: { y: 0.6 },
+        colors: ['#5ac8fa', '#007aff', '#ff3b30']
+      });
       alert("Senha redefinida com sucesso!");
       setResettingPwUser(null);
       setNewPwVal('');
@@ -2886,24 +2957,38 @@ function AdminView({ user, onResetPassword }: { user: User, onResetPassword: (ui
           <p className="text-sm text-slate-500 font-medium">Gestão centralizada de usuários e estrutura escolar</p>
         </div>
         
-        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl relative overflow-hidden">
           <button 
             onClick={() => setActiveTab('users')}
             className={cn(
-              "px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
-              activeTab === 'users' ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
+              "relative z-10 px-8 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300",
+              activeTab === 'users' ? "text-slate-900 dark:text-white" : "text-slate-500 hover:text-slate-700"
             )}
           >
-            Equipe
+            <span className="relative z-20">Equipe</span>
+            {activeTab === 'users' && (
+              <motion.div 
+                layoutId="admin-tab-pill"
+                className="absolute inset-0 bg-white dark:bg-slate-700 rounded-xl shadow-md z-10"
+                transition={{ type: "spring", bounce: 0.4, duration: 0.6 }}
+              />
+            )}
           </button>
           <button 
             onClick={() => setActiveTab('school')}
             className={cn(
-              "px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
-              activeTab === 'school' ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
+              "relative z-10 px-8 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300",
+              activeTab === 'school' ? "text-slate-900 dark:text-white" : "text-slate-500 hover:text-slate-700"
             )}
           >
-            Escola
+            <span className="relative z-20">Escola</span>
+            {activeTab === 'school' && (
+              <motion.div 
+                layoutId="admin-tab-pill"
+                className="absolute inset-0 bg-white dark:bg-slate-700 rounded-xl shadow-md z-10"
+                transition={{ type: "spring", bounce: 0.4, duration: 0.6 }}
+              />
+            )}
           </button>
         </div>
       </div>
