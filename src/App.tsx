@@ -496,7 +496,7 @@ export default function App() {
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [view, setView] = useState<'dashboard' | 'create' | 'correct' | 'reports' | 'guides' | 'admin' | 'schedule' | 'print' | 'studentReports' | 'printReport' | 'boletim' | 'diary'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'create' | 'correct' | 'reports' | 'guides' | 'admin' | 'schedule' | 'print' | 'studentReports' | 'printReport' | 'boletim' | 'diary' | 'cronograma'>('dashboard');
   const [selectedPrintExam, setSelectedPrintExam] = useState<Exam | null>(null);
   const [selectedReportForPrint, setSelectedReportForPrint] = useState<StudentReport | null>(null);
   const [multipleReportsToPrint, setMultipleReportsToPrint] = useState<StudentReport[]>([]);
@@ -824,6 +824,13 @@ export default function App() {
               collapsed={sidebarCollapsed}
             />
             <NavButton 
+              active={view === 'cronograma'} 
+              onClick={() => { setView('cronograma'); setExamToEdit(null); }} 
+              icon={<Calendar className="w-5 h-5" />} 
+              label="Cronograma Estudo" 
+              collapsed={sidebarCollapsed}
+            />
+            <NavButton 
               active={view === 'studentReports'} 
               onClick={() => { setView('studentReports'); setExamToEdit(null); }} 
               icon={<UserIcon className="w-5 h-5" />} 
@@ -876,6 +883,7 @@ export default function App() {
             {view === 'admin' && isAdmin && <AdminView user={user} />}
             {view === 'diary' && <DigitalDiaryView user={user} isAdmin={isAdmin} userProfile={userProfile} />}
             {view === 'boletim' && <BoletimView results={results} exams={exams} isAdmin={isAdmin} user={user} userProfile={userProfile} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
+            {view === 'cronograma' && <CronogramaEstudosView exams={exams} isAdmin={isAdmin} schoolInfo={getSchoolInfo()} bimesters={['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre']} userProfile={userProfile} />}
           </AnimatePresence>
           <div className="mt-20 mb-12 text-center border-t-4 border-slate-900 pt-12 print:hidden">
             <div className="inline-flex flex-col items-center gap-4">
@@ -959,6 +967,7 @@ export default function App() {
         <MobileNavButton active={view === 'diary'} onClick={() => setView('diary')} icon={<BookOpen size={18} />} label="Diário" />
         <MobileNavButton active={view === 'correct'} onClick={() => setView('correct')} icon={<Scan size={18} />} label="Correção" />
         <MobileNavButton active={view === 'boletim'} onClick={() => setView('boletim')} icon={<FileText size={18} />} label="Boletim" />
+        <MobileNavButton active={view === 'cronograma'} onClick={() => setView('cronograma')} icon={<Calendar size={18} />} label="Estudo" />
         <MobileNavButton active={view === 'studentReports'} onClick={() => setView('studentReports')} icon={<UserIcon size={18} />} label="Obs" />
         {isAdmin && (
           <MobileNavButton active={view === 'admin'} onClick={() => setView('admin')} icon={<Settings size={18} />} label="Admin" />
@@ -6094,6 +6103,377 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
   );
 }
 
+function CronogramaEstudosView({ 
+  exams, 
+  isAdmin, 
+  schoolInfo, 
+  bimesters,
+  userProfile 
+}: { 
+  exams: Exam[], 
+  isAdmin: boolean, 
+  schoolInfo: any, 
+  bimesters: string[],
+  userProfile: any
+}) {
+  const [selectedClass, setSelectedClass] = useState(schoolInfo.classes[0] || '');
+  const [selectedBimester, setSelectedBimester] = useState(bimesters[0] || '');
+
+  const filteredExams = useMemo(() => {
+    return exams.filter(e => 
+      e.classYear === selectedClass && 
+      e.bimester === selectedBimester
+    ).sort((a, b) => {
+      if (!a.examDate) return 1;
+      if (!b.examDate) return -1;
+      return new Date(a.examDate).getTime() - new Date(b.examDate).getTime();
+    });
+  }, [exams, selectedClass, selectedBimester]);
+
+  const examsByDate = useMemo(() => {
+    const groups: Record<string, Exam[]> = {};
+    filteredExams.forEach(e => {
+      const dateKey = e.examDate || 'Sem Data';
+      if (!groups[dateKey]) groups[dateKey] = [];
+      groups[dateKey].push(e);
+    });
+    return groups;
+  }, [filteredExams]);
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-6"
+    >
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
+        <div>
+          <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Cronograma de Estudos</h2>
+          <p className="text-slate-500 font-medium tracking-tight">Organize os conteúdos para as avaliações por período.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <select 
+            value={selectedClass}
+            onChange={(e) => setSelectedClass(e.target.value)}
+            className="px-4 py-2 bg-white border-2 border-black rounded-lg font-black text-xs uppercase"
+          >
+            {schoolInfo.classes.map((c: string) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select 
+            value={selectedBimester}
+            onChange={(e) => setSelectedBimester(e.target.value)}
+            className="px-4 py-2 bg-white border-2 border-black rounded-lg font-black text-xs uppercase"
+          >
+            {bimesters.map((b: string) => <option key={b} value={b}>{b}</option>)}
+          </select>
+          <button 
+            onClick={handlePrint}
+            className="flex items-center gap-2 px-6 py-2 bg-black text-white rounded-lg font-black text-xs uppercase hover:bg-slate-800 transition-colors"
+          >
+            <Printer className="w-4 h-4" />
+            Imprimir Cronograma
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white p-8 md:p-12 print:p-0 print:shadow-none border-4 border-black rounded-sm shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        {/* Print Header */}
+        <div className="hidden print:flex flex-col items-center mb-8 border-b-4 border-black pb-6">
+          <div className="flex items-center gap-4 mb-4">
+             <img src={LOGO_VINHO} alt="Logo" className="w-16 h-16 object-contain" />
+             <div className="text-left">
+               <h1 className="text-2xl font-black uppercase leading-none">Roteiro de Estudos</h1>
+               <p className="text-sm font-bold uppercase text-slate-600 mt-1">Colégio Coc Santa Rosália</p>
+             </div>
+          </div>
+          <div className="grid grid-cols-2 w-full gap-4">
+            <div className="border-2 border-black p-2 text-center uppercase font-black text-sm">
+              Turma: {selectedClass}
+            </div>
+            <div className="border-2 border-black p-2 text-center uppercase font-black text-sm">
+              Período: {selectedBimester}
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-slate-100 border-b-4 border-black">
+                <th className="p-4 text-left font-black uppercase text-sm border-r-2 border-black w-32">Data</th>
+                <th className="p-4 text-left font-black uppercase text-sm border-r-2 border-black w-48">Avaliação/Disciplina</th>
+                <th className="p-4 text-left font-black uppercase text-sm">Conteúdo Programático</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y-2 divide-black">
+              {Object.keys(examsByDate).length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="p-12 text-center text-slate-400 font-bold uppercase italic">
+                    Nenhum conteúdo cadastrado para esta turma neste bimestre.
+                  </td>
+                </tr>
+              ) : (
+                Object.entries(examsByDate).map(([date, dailyExams]) => (
+                  <tr key={date} className="print:break-inside-avoid">
+                    <td className="p-4 border-r-2 border-black align-top">
+                      <div className="font-black text-lg leading-tight uppercase">
+                        {date !== 'Sem Data' ? new Date(date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '-'}
+                      </div>
+                      <div className="text-[10px] font-bold text-slate-500 uppercase">
+                        {date !== 'Sem Data' ? new Date(date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }) : ''}
+                      </div>
+                    </td>
+                    <td className="p-4 border-r-2 border-black align-top space-y-4">
+                      {(dailyExams as Exam[]).map(ex => (
+                        <div key={ex.id} className="space-y-1">
+                          <div className="inline-block px-2 py-0.5 bg-accent/10 text-accent text-[9px] font-black uppercase rounded">
+                            {ex.examType}
+                          </div>
+                          <div className="font-black text-black text-sm uppercase leading-tight">
+                            {stripHtml(ex.subject)}
+                          </div>
+                        </div>
+                      ))}
+                    </td>
+                    <td className="p-4 align-top">
+                      <div className="space-y-6">
+                        {(dailyExams as Exam[]).map((ex: Exam) => (
+                          <div key={ex.id} className="space-y-2">
+                            {(dailyExams as Exam[]).length > 1 && (
+                              <div className="text-[10px] font-black uppercase text-slate-400 border-b border-slate-100 pb-1">
+                                Disciplina: {stripHtml(ex.subject)}
+                              </div>
+                            )}
+                            <div className="text-sm font-medium text-slate-800 leading-relaxed whitespace-pre-wrap prose prose-sm max-w-none">
+                              {ex.content ? (
+                                <div className="markdown-body" dangerouslySetInnerHTML={{ __html: ex.content }} />
+                              ) : (
+                                <span className="italic text-slate-400">Conteúdo não informado pelo professor.</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Print Footer */}
+        <div className="hidden print:block mt-12 border-t-2 border-black pt-6 text-center">
+          <p className="text-[10px] font-bold uppercase text-slate-500 italic">
+            "A educação é a arma mais poderosa que você pode usar para mudar o mundo."
+          </p>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function BoletimItem({ 
+  studentName, 
+  isLast = false, 
+  results, 
+  exams, 
+  isAdmin, 
+  userProfile, 
+  allPossibleStudents, 
+  schoolInfo, 
+  bimesters 
+}: { 
+  key?: string | number,
+  studentName: string, 
+  isLast?: boolean, 
+  results: Result[], 
+  exams: Exam[], 
+  isAdmin: boolean, 
+  userProfile: any, 
+  allPossibleStudents: any[], 
+  schoolInfo: any, 
+  bimesters: string[] 
+}) {
+  const studentResults = results.filter(r => r.studentName === studentName);
+  const studentInfo = allPossibleStudents.find(s => s.name === studentName);
+  const studentClass = studentInfo?.classId || 'N/A';
+  
+  // Subjects specifically for this class according to schoolInfo mapping
+  const subjects = useMemo(() => {
+    const defined = schoolInfo.class_subjects[studentClass];
+    if (defined && defined.length > 0) return defined;
+    // Fallback to current subjects found in exams for this class
+    return Array.from(new Set(exams.filter(e => e.classYear === studentClass).map(e => stripHtml(e.subject))));
+  }, [studentClass, schoolInfo, exams]);
+
+  const filteredSubjects = useMemo(() => {
+    let list = subjects;
+    if (!isAdmin && userProfile?.assigned_subjects) {
+      list = list.filter(s => userProfile.assigned_subjects.includes(s));
+    }
+    return list;
+  }, [subjects, isAdmin, userProfile]);
+
+  return (
+    <div key={studentName} className={cn("bg-white text-black p-4 md:p-12 print:p-8 w-full max-w-5xl mx-auto mb-8 print:mb-0 print:min-h-[297mm] print:break-inside-avoid print-avoid-break flex flex-col", isLast ? "" : "print:break-after-page")}>
+      {/* HEADER BOLETIM MEK */}
+      <div className="flex flex-col sm:flex-row items-center justify-between border-b-4 border-black pb-4 mb-8 gap-4">
+         <div className="flex items-center gap-6">
+           <div className="w-16 h-16 md:w-20 md:h-20 bg-slate-100 rounded px-1 flex flex-col items-center justify-center font-black text-[10px] text-slate-400 overflow-hidden border-2 border-black">
+              <img src={LOGO_VINHO} alt="Logo" className="w-full h-full object-contain" />
+           </div>
+           <div>
+             <h1 className="text-xl md:text-3xl font-black uppercase tracking-tighter leading-none">Boletim Escolar</h1>
+             <p className="text-[10px] md:text-[12px] font-black uppercase text-black mt-1">Educação Infantil • Ensino Fundamental I e II</p>
+           </div>
+         </div>
+         <div className="text-center sm:text-right">
+           <p className="text-sm md:text-lg font-black uppercase">Ano Letivo: 2026</p>
+           <p className="text-[10px] md:text-xs font-bold uppercase text-slate-600">Emissão: {new Date().toLocaleDateString('pt-BR')}</p>
+         </div>
+      </div>
+
+      {/* INFO ALUNO */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+         <div className="flex items-stretch border-2 border-black rounded-sm overflow-hidden">
+           <div className="bg-slate-100 border-r-2 border-black px-4 py-2 min-w-[100px] flex items-center justify-center">
+              <span className="text-[10px] font-black uppercase tracking-widest text-center">Aluno(a)</span>
+           </div>
+           <div className="px-4 py-2 flex-1 bg-white flex items-center">
+              <span className="text-base font-black uppercase tracking-tight">{studentName}</span>
+           </div>
+         </div>
+         <div className="flex items-stretch border-2 border-black rounded-sm overflow-hidden">
+           <div className="bg-slate-100 border-r-2 border-black px-4 py-2 min-w-[100px] flex items-center justify-center">
+              <span className="text-[10px] font-black uppercase tracking-widest text-center">Turma</span>
+           </div>
+           <div className="px-4 py-2 flex-1 bg-white flex items-center">
+              <span className="text-base font-black uppercase tracking-tight">{studentClass}</span>
+           </div>
+         </div>
+      </div>
+
+      {/* QUADRO DE NOTAS */}
+      <div className="border-2 border-black rounded-sm overflow-hidden flex-1">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b-2 border-black">
+              <th className="border-r-2 border-black p-3 text-left text-[12px] font-black uppercase w-1/3 bg-slate-100">Componentes Curriculares</th>
+              <th className="border-r-2 border-black p-3 text-center text-[11px] font-black uppercase">1º Bim</th>
+              <th className="border-r-2 border-black p-3 text-center text-[11px] font-black uppercase">2º Bim</th>
+              <th className="border-r-2 border-black p-3 text-center text-[11px] font-black uppercase">3º Bim</th>
+              <th className="border-r-2 border-black p-3 text-center text-[11px] font-black uppercase">4º Bim</th>
+              <th className="p-3 text-center text-[12px] font-black uppercase bg-slate-100">Média Final</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y-2 divide-black">
+            {filteredSubjects.length === 0 && (
+               <tr><td colSpan={6} className="p-8 text-center text-sm font-black uppercase text-slate-400">Nenhuma disciplina avaliada neste período.</td></tr>
+            )}
+            {filteredSubjects.map(subject => {
+              const rowBimFinals: (number | null)[] = bimesters.map(bim => {
+                const subjectBimResults = studentResults.filter(r => {
+                    const ex = exams.find(e => e.id === r.examId);
+                    return r.bimester === bim && ex && stripHtml(ex.subject) === subject;
+                });
+                
+                if (subjectBimResults.length === 0) return null;
+
+                // Separate Regular from Recovery
+                const regular = subjectBimResults.filter(r => {
+                  const ex = exams.find(e => e.id === r.examId);
+                  return ex && ex.examType !== 'Recuperação Bimestral';
+                });
+                const recovery = subjectBimResults.find(r => {
+                  const ex = exams.find(e => e.id === r.examId);
+                  return ex && ex.examType === 'Recuperação Bimestral';
+                });
+
+                const baseAvg = regular.length > 0
+                  ? regular.reduce((acc, r) => acc + ((r.score / r.maxScore) * 10), 0) / regular.length
+                  : 0;
+                
+                if (recovery && baseAvg < 6) {
+                  const recScore = (recovery.score / recovery.maxScore) * 10;
+                  return (baseAvg + recScore) / 2;
+                }
+                
+                return baseAvg;
+              });
+
+              // Recuperação Final
+              const yearRecovery = studentResults.find(r => {
+                const ex = exams.find(e => e.id === r.examId);
+                return ex && stripHtml(ex.subject) === subject && ex.examType === 'Recuperação Final';
+              });
+
+              const bimsComNota = rowBimFinals.filter(b => b !== null) as number[];
+              const mediaAnualBase = bimsComNota.length > 0 
+                ? bimsComNota.reduce((acc, curr) => (acc || 0) + (curr || 0), 0) / 4 
+                : 0;
+
+              let mediaFinalTotal = mediaAnualBase;
+              if (yearRecovery && mediaAnualBase < 6) {
+                 const recFinalScore = (yearRecovery.score / yearRecovery.maxScore) * 10;
+                 mediaFinalTotal = (mediaAnualBase + recFinalScore) / 2;
+              }
+
+              return (
+                <tr key={subject}>
+                  <td className="border-r-2 border-black p-3 pl-4 text-[12px] font-black uppercase">{stripHtml(subject)}</td>
+                  {rowBimFinals.map((avg, i) => (
+                    <td key={i} className="border-r-2 border-black p-3 text-center text-[16px] font-black">
+                       {avg !== null ? (
+                         <span className={avg < 6 ? 'text-red-700' : 'text-blue-800'}>{avg.toFixed(1).replace('.', ',')}</span>
+                       ) : '-'}
+                    </td>
+                  ))}
+                  <td className="p-3 text-center text-[18px] font-black bg-slate-50">
+                    {bimsComNota.length > 0 ? (
+                       <span className={mediaFinalTotal >= 6 ? 'text-blue-900 underline decoration-2 underline-offset-4' : 'text-red-800 underline decoration-2 underline-offset-4'}>
+                         {mediaFinalTotal.toFixed(1).replace('.', ',')}
+                       </span>
+                    ) : '-'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* INFO EXTRA */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+        <div className="border-2 border-black p-4 text-[11px] uppercase font-black text-black rounded-sm leading-relaxed">
+           <h4 className="border-b border-black pb-1 mb-2">Legenda / Critérios</h4>
+           <p>• Média para Aprovação: 6,0</p>
+           <p>• Recuperação Bimestral: (Média + Recuperação) / 2</p>
+           <p>• Média Final Anual: (Soma Bimestres + Rec. Final) / 2</p>
+        </div>
+        <div className="border-2 border-black p-4 text-[11px] uppercase font-black text-black rounded-sm flex flex-col justify-center">
+           <p className="text-center italic opacity-70">"A educação é o passaporte para o futuro."</p>
+        </div>
+      </div>
+
+      {/* FOOTER ASSINATURAS */}
+      <div className="grid grid-cols-2 gap-16 mt-32 px-12 pb-12">
+         <div className="border-t-2 border-black pt-4 text-center">
+           <p className="text-[12px] font-black uppercase">Direção / Coordenação</p>
+         </div>
+         <div className="border-t-2 border-black pt-4 text-center">
+           <p className="text-[12px] font-black uppercase">Assinatura do Responsável</p>
+         </div>
+      </div>
+    </div>
+  );
+}
+
 function BoletimView({ results, exams, user, isAdmin, userProfile, onRefresh }: { results: Result[], exams: Exam[], isAdmin: boolean, user: User, userProfile: any, onRefresh: () => void }) {
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
@@ -6126,181 +6506,6 @@ function BoletimView({ results, exams, user, isAdmin, userProfile, onRefresh }: 
     if (studentsFiltered.length > 50 && !window.confirm(`Você está prestes a gerar ${studentsFiltered.length} boletins. Isso pode deixar o sistema lento. Deseja continuar?`)) return;
     setSelectedStudent("TODOS");
     setTimeout(() => window.print(), 800);
-  };
-
-  const renderBoletim = (studentName: string, isLast: boolean = false) => {
-    const studentResults = results.filter(r => r.studentName === studentName);
-    const studentInfo = allPossibleStudents.find(s => s.name === studentName);
-    const studentClass = studentInfo?.classId || 'N/A';
-    
-    // Subjects specifically for this class according to schoolInfo mapping
-    const subjects = useMemo(() => {
-      const defined = schoolInfo.class_subjects[studentClass];
-      if (defined && defined.length > 0) return defined;
-      // Fallback to current subjects found in exams for this class
-      return Array.from(new Set(exams.filter(e => e.classYear === studentClass).map(e => stripHtml(e.subject))));
-    }, [studentClass, schoolInfo, exams]);
-
-    const filteredSubjects = useMemo(() => {
-      let list = subjects;
-      if (!isAdmin && userProfile?.assigned_subjects) {
-        list = list.filter(s => userProfile.assigned_subjects.includes(s));
-      }
-      return list;
-    }, [subjects, isAdmin, userProfile]);
-
-    return (
-      <div key={studentName} className={cn("bg-white text-black p-4 md:p-12 print:p-8 w-full max-w-5xl mx-auto mb-8 print:mb-0 print:min-h-[297mm] print:break-inside-avoid print-avoid-break flex flex-col", isLast ? "" : "print:break-after-page")}>
-        {/* HEADER BOLETIM MEK */}
-        <div className="flex flex-col sm:flex-row items-center justify-between border-b-4 border-black pb-4 mb-8 gap-4">
-           <div className="flex items-center gap-6">
-             <div className="w-16 h-16 md:w-20 md:h-20 bg-slate-100 rounded px-1 flex flex-col items-center justify-center font-black text-[10px] text-slate-400 overflow-hidden border-2 border-black">
-                <img src={LOGO_VINHO} alt="Logo" className="w-full h-full object-contain" />
-             </div>
-             <div>
-               <h1 className="text-xl md:text-3xl font-black uppercase tracking-tighter leading-none">Boletim Escolar</h1>
-               <p className="text-[10px] md:text-[12px] font-black uppercase text-black mt-1">Educação Infantil • Ensino Fundamental I e II</p>
-             </div>
-           </div>
-           <div className="text-center sm:text-right">
-             <p className="text-sm md:text-lg font-black uppercase">Ano Letivo: 2026</p>
-             <p className="text-[10px] md:text-xs font-bold uppercase text-slate-600">Emissão: {new Date().toLocaleDateString('pt-BR')}</p>
-           </div>
-        </div>
-
-        {/* INFO ALUNO */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-           <div className="flex items-stretch border-2 border-black rounded-sm overflow-hidden">
-             <div className="bg-slate-100 border-r-2 border-black px-4 py-2 min-w-[100px] flex items-center justify-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-center">Aluno(a)</span>
-             </div>
-             <div className="px-4 py-2 flex-1 bg-white flex items-center">
-                <span className="text-base font-black uppercase tracking-tight">{studentName}</span>
-             </div>
-           </div>
-           <div className="flex items-stretch border-2 border-black rounded-sm overflow-hidden">
-             <div className="bg-slate-100 border-r-2 border-black px-4 py-2 min-w-[100px] flex items-center justify-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-center">Turma</span>
-             </div>
-             <div className="px-4 py-2 flex-1 bg-white flex items-center">
-                <span className="text-base font-black uppercase tracking-tight">{studentClass}</span>
-             </div>
-           </div>
-        </div>
-
-        {/* QUADRO DE NOTAS */}
-        <div className="border-2 border-black rounded-sm overflow-hidden flex-1">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b-2 border-black">
-                <th className="border-r-2 border-black p-3 text-left text-[12px] font-black uppercase w-1/3 bg-slate-100">Componentes Curriculares</th>
-                <th className="border-r-2 border-black p-3 text-center text-[11px] font-black uppercase">1º Bim</th>
-                <th className="border-r-2 border-black p-3 text-center text-[11px] font-black uppercase">2º Bim</th>
-                <th className="border-r-2 border-black p-3 text-center text-[11px] font-black uppercase">3º Bim</th>
-                <th className="border-r-2 border-black p-3 text-center text-[11px] font-black uppercase">4º Bim</th>
-                <th className="p-3 text-center text-[12px] font-black uppercase bg-slate-100">Média Final</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y-2 divide-black">
-              {filteredSubjects.length === 0 && (
-                 <tr><td colSpan={6} className="p-8 text-center text-sm font-black uppercase text-slate-400">Nenhuma disciplina avaliada neste período.</td></tr>
-              )}
-              {filteredSubjects.map(subject => {
-                const rowBimFinals: (number | null)[] = bimesters.map(bim => {
-                  const subjectBimResults = studentResults.filter(r => {
-                      const ex = exams.find(e => e.id === r.examId);
-                      return r.bimester === bim && ex && stripHtml(ex.subject) === subject;
-                  });
-                  
-                  if (subjectBimResults.length === 0) return null;
-
-                  // Separate Regular from Recovery
-                  const regular = subjectBimResults.filter(r => {
-                    const ex = exams.find(e => e.id === r.examId);
-                    return ex && ex.examType !== 'Recuperação Bimestral';
-                  });
-                  const recovery = subjectBimResults.find(r => {
-                    const ex = exams.find(e => e.id === r.examId);
-                    return ex && ex.examType === 'Recuperação Bimestral';
-                  });
-
-                  const baseAvg = regular.length > 0
-                    ? regular.reduce((acc, r) => acc + ((r.score / r.maxScore) * 10), 0) / regular.length
-                    : 0;
-                  
-                  if (recovery && baseAvg < 6) {
-                    const recScore = (recovery.score / recovery.maxScore) * 10;
-                    return (baseAvg + recScore) / 2;
-                  }
-                  
-                  return baseAvg;
-                });
-
-                // Recuperação Final
-                const yearRecovery = studentResults.find(r => {
-                  const ex = exams.find(e => e.id === r.examId);
-                  return ex && stripHtml(ex.subject) === subject && ex.examType === 'Recuperação Final';
-                });
-
-                const bimsComNota = rowBimFinals.filter(b => b !== null) as number[];
-                const mediaAnualBase = bimsComNota.length > 0 
-                  ? bimsComNota.reduce((acc, curr) => (acc || 0) + (curr || 0), 0) / 4 
-                  : 0;
-
-                let mediaFinalTotal = mediaAnualBase;
-                if (yearRecovery && mediaAnualBase < 6) {
-                   const recFinalScore = (yearRecovery.score / yearRecovery.maxScore) * 10;
-                   mediaFinalTotal = (mediaAnualBase + recFinalScore) / 2;
-                }
-
-                return (
-                  <tr key={subject}>
-                    <td className="border-r-2 border-black p-3 pl-4 text-[12px] font-black uppercase">{stripHtml(subject)}</td>
-                    {rowBimFinals.map((avg, i) => (
-                      <td key={i} className="border-r-2 border-black p-3 text-center text-[16px] font-black">
-                         {avg !== null ? (
-                           <span className={avg < 6 ? 'text-red-700' : 'text-blue-800'}>{avg.toFixed(1).replace('.', ',')}</span>
-                         ) : '-'}
-                      </td>
-                    ))}
-                    <td className="p-3 text-center text-[18px] font-black bg-slate-50">
-                      {bimsComNota.length > 0 ? (
-                         <span className={mediaFinalTotal >= 6 ? 'text-blue-900 underline decoration-2 underline-offset-4' : 'text-red-800 underline decoration-2 underline-offset-4'}>
-                           {mediaFinalTotal.toFixed(1).replace('.', ',')}
-                         </span>
-                      ) : '-'}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* INFO EXTRA */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-          <div className="border-2 border-black p-4 text-[11px] uppercase font-black text-black rounded-sm leading-relaxed">
-             <h4 className="border-b border-black pb-1 mb-2">Legenda / Critérios</h4>
-             <p>• Média para Aprovação: 6,0</p>
-             <p>• Recuperação Bimestral: (Média + Recuperação) / 2</p>
-             <p>• Média Final Anual: (Soma Bimestres + Rec. Final) / 2</p>
-          </div>
-          <div className="border-2 border-black p-4 text-[11px] uppercase font-black text-black rounded-sm flex flex-col justify-center">
-             <p className="text-center italic opacity-70">"A educação é o passaporte para o futuro."</p>
-          </div>
-        </div>
-
-        {/* FOOTER ASSINATURAS */}
-        <div className="grid grid-cols-2 gap-16 mt-32 px-12 pb-12">
-           <div className="border-t-2 border-black pt-4 text-center">
-             <p className="text-[12px] font-black uppercase">Direção / Coordenação</p>
-           </div>
-           <div className="border-t-2 border-black pt-4 text-center">
-             <p className="text-[12px] font-black uppercase">Assinatura do Responsável</p>
-           </div>
-        </div>
-      </div>
-    );
   };
 
   // Se nenhum aluno selecionado, mostra a lista para escolher
@@ -6422,10 +6627,33 @@ function BoletimView({ results, exams, user, isAdmin, userProfile, onRefresh }: 
 
       {selectedStudent === "TODOS" ? (
         <div className="w-full h-full">
-          {studentsFiltered.map((student, idx) => renderBoletim(student, idx === studentsFiltered.length - 1))}
+          {studentsFiltered.map((student, idx) => (
+            <BoletimItem 
+              key={student}
+              studentName={student}
+              isLast={idx === studentsFiltered.length - 1}
+              results={results}
+              exams={exams}
+              isAdmin={isAdmin}
+              userProfile={userProfile}
+              allPossibleStudents={allPossibleStudents}
+              schoolInfo={schoolInfo}
+              bimesters={bimesters}
+            />
+          ))}
         </div>
       ) : (
-        renderBoletim(selectedStudent, true)
+        <BoletimItem 
+          studentName={selectedStudent}
+          isLast={true}
+          results={results}
+          exams={exams}
+          isAdmin={isAdmin}
+          userProfile={userProfile}
+          allPossibleStudents={allPossibleStudents}
+          schoolInfo={schoolInfo}
+          bimesters={bimesters}
+        />
       )}
     </motion.div>
   );
