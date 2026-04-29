@@ -92,7 +92,7 @@ async function startServer() {
     const executeAttempt = async (): Promise<any> => {
       try {
         const response = await client.models.generateContent({
-          model: "gemini-1.5-flash",
+          model: "gemini-2.0-flash",
           contents: [
             {
               role: "user",
@@ -116,7 +116,7 @@ async function startServer() {
                 studentClass: { type: Type.STRING },
                 answers: { 
                   type: Type.OBJECT,
-                  description: "Map of question number to student's answer"
+                  description: "Map of question number to student's answer. For multiple choice, must be just the letter (A, B, C, D or E)."
                 },
                 feedback: { type: Type.STRING }
               },
@@ -192,7 +192,7 @@ async function startServer() {
       const executeGuideAttempt = async (): Promise<any> => {
         try {
           return await client.models.generateContent({
-            model: "gemini-1.5-flash",
+            model: "gemini-2.0-flash",
             contents: [{ role: 'user', parts: [{ text: `Crie um guia de estudos em Markdown para alunos com base em: "${content}". Use títulos (##), listas e negrito para organizar.` }] }]
           });
         } catch (err: any) {
