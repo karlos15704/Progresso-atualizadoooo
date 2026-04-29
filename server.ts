@@ -92,7 +92,7 @@ async function startServer() {
     const executeAttempt = async (): Promise<any> => {
       try {
         const response = await client.models.generateContent({
-          model: "gemini-2.0-flash",
+          model: "gemini-1.5-flash",
           contents: [
             {
               role: "user",
@@ -129,7 +129,7 @@ async function startServer() {
         if (err.status === 429 && attempt < maxRetries) {
           attempt++;
           console.log(`[AI Retry] Attempt ${attempt} after 429 error...`);
-          await new Promise(resolve => setTimeout(resolve, 3000 * attempt)); // wait 3s, 6s
+          await new Promise(resolve => setTimeout(resolve, 5000 * attempt)); // wait 5s, 10s
           return executeAttempt();
         }
         throw err;
@@ -192,7 +192,7 @@ async function startServer() {
       const executeGuideAttempt = async (): Promise<any> => {
         try {
           return await client.models.generateContent({
-            model: "gemini-2.0-flash",
+            model: "gemini-1.5-flash",
             contents: [{ role: 'user', parts: [{ text: `Crie um guia de estudos em Markdown para alunos com base em: "${content}". Use títulos (##), listas e negrito para organizar.` }] }]
           });
         } catch (err: any) {
