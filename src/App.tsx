@@ -786,7 +786,7 @@ export default function App() {
               <img src={LOGO_COC} alt="Plataforma COC" className="h-3 md:h-4 object-contain" />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-[10px] md:text-xs font-display font-black text-slate-800 dark:text-slate-100 tracking-tight uppercase leading-none">Colégio Progresso</h1>
+              <h1 className="text-[10px] md:text-xs font-display font-black text-slate-800 dark:text-slate-100 tracking-tight uppercase leading-none">Colégio Progresso Santista</h1>
               <span className="text-[8px] md:text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">Gestão Acadêmica</span>
             </div>
           </div>
@@ -852,7 +852,7 @@ export default function App() {
               active={view === 'cronograma'} 
               onClick={() => { setView('cronograma'); setExamToEdit(null); }} 
               icon={<Calendar className="w-5 h-5" />} 
-              label="Cronograma Estudo" 
+              label="Cronograma de Provas" 
               collapsed={sidebarCollapsed}
             />
             <NavButton 
@@ -874,7 +874,7 @@ export default function App() {
           </div>
           {!sidebarCollapsed && (
             <div className="mt-auto p-4 md:p-6 text-[10px] uppercase tracking-widest text-slate-500 font-bold truncate">
-              Colégio Progresso 
+              Colégio Progresso Santista
             </div>
           )}
         </aside>
@@ -992,7 +992,7 @@ export default function App() {
         <MobileNavButton active={view === 'diary'} onClick={() => setView('diary')} icon={<BookOpen size={18} />} label="Diário" />
         <MobileNavButton active={view === 'correct'} onClick={() => setView('correct')} icon={<Scan size={18} />} label="Correção" />
         <MobileNavButton active={view === 'boletim'} onClick={() => setView('boletim')} icon={<FileText size={18} />} label="Boletim" />
-        <MobileNavButton active={view === 'cronograma'} onClick={() => setView('cronograma')} icon={<Calendar size={18} />} label="Estudo" />
+        <MobileNavButton active={view === 'cronograma'} onClick={() => setView('cronograma')} icon={<Calendar size={18} />} label="Provas" />
         <MobileNavButton active={view === 'studentReports'} onClick={() => setView('studentReports')} icon={<UserIcon size={18} />} label="Obs" />
         {isAdmin && (
           <MobileNavButton active={view === 'admin'} onClick={() => setView('admin')} icon={<Settings size={18} />} label="Admin" />
@@ -6293,7 +6293,7 @@ function CronogramaEstudosView({
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
         <div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Cronograma de Estudos</h2>
+          <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Cronograma de Provas</h2>
           <p className="text-slate-500 font-medium tracking-tight">Organize os conteúdos para as avaliações por período.</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -6320,7 +6320,7 @@ function CronogramaEstudosView({
           </select>
           <button 
             onClick={() => setIsAdding(true)}
-            className="flex items-center gap-2 px-6 py-2 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg font-black text-xs uppercase hover:bg-slate-200 transition-colors border-2 border-black dark:border-slate-800"
+            className="flex items-center gap-2 px-6 py-2 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg font-black text-xs uppercase hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border-2 border-black dark:border-slate-800"
           >
             <Plus className="w-4 h-4" />
             Novo Conteúdo
@@ -6358,7 +6358,7 @@ function CronogramaEstudosView({
           <div className="flex items-center gap-4 mb-4">
              <img src={LOGO_VINHO} alt="Logo" className="w-12 h-12 object-contain" />
              <div className="text-left">
-               <h1 className="text-xl font-black uppercase leading-none print:text-lg">Roteiro de Estudos</h1>
+               <h1 className="text-xl font-black uppercase leading-none print:text-lg">Cronograma de Provas</h1>
                <p className="text-[10px] font-bold uppercase text-slate-600 mt-0.5">Colégio Progresso Santista</p>
              </div>
           </div>
