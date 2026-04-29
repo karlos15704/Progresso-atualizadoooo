@@ -30,6 +30,7 @@ import {
   LayoutList,
   Edit2,
   Edit3,
+  Eye,
   Save,
   Search,
   Filter,
@@ -6117,6 +6118,8 @@ function CronogramaEstudosView({
   const [selectedClass, setSelectedClass] = useState(schoolInfo.classes[0] || '');
   const [selectedBimester, setSelectedBimester] = useState(bimesters[0] || '');
   const [selectedExamType, setSelectedExamType] = useState('TODAS');
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempExams, setTempExams] = useState<Record<string, string>>({});
 
   const availableExamTypes = useMemo(() => {
     const types = new Set(exams.map(e => e.examType));
@@ -6150,6 +6153,10 @@ function CronogramaEstudosView({
     window.print();
   };
 
+  const handleContentChange = (examId: string, content: string) => {
+    setTempExams(prev => ({ ...prev, [examId]: content }));
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -6157,6 +6164,40 @@ function CronogramaEstudosView({
       exit={{ opacity: 0, y: -20 }}
       className="space-y-6"
     >
+      <style>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 10mm;
+          }
+          body {
+            background: white !important;
+          }
+          .print-container {
+            width: 100% !important;
+            box-shadow: none !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+          table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+          }
+          th, td {
+            border: 1px solid black !important;
+            padding: 4px 8px !important;
+            font-size: 10px !important;
+          }
+          .markdown-body {
+            font-size: 10px !important;
+          }
+        }
+      `}</style>
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
         <div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Cronograma de Estudos</h2>
@@ -6185,33 +6226,43 @@ function CronogramaEstudosView({
             {availableExamTypes.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
           <button 
+            onClick={() => setIsEditing(!isEditing)}
+            className={cn(
+              "flex items-center gap-2 px-6 py-2 rounded-lg font-black text-xs uppercase transition-colors border-2 border-black",
+              isEditing ? "bg-accent text-white" : "bg-white text-black hover:bg-slate-50"
+            )}
+          >
+            {isEditing ? <Eye className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
+            {isEditing ? "Finalizar Edição" : "Editar Conteúdos"}
+          </button>
+          <button 
             onClick={handlePrint}
             className="flex items-center gap-2 px-6 py-2 bg-black text-white rounded-lg font-black text-xs uppercase hover:bg-slate-800 transition-colors"
           >
             <Printer className="w-4 h-4" />
-            Imprimir Cronograma
+            Imprimir
           </button>
         </div>
       </div>
 
-      <div className="bg-white p-8 md:p-12 print:p-0 print:shadow-none border-4 border-black rounded-sm shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+      <div className="bg-white p-8 md:p-12 print:p-0 print:shadow-none border-4 border-black rounded-sm shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] print-container">
         {/* Print Header */}
-        <div className="hidden print:flex flex-col items-center mb-8 border-b-4 border-black pb-6">
+        <div className="flex flex-col items-center mb-6 border-b-4 border-black pb-4">
           <div className="flex items-center gap-4 mb-4">
-             <img src={LOGO_VINHO} alt="Logo" className="w-16 h-16 object-contain" />
+             <img src={LOGO_VINHO} alt="Logo" className="w-12 h-12 object-contain" />
              <div className="text-left">
-               <h1 className="text-2xl font-black uppercase leading-none">Roteiro de Estudos</h1>
-               <p className="text-sm font-bold uppercase text-slate-600 mt-1">Colégio Coc Santa Rosália</p>
+               <h1 className="text-xl font-black uppercase leading-none print:text-lg">Roteiro de Estudos</h1>
+               <p className="text-[10px] font-bold uppercase text-slate-600 mt-0.5">Colégio Coc Santa Rosália</p>
              </div>
           </div>
-          <div className="grid grid-cols-3 w-full gap-4">
-            <div className="border-2 border-black p-2 text-center uppercase font-black text-sm">
+          <div className="grid grid-cols-3 w-full gap-2">
+            <div className="border-2 border-black p-1 text-center uppercase font-black text-[10px]">
               Turma: {selectedClass}
             </div>
-            <div className="border-2 border-black p-2 text-center uppercase font-black text-sm">
+            <div className="border-2 border-black p-1 text-center uppercase font-black text-[10px]">
               Período: {selectedBimester}
             </div>
-            <div className="border-2 border-black p-2 text-center uppercase font-black text-sm">
+            <div className="border-2 border-black p-1 text-center uppercase font-black text-[10px]">
               {selectedExamType === 'TODAS' ? 'Todas Avaliações' : `Tipo: ${selectedExamType}`}
             </div>
           </div>
@@ -6220,56 +6271,69 @@ function CronogramaEstudosView({
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-slate-100 border-b-4 border-black">
-                <th className="p-4 text-left font-black uppercase text-sm border-r-2 border-black w-32">Data</th>
-                <th className="p-4 text-left font-black uppercase text-sm border-r-2 border-black w-48">Avaliação/Disciplina</th>
-                <th className="p-4 text-left font-black uppercase text-sm">Conteúdo Programático</th>
+              <tr className="bg-slate-50 border-b-2 border-black">
+                <th className="p-2 text-left font-black uppercase text-[11px] border-r border-black w-[80px]">Data</th>
+                <th className="p-2 text-left font-black uppercase text-[11px] border-r border-black w-[150px]">Avaliação</th>
+                <th className="p-2 text-left font-black uppercase text-[11px]">Conteúdo Programático</th>
               </tr>
             </thead>
-            <tbody className="divide-y-2 divide-black">
+            <tbody className="divide-y border-b border-black divide-black">
               {Object.keys(examsByDate).length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="p-12 text-center text-slate-400 font-bold uppercase italic">
-                    Nenhum conteúdo cadastrado para esta turma neste bimestre.
+                  <td colSpan={3} className="p-12 text-center text-slate-400 font-bold uppercase italic border-black">
+                    Nenhum conteúdo cadastrado para esta seleção.
                   </td>
                 </tr>
               ) : (
                 Object.entries(examsByDate).map(([date, dailyExams]) => (
                   <tr key={date} className="print:break-inside-avoid">
-                    <td className="p-4 border-r-2 border-black align-top">
-                      <div className="font-black text-lg leading-tight uppercase">
+                    <td className="p-2 border-r border-black align-top bg-slate-50/30">
+                      <div className="font-black text-sm leading-tight uppercase">
                         {date !== 'Sem Data' ? new Date(date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '-'}
                       </div>
-                      <div className="text-[10px] font-bold text-slate-500 uppercase">
+                      <div className="text-[9px] font-bold text-slate-500 uppercase">
                         {date !== 'Sem Data' ? new Date(date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }) : ''}
                       </div>
                     </td>
-                    <td className="p-4 border-r-2 border-black align-top space-y-4">
+                    <td className="p-2 border-r border-black align-top space-y-3">
                       {(dailyExams as Exam[]).map(ex => (
-                        <div key={ex.id} className="space-y-1">
-                          <div className="inline-block px-2 py-0.5 bg-accent/10 text-accent text-[9px] font-black uppercase rounded">
+                        <div key={ex.id} className="space-y-0.5">
+                          <div className="inline-block px-1 py-px bg-black text-white text-[8px] font-black uppercase rounded-[2px]">
                             {ex.examType}
                           </div>
-                          <div className="font-black text-black text-sm uppercase leading-tight">
+                          <div className="font-black text-black text-[11px] uppercase leading-tight">
                             {stripHtml(ex.subject)}
                           </div>
                         </div>
                       ))}
                     </td>
-                    <td className="p-4 align-top">
-                      <div className="space-y-6">
+                    <td className="p-2 align-top">
+                      <div className="space-y-4">
                         {(dailyExams as Exam[]).map((ex: Exam) => (
-                          <div key={ex.id} className="space-y-2">
+                          <div key={ex.id} className="space-y-1">
                             {(dailyExams as Exam[]).length > 1 && (
-                              <div className="text-[10px] font-black uppercase text-slate-400 border-b border-slate-100 pb-1">
-                                Disciplina: {stripHtml(ex.subject)}
+                              <div className="text-[9px] font-black uppercase text-slate-400 border-b border-slate-50 pb-0.5">
+                                {stripHtml(ex.subject)}:
                               </div>
                             )}
-                            <div className="text-sm font-medium text-slate-800 leading-relaxed whitespace-pre-wrap prose prose-sm max-w-none">
-                              {ex.content ? (
-                                <div className="markdown-body" dangerouslySetInnerHTML={{ __html: ex.content }} />
+                            <div className="text-[11px] font-medium text-slate-800 leading-relaxed max-w-none">
+                              {isEditing ? (
+                                <textarea
+                                  className="w-full p-2 border border-slate-300 rounded font-sans text-xs min-h-[60px]"
+                                  value={tempExams[ex.id] ?? (ex.content ? stripHtml(ex.content) : "")}
+                                  onChange={(e) => handleContentChange(ex.id, e.target.value)}
+                                  placeholder="Digite o conteúdo aqui..."
+                                />
                               ) : (
-                                <span className="italic text-slate-400">Conteúdo não informado pelo professor.</span>
+                                <div className="markdown-body">
+                                  {tempExams[ex.id] ? (
+                                    <div className="whitespace-pre-wrap">{tempExams[ex.id]}</div>
+                                  ) : ex.content ? (
+                                    <div dangerouslySetInnerHTML={{ __html: ex.content }} />
+                                  ) : (
+                                    <span className="italic text-slate-400">Conteúdo não informado.</span>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </div>
@@ -6284,9 +6348,9 @@ function CronogramaEstudosView({
         </div>
 
         {/* Print Footer */}
-        <div className="hidden print:block mt-12 border-t-2 border-black pt-6 text-center">
-          <p className="text-[10px] font-bold uppercase text-slate-500 italic">
-            "A educação é a arma mais poderosa que você pode usar para mudar o mundo."
+        <div className="hidden print:block mt-8 border-t border-black pt-4 text-center">
+          <p className="text-[9px] font-bold uppercase text-slate-500 italic">
+            "A educação é a base para o desenvolvimento de um futuro extraordinário."
           </p>
         </div>
       </div>
