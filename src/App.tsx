@@ -44,7 +44,12 @@ import {
   Menu,
   Settings,
   Scan,
-  Sparkles
+  Sparkles,
+  UserCircle,
+  ShieldCheck,
+  Lock,
+  UserCog,
+  KeyRound
 } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
@@ -514,7 +519,7 @@ export default function App() {
   }, [isDarkMode]);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [view, setView] = useState<'dashboard' | 'create' | 'correct' | 'reports' | 'guides' | 'admin' | 'schedule' | 'print' | 'studentReports' | 'printReport' | 'boletim' | 'diary' | 'cronograma'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'create' | 'correct' | 'reports' | 'guides' | 'admin' | 'schedule' | 'print' | 'studentReports' | 'printReport' | 'boletim' | 'diary' | 'cronograma' | 'settings'>('dashboard');
   const [selectedPrintExam, setSelectedPrintExam] = useState<Exam | null>(null);
   const [selectedReportForPrint, setSelectedReportForPrint] = useState<StudentReport | null>(null);
   const [multipleReportsToPrint, setMultipleReportsToPrint] = useState<StudentReport[]>([]);
@@ -863,6 +868,14 @@ export default function App() {
               label="Observações Individuais" 
               collapsed={sidebarCollapsed}
             />
+            <div className="h-px bg-slate-800 my-2 mx-4" />
+            <NavButton 
+              active={view === 'settings'} 
+              onClick={() => { setView('settings'); setExamToEdit(null); }} 
+              icon={<UserCircle className="w-5 h-5" />} 
+              label="Minha Conta" 
+              collapsed={sidebarCollapsed}
+            />
             {isAdmin && (
               <NavButton 
                 active={view === 'admin'} 
@@ -906,7 +919,24 @@ export default function App() {
             )}
             {view === 'printReport' && (selectedReportForPrint || multipleReportsToPrint.length > 0) && <StudentReportPrintView reports={selectedReportForPrint ? [selectedReportForPrint] : multipleReportsToPrint} onBack={() => setView('studentReports')} />}
             {view === 'print' && selectedPrintExam && <ExamPrintView exam={selectedPrintExam} onBack={() => setView('dashboard')} />}
-            {view === 'admin' && isAdmin && <AdminView user={user} />}
+            {view === 'admin' && isAdmin && <AdminView user={user} onResetPassword={async (targetUid, newPw) => {
+              const { data: { session } } = await supabase.auth.getSession();
+              const response = await fetch('/api/admin/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  targetUid,
+                  newPassword: newPw,
+                  adminToken: session?.access_token
+                })
+              });
+              const data = await response.json();
+              if (!response.ok) throw new Error(data.error);
+            }} />}
+            {view === 'settings' && <SettingsView user={user} userProfile={userProfile} onPasswordChange={async (newPw) => {
+              const { error } = await supabase.auth.updateUser({ password: newPw + "_cpsAuth" });
+              if (error) throw error;
+            }} />}
             {view === 'diary' && <DigitalDiaryView user={user} isAdmin={isAdmin} userProfile={userProfile} />}
             {view === 'boletim' && <BoletimView results={results} exams={exams} isAdmin={isAdmin} user={user} userProfile={userProfile} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
             {view === 'cronograma' && <CronogramaEstudosView exams={exams} isAdmin={isAdmin} schoolInfo={getSchoolInfo()} bimesters={['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre']} userProfile={userProfile} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
@@ -1004,6 +1034,7 @@ export default function App() {
         <MobileNavButton active={view === 'boletim'} onClick={() => setView('boletim')} icon={<FileText size={18} />} label="Boletim" />
         <MobileNavButton active={view === 'cronograma'} onClick={() => setView('cronograma')} icon={<Calendar size={18} />} label="Provas" />
         <MobileNavButton active={view === 'studentReports'} onClick={() => setView('studentReports')} icon={<UserIcon size={18} />} label="Obs" />
+        <MobileNavButton active={view === 'settings'} onClick={() => setView('settings')} icon={<UserCircle size={18} />} label="Perfil" />
         {isAdmin && (
           <MobileNavButton active={view === 'admin'} onClick={() => setView('admin')} icon={<Settings size={18} />} label="Admin" />
         )}
@@ -2533,7 +2564,139 @@ function GuidesView({ exams }: { exams: Exam[] }) {
   );
 }
 
-function AdminView({ user }: { user: User }) {
+function SettingsView({ user, userProfile, onPasswordChange }: { user: User, userProfile: any, onPasswordChange: (pw: string) => Promise<void> }) {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [profName, setProfName] = useState(userProfile?.professional_name || '');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setSuccess(false);
+    try {
+      // Update professional name in DB
+      const { error } = await supabase
+        .from('users')
+        .update({ professional_name: profName })
+        .eq('uid', user.id);
+      
+      if (error) throw error;
+      
+      // Update password if provided
+      if (newPassword) {
+        if (newPassword !== confirmPassword) {
+          alert("As senhas não coincidem.");
+          return;
+        }
+        if (newPassword.length < 6) {
+          alert("A senha deve ter pelo menos 6 caracteres.");
+          return;
+        }
+        await onPasswordChange(newPassword);
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+      
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err: any) {
+      alert("Erro ao atualizar: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-8">
+      <div className="flex items-center gap-4">
+        <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center text-accent">
+          <UserCircle className="w-10 h-10" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Minha Conta</h2>
+          <p className="text-sm text-slate-500 font-medium">{user.email}</p>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border-2 border-slate-200 dark:border-slate-800 p-8 shadow-sm">
+        <form onSubmit={handleUpdateProfile} className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Nome Profissional</label>
+            <input 
+              type="text" 
+              value={profName}
+              onChange={e => setProfName(e.target.value)}
+              placeholder="Ex: Prof. Dr. Carlos Silva"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none focus:border-accent transition-all font-bold"
+            />
+            <p className="text-[10px] text-slate-400 pl-1 italic">Como seu nome aparecerá no cabeçalho das provas.</p>
+          </div>
+
+          <div className="h-px bg-slate-100 dark:bg-slate-800 my-4" />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Nova Senha</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input 
+                  type="password" 
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none focus:border-accent transition-all font-bold"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Confirmar Senha</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input 
+                  type="password" 
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder="Repita a senha"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none focus:border-accent transition-all font-bold"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-4 flex flex-col gap-3">
+            <button 
+              type="submit"
+              disabled={loading}
+              className="w-full bg-slate-900 dark:bg-accent text-white py-4 rounded-xl font-black uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-accent/90 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95 disabled:opacity-50"
+            >
+              {loading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : success ? (
+                <>
+                  <CheckCircle2 className="w-5 h-5 text-green-400" />
+                  Atualizado com Sucesso!
+                </>
+              ) : (
+                <>
+                  <Save className="w-5 h-5" />
+                  Salvar Alterações
+                </>
+              )}
+            </button>
+            <p className="text-[10px] text-center text-slate-400 font-bold uppercase tracking-widest">
+              Segurança reforçada por Colégio Progresso Santista
+            </p>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function AdminView({ user, onResetPassword }: { user: User, onResetPassword: (uid: string, pw: string) => Promise<void> }) {
+  const [activeTab, setActiveTab] = useState<'users' | 'school'>('users');
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
@@ -2548,6 +2711,8 @@ function AdminView({ user }: { user: User }) {
   
   const [configuringUser, setConfiguringUser] = useState<any | null>(null);
   const [configLoading, setConfigLoading] = useState(false);
+  const [resettingPwUser, setResettingPwUser] = useState<any | null>(null);
+  const [newPwVal, setNewPwVal] = useState('');
 
   const toggleSubject = (sub: string) => {
     setSelectedSubjects(prev => 
@@ -2576,6 +2741,21 @@ function AdminView({ user }: { user: User }) {
       alert("Erro ao atualizar configurações.");
     } finally {
       setConfigLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resettingPwUser || !newPwVal) return;
+    setLoading(true);
+    try {
+      await onResetPassword(resettingPwUser.uid, newPwVal);
+      alert("Senha redefinida com sucesso!");
+      setResettingPwUser(null);
+      setNewPwVal('');
+    } catch (err: any) {
+      alert("Erro ao redefinir senha: " + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -2690,6 +2870,7 @@ function AdminView({ user }: { user: User }) {
   };
 
   const handleRemoveUser = async (userId: string) => {
+    if (!confirm("Remover autorização deste professor?")) return;
     try {
       await supabase.from('allowed_professors').delete().eq('id', userId);
     } catch (err) {
@@ -2698,268 +2879,365 @@ function AdminView({ user }: { user: User }) {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-20">
-      <h2 className="text-xl font-bold text-primary">Administração de Professores e Escola</h2>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-6">
-          <div className="bg-white p-6 rounded-lg border border-border shadow-sm">
-            <h3 className="text-base font-bold text-primary mb-4">Disciplinas</h3>
-            <form onSubmit={handleAddSubject} className="flex gap-4 mb-4">
-              <input 
-                type="text" 
-                placeholder="Nova disciplina..." 
-                value={newSubject}
-                onChange={e => setNewSubject(e.target.value)}
-                required
-                className="flex-1 px-4 py-2 rounded-md border border-border focus:border-accent outline-none text-sm"
-              />
-              <button type="submit" className="bg-accent text-white px-4 py-2 rounded-md font-bold text-sm hover:bg-accent/90 transition-all shadow-sm">Adicionar</button>
-            </form>
-            <div className="flex flex-wrap gap-2">
-              {schoolInfo.subjects.map((sub: string) => (
-                <span key={sub} className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-sm font-medium border border-slate-200 flex items-center gap-2">
-                  {sub}
-                  <button onClick={() => handleRemoveSubject(sub)} className="text-red-400 hover:text-red-600"><Trash2 className="w-3 h-3" /></button>
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg border border-border shadow-sm">
-            <h3 className="text-base font-bold text-primary mb-4">Turmas / Anos</h3>
-            <form onSubmit={handleAddClass} className="flex gap-4 mb-4">
-              <input 
-                type="text" 
-                placeholder="Nova turma..." 
-                value={newClass}
-                onChange={e => setNewClass(e.target.value)}
-                required
-                className="flex-1 px-4 py-2 rounded-md border border-border focus:border-accent outline-none text-sm"
-              />
-              <button type="submit" className="bg-accent text-white px-4 py-2 rounded-md font-bold text-sm hover:bg-accent/90 transition-all shadow-sm">Adicionar</button>
-            </form>
-            <div className="flex flex-wrap gap-2">
-              {schoolInfo.classes.map((cls: string) => (
-                <span key={cls} className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-sm font-medium border border-slate-200 flex items-center gap-2">
-                  {cls}
-                  <button onClick={() => handleRemoveClass(cls)} className="text-red-400 hover:text-red-600"><Trash2 className="w-3 h-3" /></button>
-                </span>
-              ))}
-            </div>
-          </div>
+    <div className="space-y-8 max-w-5xl mx-auto pb-20">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Painel de Controle</h2>
+          <p className="text-sm text-slate-500 font-medium">Gestão centralizada de usuários e estrutura escolar</p>
         </div>
-
-        <div className="bg-white p-6 rounded-lg border border-border shadow-sm mb-8">
-          <h3 className="text-base font-bold text-primary mb-4 flex items-center gap-2">
-            <LayoutList className="w-5 h-5" /> Disciplinas por Sala
-          </h3>
-          <p className="text-xs text-slate-500 mb-6 italic">Defina quais matérias cada turma terá. Isso filtrará as disciplinas sugeridas no Diário e Boletim de cada sala.</p>
-          
-          <div className="space-y-6">
-            {schoolInfo.classes.map((cls: string) => (
-              <div key={cls} className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                 <div className="flex items-center gap-2 mb-3">
-                    <div className="w-2 h-6 bg-accent rounded-full"></div>
-                    <span className="text-sm font-black text-slate-800 uppercase tracking-tighter">{cls}</span>
-                 </div>
-                 <div className="flex flex-wrap gap-2">
-                    {schoolInfo.subjects.map((sub: string) => {
-                       const isSelected = (schoolInfo.class_subjects[cls] || []).includes(sub);
-                       return (
-                         <button 
-                           key={sub}
-                           onClick={() => handleToggleClassSubject(cls, sub)}
-                           className={cn(
-                             "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all active:scale-95",
-                             isSelected 
-                               ? "bg-accent text-white border-accent shadow-sm" 
-                               : "bg-white text-slate-500 border-slate-200 hover:border-accent/40"
-                           )}
-                         >
-                           {sub}
-                         </button>
-                       );
-                    })}
-                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <div className="bg-white p-6 rounded-lg border border-border shadow-sm">
-            <h3 className="text-base font-bold text-primary mb-4">Criar Novo Login de Professor</h3>
-            <form onSubmit={handleAddUser} className="space-y-4">
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Nome Completo</label>
-                  <input 
-                    type="text" 
-                    placeholder="Ex: João da Silva Santos" 
-                    value={fullName}
-                    onChange={e => setFullName(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 rounded-md border border-border focus:border-accent outline-none text-sm"
-                  />
-                </div>
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1 space-y-1">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Usuário de Acesso</label>
-                    <input 
-                      type="text" 
-                      placeholder="joao.silva" 
-                      value={username}
-                      onChange={e => setUsername(e.target.value)}
-                      required
-                      className="w-full px-4 py-3 rounded-md border border-border focus:border-accent outline-none text-sm font-mono"
-                    />
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Senha Inicial</label>
-                    <input 
-                      type="text" 
-                      placeholder="Senha temporária" 
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      required
-                      className="w-full px-4 py-3 rounded-md border border-border focus:border-accent outline-none text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Disciplinas que Ministra</label>
-                <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 border border-slate-100 rounded-md max-h-[150px] overflow-y-auto">
-                  {schoolInfo.subjects.map((sub: string) => (
-                    <label key={sub} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 p-1 rounded transition-colors">
-                      <input 
-                        type="checkbox" 
-                        checked={selectedSubjects.includes(sub)}
-                        onChange={() => toggleSubject(sub)}
-                        className="w-4 h-4 rounded border-slate-300 text-accent focus:ring-accent"
-                      />
-                      <span className="text-xs font-bold text-slate-700">{sub}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <button 
-                type="submit"
-                disabled={loading}
-                className="w-full bg-accent text-white px-6 py-4 rounded-md font-bold text-sm hover:bg-accent/90 transition-all shadow-md active:scale-[0.98] disabled:opacity-50"
-              >
-                {loading ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Criando Conta...</span>
-                  </div>
-                ) : 'Criar Conta do Professor'}
-              </button>
-            </form>
-            <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-md">
-              <p className="text-xs text-amber-800 leading-relaxed font-medium">
-                <AlertCircle className="w-4 h-4 inline mr-1 mb-0.5" />
-                <strong>Segurança:</strong> Informe o usuário e a senha diretamente ao professor. Ele não precisará se registrar, basta entrar com esses dados.
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg border border-border shadow-sm">
-            <h3 className="text-base font-bold text-primary mb-4">Professores Autorizados ({allowedUsers.length})</h3>
-            <div className="space-y-2">
-              {allowedUsers.map((item: any, idx) => (
-                <div key={item.id || `allowed-${idx}`} className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-100">
-                  <div className="flex flex-col">
-                    <span className="font-bold text-slate-700 text-sm">{item.full_name || 'Sem nome'}</span>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] text-slate-500 font-mono bg-slate-200/50 px-1.5 py-0.5 rounded italic">@{item.username}</span>
-                      {item.assigned_subjects?.length > 0 && (
-                        <span className="text-[10px] bg-accent/10 text-accent px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">
-                          {item.assigned_subjects.join(', ')}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => handleRemoveUser(item.id)}
-                    className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-all"
-                    title="Remover Autorização"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-              {allowedUsers.length === 0 && (
-                <p className="text-center text-slate-400 py-4 text-sm">Nenhum professor autorizado ainda.</p>
-              )}
-            </div>
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg border border-border shadow-sm">
-            <h3 className="text-base font-bold text-primary mb-4">Controle de Hierarquia dos Registrados ({networkUsers.length})</h3>
-            <div className="space-y-2">
-              {networkUsers.map((item, idx) => (
-                <div key={item.uid || `user-${idx}`} className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-100">
-                  <div className="flex flex-col">
-                    <span className="font-bold text-slate-700 text-sm">{item.email}</span>
-                    <span className="text-xs text-slate-500">Patente atual: <span className="uppercase font-bold">{item.role}</span></span>
-                  </div>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => setConfiguringUser({...item})}
-                      className="px-3 py-1.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all shadow-sm flex items-center gap-1"
-                    >
-                      Configurar Vínculos
-                    </button>
-                    <button 
-                      onClick={async () => {
-                      if (item.email === 'cps@cps.local') {
-                         alert("A conta Master CPS não pode ter sua hierarquia alterada.");
-                         return;
-                      }
-                      const newRole = item.role === 'admin' ? 'professor' : 'admin';
-                      if (confirm(`Mudar ${item.email} para ${newRole}?`)) {
-                        await supabase.from('users').update({ role: newRole }).eq('uid', item.uid);
-                      }
-                    }}
-                    disabled={item.email === 'cps@cps.local'}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm ${item.email === 'cps@cps.local' ? 'bg-slate-200 text-slate-500 opacity-50 cursor-not-allowed' : item.role === 'admin' ? 'bg-[#feebc8] text-[#744210] hover:bg-[#f6e0b5]' : 'bg-[#c6f6d5] text-[#22543d] hover:bg-[#b2ebd0]'}`}
-                  >
-                    {item.email === 'cps@cps.local' ? 'Master (Fixado)' : item.role === 'admin' ? 'Rebaixar para Prof.' : 'Promover a Administrador'}
-                  </button>
-                </div>
-              </div>
-            ))}
-              {networkUsers.length === 0 && (
-                <p className="text-center text-slate-400 py-4 text-sm">Nenhum usuário registrado.</p>
-              )}
-            </div>
-          </div>
+        
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+          <button 
+            onClick={() => setActiveTab('users')}
+            className={cn(
+              "px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
+              activeTab === 'users' ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
+            )}
+          >
+            Equipe
+          </button>
+          <button 
+            onClick={() => setActiveTab('school')}
+            className={cn(
+              "px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
+              activeTab === 'school' ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
+            )}
+          >
+            Escola
+          </button>
         </div>
       </div>
 
-      {configuringUser && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8">
-            <h3 className="text-lg font-bold text-primary mb-6">Configurar Perfil Profissional</h3>
-            <p className="text-sm text-slate-500 mb-6">Vincule o professor às suas turmas e disciplinas para facilitar a criação de provas.</p>
+      <AnimatePresence mode="wait">
+        {activeTab === 'users' ? (
+          <motion.div 
+            key="users-tab"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-8"
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Add User Form */}
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border-2 border-slate-200 dark:border-slate-800 shadow-sm">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent">
+                    <UserCog className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Novo Professor</h3>
+                </div>
+
+                <form onSubmit={handleAddUser} className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Nome Completo</label>
+                      <input 
+                        type="text" 
+                        placeholder="Ex: João da Silva Santos" 
+                        value={fullName}
+                        onChange={e => setFullName(e.target.value)}
+                        required
+                        className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none focus:border-accent transition-all font-bold"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Usuário</label>
+                        <input 
+                          type="text" 
+                          placeholder="joao.silva" 
+                          value={username}
+                          onChange={e => setUsername(e.target.value)}
+                          required
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none focus:border-accent transition-all font-mono text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Senha Inicial</label>
+                        <input 
+                          type="text" 
+                          placeholder="Senha 123" 
+                          value={password}
+                          onChange={e => setPassword(e.target.value)}
+                          required
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none focus:border-accent transition-all font-bold"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Disciplinas sugeridas</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl overflow-y-auto max-h-[160px]">
+                      {schoolInfo.subjects.map((sub: string) => (
+                        <label key={sub} className="flex items-center gap-2 cursor-pointer hover:bg-white dark:hover:bg-slate-700 p-2 rounded-lg transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-600">
+                          <input 
+                            type="checkbox" 
+                            checked={selectedSubjects.includes(sub)}
+                            onChange={() => toggleSubject(sub)}
+                            className="w-4 h-4 rounded border-slate-300 text-accent focus:ring-accent"
+                          />
+                          <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase truncate">{sub}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button 
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-slate-900 dark:bg-accent text-white py-4 rounded-xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                  >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+                    Criar Login de Professor
+                  </button>
+                </form>
+              </div>
+
+              {/* User List */}
+              <div className="space-y-6">
+                 <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border-2 border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600">
+                          <Users className="w-6 h-6" />
+                        </div>
+                        <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Professores Registrados</h3>
+                      </div>
+                      <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-black rounded-full uppercase">{networkUsers.length}</span>
+                    </div>
+
+                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                      {networkUsers.map((item, idx) => (
+                        <div key={item.uid || `user-${idx}`} className="group p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-accent/40 hover:bg-white dark:hover:bg-slate-800 transition-all">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                               <p className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">{item.professional_name || item.email?.split('@')[0]}</p>
+                               <div className="flex items-center gap-2 mt-1">
+                                  <span className={cn(
+                                    "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
+                                    item.role === 'admin' ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"
+                                  )}>{item.role}</span>
+                                  <span className="text-[10px] text-slate-400 font-mono truncate">{item.email}</span>
+                               </div>
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button 
+                                onClick={() => setConfiguringUser({...item})}
+                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                title="Configurar Vínculos"
+                              >
+                                <Settings className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => setResettingPwUser(item)}
+                                className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                                title="Resetar Senha"
+                              >
+                                <KeyRound className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={async () => {
+                                  if (item.email?.toLowerCase() === 'cps@cps.local') return;
+                                  const newRole = item.role === 'admin' ? 'professor' : 'admin';
+                                  if (confirm(`Alterar permissão de ${item.email} para ${newRole}?`)) {
+                                    await supabase.from('users').update({ role: newRole }).eq('uid', item.uid);
+                                  }
+                                }}
+                                disabled={item.email?.toLowerCase() === 'cps@cps.local'}
+                                className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all disabled:opacity-30"
+                                title="Alterar Cargo"
+                              >
+                                <ShieldCheck className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                 </div>
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="school-tab"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+          >
+            <div className="space-y-8">
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border-2 border-slate-200 dark:border-slate-800 shadow-sm">
+                <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight mb-6">Disciplinas</h3>
+                <form onSubmit={handleAddSubject} className="flex gap-4 mb-6">
+                  <input 
+                    type="text" 
+                    placeholder="Nova disciplina..." 
+                    value={newSubject}
+                    onChange={e => setNewSubject(e.target.value)}
+                    required
+                    className="flex-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none focus:border-accent transition-all font-bold"
+                  />
+                  <button type="submit" className="bg-accent text-white px-6 py-2 rounded-xl font-black uppercase tracking-widest hover:bg-accent/90 transition-all shadow-md active:scale-95">Add</button>
+                </form>
+                <div className="flex flex-wrap gap-2">
+                  {schoolInfo.subjects.map((sub: string) => (
+                    <span key={sub} className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-tight border border-slate-200 dark:border-slate-700 flex items-center gap-3">
+                      {sub}
+                      <button onClick={() => handleRemoveSubject(sub)} className="text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border-2 border-slate-200 dark:border-slate-800 shadow-sm">
+                <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight mb-6">Turmas / Anos</h3>
+                <form onSubmit={handleAddClass} className="flex gap-4 mb-6">
+                  <input 
+                    type="text" 
+                    placeholder="Nova turma..." 
+                    value={newClass}
+                    onChange={e => setNewClass(e.target.value)}
+                    required
+                    className="flex-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none focus:border-accent transition-all font-bold"
+                  />
+                  <button type="submit" className="bg-accent text-white px-6 py-2 rounded-xl font-black uppercase tracking-widest hover:bg-accent/90 transition-all shadow-md active:scale-95">Add</button>
+                </form>
+                <div className="flex flex-wrap gap-2">
+                  {schoolInfo.classes.map((cls: string) => (
+                    <span key={cls} className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-tight border border-slate-200 dark:border-slate-700 flex items-center gap-3">
+                      {cls}
+                      <button onClick={() => handleRemoveClass(cls)} className="text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border-2 border-slate-200 dark:border-slate-800 shadow-sm">
+              <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight mb-2">Relacionamento Turma/Matéria</h3>
+              <p className="text-xs text-slate-500 mb-8 font-medium italic">Selecione quais matérias aparecem para cada sala.</p>
+              
+              <div className="space-y-6 max-h-[700px] overflow-y-auto pr-4 custom-scrollbar">
+                {schoolInfo.classes.map((cls: string) => (
+                  <div key={cls} className="p-6 bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800 rounded-2xl transition-all">
+                     <div className="flex items-center gap-3 mb-4">
+                        <div className="w-1 h-6 bg-accent rounded-full"></div>
+                        <span className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-tighter">{cls}</span>
+                     </div>
+                     <div className="flex flex-wrap gap-2">
+                        {schoolInfo.subjects.map((sub: string) => {
+                           const isSelected = (schoolInfo.class_subjects[cls] || []).includes(sub);
+                           return (
+                             <button 
+                               key={sub}
+                               onClick={() => handleToggleClassSubject(cls, sub)}
+                               className={cn(
+                                 "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all active:scale-95",
+                                 isSelected 
+                                   ? "bg-accent text-white border-accent shadow-lg shadow-accent/20" 
+                                   : "bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-600 hover:border-accent/40"
+                               )}
+                             >
+                               {sub}
+                             </button>
+                           );
+                        })}
+                     </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Password Reset Modal */}
+      {resettingPwUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-slate-900 rounded-2xl p-8 max-w-sm w-full shadow-2xl border border-border"
+          >
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600">
+                <KeyRound className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tight">Redefinir Senha</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase truncate max-w-[200px]">{resettingPwUser.email}</p>
+              </div>
+            </div>
             
-            <div className="space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Nova Senha</label>
+                <input 
+                  type="text"
+                  value={newPwVal}
+                  onChange={e => setNewPwVal(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none focus:border-accent font-bold"
+                />
+              </div>
+              
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={() => setResettingPwUser(null)}
+                  className="flex-1 py-3 text-xs font-black text-slate-500 uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleResetPassword}
+                  disabled={loading || newPwVal.length < 6}
+                  className="flex-1 py-3 bg-slate-900 dark:bg-amber-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 dark:hover:bg-amber-500 transition-all disabled:opacity-50 active:scale-95 shadow-lg"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Confirmar'}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {configuringUser && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-border"
+          >
+            <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Vínculos Profissionais</h3>
+                <p className="text-sm text-slate-500 font-medium">{configuringUser.email}</p>
+              </div>
+              <button 
+                onClick={() => setConfiguringUser(null)}
+                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+              >
+                <X className="w-6 h-6 text-slate-400" />
+              </button>
+            </div>
+            
+            <div className="p-8 space-y-6 overflow-y-auto custom-scrollbar">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase">Nome Profissional (Como aparecerá na prova)</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Nome de Exibição nas Provas</label>
                 <input 
                   type="text"
                   value={configuringUser.professional_name || ''}
                   onChange={e => setConfiguringUser({...configuringUser, professional_name: e.target.value})}
                   placeholder="Ex: Prof. Dr. Carlos Silva"
-                  className="w-full px-4 py-2 border border-border rounded-md outline-none focus:border-accent"
+                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl outline-none focus:border-accent font-bold"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase">Disciplinas que Leciona</label>
-                <div className="flex flex-wrap gap-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Disciplinas que Ministra</label>
+                <div className="flex flex-wrap gap-2 p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-800">
                   {schoolInfo.subjects.map(sub => {
                     const selected = (configuringUser.assigned_subjects || []).includes(sub);
                     return (
@@ -2970,7 +3248,7 @@ function AdminView({ user }: { user: User }) {
                           if (selected) setConfiguringUser({...configuringUser, assigned_subjects: current.filter((s: string) => s !== sub)});
                           else setConfiguringUser({...configuringUser, assigned_subjects: [...current, sub]});
                         }}
-                        className={`px-3 py-1 rounded-full text-xs font-bold border transition-colors ${selected ? 'bg-primary text-white border-primary' : 'bg-slate-50 text-slate-600 border-border'}`}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-tight border transition-all ${selected ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20' : 'bg-white dark:bg-slate-700 text-slate-500 border-slate-200 dark:border-slate-600'}`}
                       >
                         {sub}
                       </button>
@@ -2980,8 +3258,8 @@ function AdminView({ user }: { user: User }) {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase">Turmas que Leciona</label>
-                <div className="flex flex-wrap gap-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Turmas Atribuídas</label>
+                <div className="flex flex-wrap gap-2 p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-800">
                   {schoolInfo.classes.map(cls => {
                     const selected = (configuringUser.assigned_classes || []).includes(cls);
                     return (
@@ -2992,7 +3270,7 @@ function AdminView({ user }: { user: User }) {
                           if (selected) setConfiguringUser({...configuringUser, assigned_classes: current.filter((c: string) => c !== cls)});
                           else setConfiguringUser({...configuringUser, assigned_classes: [...current, cls]});
                         }}
-                        className={`px-3 py-1 rounded-full text-xs font-bold border transition-colors ${selected ? 'bg-primary text-white border-primary' : 'bg-slate-50 text-slate-600 border-border'}`}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-tight border transition-all ${selected ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' : 'bg-white dark:bg-slate-700 text-slate-500 border-slate-200 dark:border-slate-600'}`}
                       >
                         {cls}
                       </button>
@@ -3000,24 +3278,24 @@ function AdminView({ user }: { user: User }) {
                   })}
                 </div>
               </div>
-
-              <div className="flex gap-4 pt-6">
-                <button 
-                  onClick={() => setConfiguringUser(null)}
-                  className="flex-1 px-6 py-2 rounded-md font-bold text-slate-500 hover:bg-slate-100 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  onClick={handleUpdateUserConfig}
-                  disabled={configLoading}
-                  className="flex-1 bg-accent text-white px-6 py-2 rounded-md font-bold flex items-center justify-center gap-2 hover:bg-accent/90 transition-all disabled:opacity-50"
-                >
-                  {configLoading ? <Loader2 className="animate-spin w-4 h-4" /> : 'Salvar Configurações'}
-                </button>
-              </div>
             </div>
-          </div>
+
+            <div className="p-8 bg-slate-50 dark:bg-slate-800/20 border-t border-slate-100 dark:border-slate-800 flex gap-4">
+              <button 
+                onClick={() => setConfiguringUser(null)}
+                className="flex-1 px-6 py-4 rounded-xl font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-xs"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleUpdateUserConfig}
+                disabled={configLoading}
+                className="flex-1 bg-slate-900 dark:bg-accent text-white px-6 py-4 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-lg text-xs active:scale-95 disabled:opacity-50"
+              >
+                {configLoading ? <Loader2 className="animate-spin w-5 h-5" /> : 'Salvar Alterações'}
+              </button>
+            </div>
+          </motion.div>
         </div>
       )}
     </div>

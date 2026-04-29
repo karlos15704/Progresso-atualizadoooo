@@ -277,6 +277,50 @@ async function startServer() {
     }
   });
 
+  app.post("/api/admin/reset-password", async (req, res) => {
+    const { targetUid, newPassword, adminToken } = req.body;
+
+    if (!targetUid || !newPassword || !adminToken) {
+      return res.status(400).json({ error: "UID, nova senha e token de admin são obrigatórios." });
+    }
+
+    try {
+      const admin = getSupabaseAdmin();
+      
+      // 1. Verify admin token
+      const { data: { user: adminUser }, error: verifyError } = await admin.auth.getUser(adminToken);
+      if (verifyError || !adminUser) {
+        return res.status(401).json({ error: "Sessão expirada ou não autorizada." });
+      }
+
+      // 2. Check if adminUser is actually an admin in the database
+      const { data: profile, error: profileError } = await admin
+        .from('users')
+        .select('role, email')
+        .eq('uid', adminUser.id)
+        .single();
+      
+      const isMaster = adminUser.email?.toLowerCase() === 'cps@cps.local' || adminUser.email?.toLowerCase() === 'karlos15704@gmail.com';
+      
+      if (!isMaster && (profileError || profile?.role !== 'admin')) {
+        return res.status(403).json({ error: "Apenas administradores podem redefinir senhas de outros usuários." });
+      }
+
+      // 3. Perform password reset
+      const finalPassword = newPassword + "_cpsAuth"; 
+      const { error: updateError } = await admin.auth.admin.updateUserById(targetUid, {
+        password: finalPassword
+      });
+
+      if (updateError) throw updateError;
+
+      res.json({ message: "Senha redefinida com sucesso!" });
+    } catch (err: any) {
+      console.error("Erro ao redefinir senha:", err);
+      res.status(500).json({ error: err.message || "Erro interno ao redefinir senha." });
+    }
+  });
+
   // Add error handler for Express parsing
   app.use((err: any, req: any, res: any, next: any) => {
     if (err.type === 'entity.too.large') {
