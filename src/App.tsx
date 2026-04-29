@@ -1285,12 +1285,10 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/50 transition-colors">
-                  <th className="text-left px-4 py-3 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">ID</th>
                   <th className="text-left px-4 py-3 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">Turma</th>
                   <th className="text-left px-4 py-3 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">Matéria</th>
                   <th className="text-left px-4 py-3 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">Tipo</th>
                   <th className="text-left px-4 py-3 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">Data</th>
-                  <th className="text-left px-4 py-3 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">Status</th>
                   <th className="text-right px-4 py-3 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">Ações</th>
                 </tr>
               </thead>
@@ -1299,15 +1297,12 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                   Array.from(new Set(displayExams.map(e => e.bimester || '1º Bimestre'))).map(bim => (
                     <React.Fragment key={bim}>
                       <tr className="bg-slate-50/30 dark:bg-slate-800/20">
-                        <td colSpan={7} className="px-4 py-2 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                        <td colSpan={5} className="px-4 py-2 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                           {bim}
                         </td>
                       </tr>
                       {displayExams.filter(e => (e.bimester || '1º Bimestre') === bim).map(exam => (
                         <tr key={exam.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
-                          <td className="px-4 py-3 font-mono text-[11px] text-slate-400 dark:text-slate-600">
-                            #{exam.id.slice(-4).toUpperCase()}
-                          </td>
                           <td className="px-4 py-3 text-slate-900 dark:text-slate-200 font-bold whitespace-nowrap">
                             {exam.classYear || '--'}
                           </td>
@@ -1321,16 +1316,6 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                           </td>
                           <td className="px-4 py-3 text-slate-500 dark:text-slate-500 text-[11px] whitespace-nowrap">
                             {new Date(exam.createdAt).toLocaleDateString()}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={cn(
-                              "px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tight",
-                              results.some(r => r.examId === exam.id) 
-                                ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 line-through decoration-1" 
-                                : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
-                            )}>
-                              {results.some(r => r.examId === exam.id) ? 'Corrigida' : 'Pendente'}
-                            </span>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
@@ -1377,7 +1362,7 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="px-5 py-20 text-center">
+                    <td colSpan={5} className="px-5 py-20 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <Search className="w-8 h-8 text-slate-200 dark:text-slate-800" />
                         <p className="text-slate-400 dark:text-slate-600 font-medium">Nenhuma prova encontrada.</p>
