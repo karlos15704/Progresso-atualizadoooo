@@ -6118,17 +6118,24 @@ function CronogramaEstudosView({
 }) {
   const [selectedClass, setSelectedClass] = useState(schoolInfo.classes[0] || '');
   const [selectedBimester, setSelectedBimester] = useState(bimesters[0] || '');
+  const [selectedExamType, setSelectedExamType] = useState('TODAS');
+
+  const availableExamTypes = useMemo(() => {
+    const types = new Set(exams.map(e => e.examType));
+    return ['TODAS', ...Array.from(types).sort()];
+  }, [exams]);
 
   const filteredExams = useMemo(() => {
     return exams.filter(e => 
       e.classYear === selectedClass && 
-      e.bimester === selectedBimester
+      e.bimester === selectedBimester &&
+      (selectedExamType === 'TODAS' || e.examType === selectedExamType)
     ).sort((a, b) => {
       if (!a.examDate) return 1;
       if (!b.examDate) return -1;
       return new Date(a.examDate).getTime() - new Date(b.examDate).getTime();
     });
-  }, [exams, selectedClass, selectedBimester]);
+  }, [exams, selectedClass, selectedBimester, selectedExamType]);
 
   const examsByDate = useMemo(() => {
     const groups: Record<string, Exam[]> = {};
@@ -6171,6 +6178,13 @@ function CronogramaEstudosView({
           >
             {bimesters.map((b: string) => <option key={b} value={b}>{b}</option>)}
           </select>
+          <select 
+            value={selectedExamType}
+            onChange={(e) => setSelectedExamType(e.target.value)}
+            className="px-4 py-2 bg-white border-2 border-black rounded-lg font-black text-xs uppercase"
+          >
+            {availableExamTypes.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
           <button 
             onClick={handlePrint}
             className="flex items-center gap-2 px-6 py-2 bg-black text-white rounded-lg font-black text-xs uppercase hover:bg-slate-800 transition-colors"
@@ -6191,12 +6205,15 @@ function CronogramaEstudosView({
                <p className="text-sm font-bold uppercase text-slate-600 mt-1">Colégio Coc Santa Rosália</p>
              </div>
           </div>
-          <div className="grid grid-cols-2 w-full gap-4">
+          <div className="grid grid-cols-3 w-full gap-4">
             <div className="border-2 border-black p-2 text-center uppercase font-black text-sm">
               Turma: {selectedClass}
             </div>
             <div className="border-2 border-black p-2 text-center uppercase font-black text-sm">
               Período: {selectedBimester}
+            </div>
+            <div className="border-2 border-black p-2 text-center uppercase font-black text-sm">
+              {selectedExamType === 'TODAS' ? 'Todas Avaliações' : `Tipo: ${selectedExamType}`}
             </div>
           </div>
         </div>
