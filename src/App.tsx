@@ -3808,6 +3808,7 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
   onPrint: (report: StudentReport) => void,
   onPrintAll: (reports: StudentReport[]) => void
 }) {
+  const [activeTab, setActiveTab] = useState<'new' | 'list'>('new');
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedStudent, setSelectedStudent] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
@@ -3892,6 +3893,7 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
       setStudentSearch('');
       setEditingId(null);
       refresh();
+      setActiveTab('list');
     } catch (err: any) {
       alert("Erro ao salvar: " + err.message);
     } finally {
@@ -3907,6 +3909,7 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
     setSelectedSubject(report.subject);
     setSelectedBimester(report.bimester);
     setContent(report.content);
+    setActiveTab('new');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -3969,7 +3972,34 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h2 className="text-xl font-bold text-primary">Relatórios Individuais do Aluno</h2>
         <div className="flex items-center gap-3">
-          {isAdmin && filteredReports.length > 0 && searchQuery.length > 2 && (
+          <div className="flex bg-slate-100 p-1 rounded-lg mr-2">
+            <button 
+              onClick={() => setActiveTab('new')}
+              className={cn(
+                "px-4 py-1.5 rounded-md text-xs font-bold transition-all", 
+                activeTab === 'new' ? "bg-white text-accent shadow-sm" : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <Plus className="w-3.5 h-3.5" />
+                {editingId ? 'Editar Relatório' : 'Novo Relatório'}
+              </div>
+            </button>
+            <button 
+              onClick={() => setActiveTab('list')}
+              className={cn(
+                "px-4 py-1.5 rounded-md text-xs font-bold transition-all", 
+                activeTab === 'list' ? "bg-white text-accent shadow-sm" : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <FileText className="w-3.5 h-3.5" />
+                Relatórios Enviados
+              </div>
+            </button>
+          </div>
+
+          {activeTab === 'list' && isAdmin && filteredReports.length > 0 && searchQuery.length > 2 && (
             <button 
               onClick={() => onPrintAll(filteredReports)} 
               className="bg-accent text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-accent/90 shadow-sm transition-all"
@@ -3978,7 +4008,7 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
               Imprimir Consolidado ({filteredReports.length})
             </button>
           )}
-          {isAdmin && searchQuery === '' && (
+          {activeTab === 'list' && isAdmin && searchQuery === '' && (
             <button 
               onClick={() => onPrintAll(reports)} 
               className="bg-slate-800 text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-slate-900 shadow-sm transition-all"
@@ -3990,8 +4020,16 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-lg border border-border shadow-sm space-y-6">
-        <h3 className="text-sm font-bold text-primary uppercase tracking-wider">{editingId ? 'Editar Relatório' : 'Novo Relatório'}</h3>
+      <AnimatePresence mode="wait">
+        {activeTab === 'new' ? (
+          <motion.div 
+            key="new-tab"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-white p-6 rounded-lg border border-border shadow-sm space-y-6"
+          >
+            <h3 className="text-sm font-bold text-primary uppercase tracking-wider">{editingId ? 'Editar Relatório' : 'Novo Relatório'}</h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="space-y-2">
             <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Turma / Sala</label>
@@ -4149,9 +4187,16 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
             {editingId ? 'Salvar Alterações' : 'Salvar Relatório'}
           </button>
         </div>
-      </div>
-
-      <div className="bg-white rounded-lg border border-border overflow-hidden shadow-sm">
+      </motion.div>
+    ) : (
+      <motion.div 
+        key="list-tab"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6"
+          >
+            <div className="bg-white rounded-lg border border-border overflow-hidden shadow-sm">
         <div className="px-5 py-4 border-b border-border bg-slate-50 flex flex-col gap-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <h3 className="text-base font-bold text-primary">Relatórios Enviados</h3>
@@ -4308,6 +4353,9 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
           </table>
         </div>
       </div>
+    </motion.div>
+  )}
+</AnimatePresence>
     </div>
   );
 }
