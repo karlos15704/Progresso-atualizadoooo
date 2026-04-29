@@ -842,13 +842,6 @@ export default function App() {
               collapsed={sidebarCollapsed}
             />
             <NavButton 
-              active={view === 'correct'} 
-              onClick={() => { setView('correct'); setExamToEdit(null); }} 
-              icon={<Scan className="w-5 h-5" />} 
-              label="Correção Automática" 
-              collapsed={sidebarCollapsed}
-            />
-            <NavButton 
               active={view === 'boletim'} 
               onClick={() => { setView('boletim'); setExamToEdit(null); }} 
               icon={<FileText className="w-5 h-5" />} 
@@ -1089,7 +1082,6 @@ export default function App() {
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-black border-t border-slate-200 dark:border-slate-800 px-1 py-1 flex justify-between items-center overflow-x-auto gap-0.5 shadow-[0_-8px_15px_rgba(0,0,0,0.08)] z-[100] animate-in slide-in-from-bottom-5 print:hidden text-slate-600 dark:text-slate-400 transition-colors">
         <MobileNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<BarChart3 size={18} />} label="Início" />
         <MobileNavButton active={view === 'diary'} onClick={() => setView('diary')} icon={<BookOpen size={18} />} label="Diário" />
-        <MobileNavButton active={view === 'correct'} onClick={() => setView('correct')} icon={<Scan size={18} />} label="Correção" />
         <MobileNavButton active={view === 'boletim'} onClick={() => setView('boletim')} icon={<FileText size={18} />} label="Boletim" />
         <MobileNavButton active={view === 'cronograma'} onClick={() => setView('cronograma')} icon={<Calendar size={18} />} label="Provas" />
         <MobileNavButton active={view === 'studentReports'} onClick={() => setView('studentReports')} icon={<UserIcon size={18} />} label="Obs" />
@@ -1430,13 +1422,6 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                               >
                                 <Printer className="w-4 h-4" />
                               </button>
-                              <button 
-                                onClick={() => generatePrintableAnswerSheet(exam, LOGO_VINHO, [""])}
-                                className="p-1.5 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
-                                title="OMR"
-                              >
-                                <Download className="w-4 h-4" />
-                              </button>
                               {(isAdmin || exam.professorId === user.id || (userProfile && (exam.professorId === userProfile.id || exam.professorId === userProfile.uid))) && (
                                 <>
                                   <button 
@@ -1482,13 +1467,6 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
             className="bg-accent text-white p-3 rounded-md font-bold text-sm hover:bg-accent/90 transition-all shadow-sm"
           >
             + Criar Nova Prova
-          </button>
-          <button 
-            onClick={() => setView('correct')}
-            className="bg-white text-primary border border-primary p-3 rounded-md font-bold text-sm hover:bg-primary hover:text-white transition-all shadow-sm flex items-center justify-center gap-2"
-          >
-            <Download className="w-4 h-4" />
-            Baixar Folhas de Resposta
           </button>
           
           <div className="bg-[#edf2f7] p-4 rounded-lg border-l-4 border-primary text-[13px] leading-relaxed">
@@ -3602,7 +3580,7 @@ function ReportsView({ exams, results }: { exams: Exam[], results: Result[] }) {
               </div>
             </div>
           ))}
-          {filteredResults.length === 0 && <p className="text-center text-slate-400 py-10 text-sm">Nenhum resultado encontrado. Não esqueça de corrigir as avaliações no painel principal ou aba Corrigir Prova.</p>}
+          {filteredResults.length === 0 && <p className="text-center text-slate-400 py-10 text-sm">Nenhum resultado encontrado. Os lançamentos aparecerão aqui após o preenchimento das notas.</p>}
         </div>
       </div>
     </div>
@@ -4119,16 +4097,6 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
           >
             <Printer className="w-4 h-4" />
             Imprimir Provas
-          </button>
-          <button 
-            onClick={() => {
-              alert("Dica: Na próxima tela, mude o destino (Impressora) para 'Salvar como PDF' caso queira o arquivo em PDF, ou selecione sua impressora para imprimir em papel.");
-              handlePrintGabaritos();
-            }}
-            className="bg-accent text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-accent/90 shadow-sm disabled:opacity-50"
-          >
-            <Printer className="w-4 h-4" />
-            Imprimir Gabaritos
           </button>
         </div>
       </div>
@@ -5677,7 +5645,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
       {/* Header */}
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mt-3 gap-4 border-b border-slate-200 pb-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-black text-slate-800 uppercase tracking-tight">Diário & Correção</h1>
+          <h1 className="text-xl md:text-2xl font-black text-slate-800 uppercase tracking-tight">Diário & Planejamento</h1>
           <p className="text-xs md:text-sm text-slate-500 font-medium">Gestão unificada do planejamento, provas e notas.</p>
         </div>
         <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
@@ -5820,7 +5788,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
             </div>
           </div>
 
-          {/* RIGHT COLUMN: Avaliações, Correção e Gabaritos (8 cols wide on desktop) */}
+          {/* RIGHT COLUMN: Avaliações e Planejamento (8 cols wide on desktop) */}
           <div className="xl:col-span-8 space-y-6">
             
             <div className="bg-white border text-left border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
@@ -5905,7 +5873,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                                 onClick={() => startLaunchingGrades(exam)}
                                 className="bg-green-600 text-white px-3 py-1.5 rounded-md text-[10px] font-black uppercase hover:bg-green-700 shadow-sm flex items-center gap-1"
                               >
-                                <Edit2 className="w-3.5 h-3.5" /> Lançar/Corrigir Notas
+                                <Edit2 className="w-3.5 h-3.5" /> Lançar Notas
                               </button>
                               <button onClick={() => handleDeleteExamLocal(exam)} className="text-slate-300 hover:text-red-500 p-2 transition-colors ml-2">
                                  <Trash2 className="w-4 h-4" />
