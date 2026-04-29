@@ -603,11 +603,9 @@ export default function App() {
       }
       
       if (data) {
-        // Javascript filtering to perfectly prevent JSON schema syntax errors in Supabase PostgREST queries
+        // Remove professor_id filter to allow all teachers to see the full schedule
         let validData = data;
-        if (!isAdmin) {
-          validData = data.filter(e => e.professor_id === user.id || e.answer_key?._metadata?.isExternal === true);
-        }
+        
         setExams(validData.map(exam => {
           const meta = exam.answer_key?._metadata || {};
           return {
@@ -621,7 +619,7 @@ export default function App() {
             classYear: exam.class_year || meta.classYear,
             fontSize: meta.fontSize,
             fontFamily: meta.fontFamily,
-            content: exam.content,
+            content: exam.content || meta.content || exam.study_guide,
             createdAt: exam.created_at
           };
         }));
@@ -6126,11 +6124,12 @@ function CronogramaEstudosView({
   }, [exams]);
 
   const filteredExams = useMemo(() => {
-    return exams.filter(e => 
-      e.classYear === selectedClass && 
-      e.bimester === selectedBimester &&
-      (selectedExamType === 'TODAS' || e.examType === selectedExamType)
-    ).sort((a, b) => {
+    return exams.filter(e => {
+      const classes = (e.classYear || '').split(',').map(s => s.trim());
+      return classes.includes(selectedClass) && 
+        e.bimester === selectedBimester &&
+        (selectedExamType === 'TODAS' || e.examType === selectedExamType);
+    }).sort((a, b) => {
       if (!a.examDate) return 1;
       if (!b.examDate) return -1;
       return new Date(a.examDate).getTime() - new Date(b.examDate).getTime();
