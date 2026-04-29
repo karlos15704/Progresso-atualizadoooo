@@ -3809,6 +3809,7 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
   onPrintAll: (reports: StudentReport[]) => void
 }) {
   const [activeTab, setActiveTab] = useState<'new' | 'list'>('new');
+  const [selectedReportIds, setSelectedReportIds] = useState<Set<string>>(new Set());
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedStudent, setSelectedStudent] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
@@ -3999,7 +4000,20 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
             </button>
           </div>
 
-          {activeTab === 'list' && isAdmin && filteredReports.length > 0 && searchQuery.length > 2 && (
+          {activeTab === 'list' && isAdmin && selectedReportIds.size > 0 && (
+            <button 
+              onClick={() => {
+                const selectedReports = reports.filter(r => selectedReportIds.has(r.id));
+                onPrintAll(selectedReports);
+              }} 
+              className="bg-green-600 text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-green-700 shadow-sm transition-all"
+            >
+              <Printer className="w-4 h-4" />
+              Imprimir Selecionados ({selectedReportIds.size})
+            </button>
+          )}
+
+          {activeTab === 'list' && isAdmin && selectedReportIds.size === 0 && filteredReports.length > 0 && searchQuery.length > 2 && (
             <button 
               onClick={() => onPrintAll(filteredReports)} 
               className="bg-accent text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-accent/90 shadow-sm transition-all"
@@ -4008,7 +4022,7 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
               Imprimir Consolidado ({filteredReports.length})
             </button>
           )}
-          {activeTab === 'list' && isAdmin && searchQuery === '' && (
+          {activeTab === 'list' && isAdmin && selectedReportIds.size === 0 && searchQuery === '' && (
             <button 
               onClick={() => onPrintAll(reports)} 
               className="bg-slate-800 text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-slate-900 shadow-sm transition-all"
@@ -4308,6 +4322,22 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
           <table className="w-full border-collapse text-sm text-left">
             <thead>
               <tr className="bg-slate-50/50">
+                {isAdmin && (
+                  <th className="px-5 py-3 border-b border-r border-slate-100 text-slate-500 uppercase font-black text-[10px] tracking-wider text-center w-12">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-slate-300 text-accent focus:ring-accent cursor-pointer w-4 h-4"
+                      checked={filteredReports.length > 0 && selectedReportIds.size === filteredReports.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedReportIds(new Set(filteredReports.map(r => r.id)));
+                        } else {
+                          setSelectedReportIds(new Set());
+                        }
+                      }}
+                    />
+                  </th>
+                )}
                 <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider">Aluno</th>
                 <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider">Turma</th>
                 {isAdmin && <th className="px-5 py-3 border-b text-slate-500 uppercase font-black text-[10px] tracking-wider font-mono">Professor</th>}
@@ -4319,7 +4349,25 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredReports.map(r => (
-                <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
+                <tr key={r.id} className={cn("hover:bg-slate-50/50 transition-colors", selectedReportIds.has(r.id) && "bg-accent/5")}>
+                  {isAdmin && (
+                    <td className="px-5 py-4 border-r border-slate-100 text-center">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-slate-300 text-accent focus:ring-accent cursor-pointer w-4 h-4"
+                        checked={selectedReportIds.has(r.id)}
+                        onChange={() => {
+                          const newSelected = new Set(selectedReportIds);
+                          if (newSelected.has(r.id)) {
+                            newSelected.delete(r.id);
+                          } else {
+                            newSelected.add(r.id);
+                          }
+                          setSelectedReportIds(newSelected);
+                        }}
+                      />
+                    </td>
+                  )}
                   <td className="px-5 py-4 font-bold text-slate-700">{r.studentName}</td>
                   <td className="px-5 py-4 text-slate-600 font-mono text-xs">{r.studentClass}</td>
                   {isAdmin && <td className="px-5 py-4 text-slate-500 text-[11px] font-medium leading-tight max-w-[120px]">{r.professorName}</td>}
@@ -4346,7 +4394,7 @@ function StudentReportsView({ user, userProfile, isAdmin, reports, refresh, onPr
               ))}
               {reports.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-slate-400 italic">Nenhum relatório encontrado.</td>
+                  <td colSpan={isAdmin ? 8 : 7} className="px-5 py-10 text-center text-slate-400 italic">Nenhum relatório encontrado.</td>
                 </tr>
               )}
             </tbody>
