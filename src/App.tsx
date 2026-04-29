@@ -6279,11 +6279,19 @@ function CronogramaEstudosView({
           table {
             width: 100% !important;
             border-collapse: collapse !important;
+            border: 2px solid black !important;
           }
           th, td {
             border: 1px solid black !important;
-            padding: 4px 8px !important;
+            padding: 6px 10px !important;
             font-size: 10px !important;
+            line-height: 1.4 !important;
+            vertical-align: top !important;
+          }
+          th {
+            background-color: #f8fafc !important; /* light slate-50 */
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .markdown-body {
             font-size: 10px !important;
@@ -6376,12 +6384,12 @@ function CronogramaEstudosView({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+          <table className="w-full border-collapse border-2 border-black">
             <thead>
               <tr className="bg-slate-50 border-b-2 border-black">
                 <th className="p-2 text-left font-black uppercase text-[11px] border-r border-black w-[80px]">Data</th>
                 <th className="p-2 text-left font-black uppercase text-[11px] border-r border-black w-[150px]">Avaliação</th>
-                <th className="p-2 text-left font-black uppercase text-[11px]">Conteúdo Programático</th>
+                <th className="p-2 text-left font-black uppercase text-[11px] border-r border-black">Conteúdo Programático</th>
               </tr>
             </thead>
             <tbody className="divide-y border-b border-black divide-black">
@@ -6420,7 +6428,7 @@ function CronogramaEstudosView({
                         </div>
                       ))}
                     </td>
-                    <td className="p-2 align-top">
+                    <td className="p-2 border-r border-black align-top">
                       <div className="space-y-4">
                         {(dailyExams as Exam[]).map((ex: Exam) => (
                           <div key={ex.id} className="space-y-1">
