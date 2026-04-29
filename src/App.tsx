@@ -4,6 +4,8 @@ import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
 import { Editor, EditorProvider, Toolbar, BtnBold, BtnItalic, BtnUnderline, BtnStrikeThrough, BtnNumberedList, BtnBulletList, BtnClearFormatting, BtnStyles, Separator } from 'react-simple-wysiwyg';
 import { 
+  Sun,
+  Moon,
   Plus, 
   FileText, 
   Camera, 
@@ -496,6 +498,21 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved) return saved === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [view, setView] = useState<'dashboard' | 'create' | 'correct' | 'reports' | 'guides' | 'admin' | 'schedule' | 'print' | 'studentReports' | 'printReport' | 'boletim' | 'diary' | 'cronograma'>('dashboard');
   const [selectedPrintExam, setSelectedPrintExam] = useState<Exam | null>(null);
@@ -745,38 +762,47 @@ export default function App() {
   }
 
   if (!user) {
-    return <LoginView error={error} setError={setError} />;
+    return <LoginView error={error} setError={setError} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />;
   }
 
   return (
-    <div className="h-screen bg-bg flex flex-col print:h-auto print:bg-white print:block overflow-hidden">
+    <div className={cn("h-screen flex flex-col print:h-auto print:bg-white print:block overflow-hidden transition-colors duration-300", 
+      isDarkMode ? "dark bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-900"
+    )}>
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 h-[70px] px-4 md:px-8 flex-shrink-0 flex items-center justify-between sticky top-0 z-40 print:hidden shadow-sm">
+      <header className="bg-white dark:bg-black border-b border-slate-200 dark:border-slate-800 h-[70px] px-4 md:px-8 flex-shrink-0 flex items-center justify-between sticky top-0 z-40 print:hidden shadow-sm transition-colors">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="hidden lg:flex p-2 hover:bg-slate-50 rounded-lg transition-colors text-slate-400 hover:text-slate-900"
+            className="hidden lg:flex p-2 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-colors text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
             title={sidebarCollapsed ? "Expandir Menu" : "Recolher Menu"}
           >
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm flex items-center gap-2">
+            <div className="bg-white dark:bg-slate-900 p-1.5 rounded-lg border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-2">
               <img src={LOGO_VINHO} alt="Logo CPS" className="w-4 h-4 md:w-5 md:h-5 object-contain" />
-              <div className="w-px h-4 bg-slate-200"></div>
+              <div className="w-px h-4 bg-slate-200 dark:bg-slate-700"></div>
               <img src={LOGO_COC} alt="Plataforma COC" className="h-3 md:h-4 object-contain" />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-[10px] md:text-xs font-display font-black text-slate-800 tracking-tight uppercase leading-none">Colégio Progresso</h1>
-              <span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Gestão Acadêmica</span>
+              <h1 className="text-[10px] md:text-xs font-display font-black text-slate-800 dark:text-slate-100 tracking-tight uppercase leading-none">Colégio Progresso</h1>
+              <span className="text-[8px] md:text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">Gestão Acadêmica</span>
             </div>
           </div>
         </div>
         
         <div className="flex items-center gap-4">
+          <button
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-400"
+            title={isDarkMode ? "Mudar para modo claro" : "Mudar para modo escuro"}
+          >
+            {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
           <div className="hidden md:flex flex-col items-end">
-            <span className="text-sm font-medium text-text">{user.displayName || user.email?.replace('@cps.local', '')}</span>
-            <span className="text-xs text-slate-500">{isAdmin ? 'Administrador' : 'Professor'}</span>
+            <span className="text-sm font-medium text-slate-900 dark:text-slate-200">{user.displayName || user.email?.replace('@cps.local', '')}</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">{isAdmin ? 'Administrador' : 'Professor'}</span>
           </div>
           <button 
             onClick={handleLogout}
@@ -882,7 +908,7 @@ export default function App() {
             {view === 'admin' && isAdmin && <AdminView user={user} />}
             {view === 'diary' && <DigitalDiaryView user={user} isAdmin={isAdmin} userProfile={userProfile} />}
             {view === 'boletim' && <BoletimView results={results} exams={exams} isAdmin={isAdmin} user={user} userProfile={userProfile} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
-            {view === 'cronograma' && <CronogramaEstudosView exams={exams} isAdmin={isAdmin} schoolInfo={getSchoolInfo()} bimesters={['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre']} userProfile={userProfile} />}
+            {view === 'cronograma' && <CronogramaEstudosView exams={exams} isAdmin={isAdmin} schoolInfo={getSchoolInfo()} bimesters={['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre']} userProfile={userProfile} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
           </AnimatePresence>
           <div className="mt-20 mb-12 text-center border-t-4 border-slate-900 pt-12 print:hidden">
             <div className="inline-flex flex-col items-center gap-4">
@@ -961,7 +987,7 @@ export default function App() {
       )}
 
       {/* Mobile Nav */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-1 py-1 flex justify-between items-center overflow-x-auto gap-0.5 shadow-[0_-8px_15px_rgba(0,0,0,0.08)] z-[100] animate-in slide-in-from-bottom-5 print:hidden text-slate-600">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-black border-t border-slate-200 dark:border-slate-800 px-1 py-1 flex justify-between items-center overflow-x-auto gap-0.5 shadow-[0_-8px_15px_rgba(0,0,0,0.08)] z-[100] animate-in slide-in-from-bottom-5 print:hidden text-slate-600 dark:text-slate-400 transition-colors">
         <MobileNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<BarChart3 size={18} />} label="Início" />
         <MobileNavButton active={view === 'diary'} onClick={() => setView('diary')} icon={<BookOpen size={18} />} label="Diário" />
         <MobileNavButton active={view === 'correct'} onClick={() => setView('correct')} icon={<Scan size={18} />} label="Correção" />
@@ -1004,13 +1030,13 @@ function MobileNavButton({ active, onClick, icon, label }: { active: boolean, on
       onClick={onClick}
       className={cn(
         "flex flex-col items-center justify-center p-2 rounded-xl transition-all flex-1 min-w-[50px] relative",
-        active ? "text-primary" : "text-slate-400 hover:text-slate-600"
+        active ? "text-accent dark:text-accent" : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
       )}
     >
       {active && (
         <motion.div 
           layoutId="mobile-nav-indicator"
-          className="absolute inset-0 bg-primary/5 rounded-xl -z-10"
+          className="absolute inset-0 bg-accent/5 dark:bg-accent/10 rounded-xl -z-10"
         />
       )}
       <div className={cn("mb-1 transition-all duration-300", active ? "scale-110 -translate-y-1" : "")}>
@@ -1021,7 +1047,7 @@ function MobileNavButton({ active, onClick, icon, label }: { active: boolean, on
   );
 }
 
-function LoginView({ error, setError }: { error: string | null, setError: (e: string | null) => void }) {
+function LoginView({ error, setError, isDarkMode, setIsDarkMode }: { error: string | null, setError: (e: string | null) => void, isDarkMode: boolean, setIsDarkMode: (v: boolean) => void }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -1050,22 +1076,30 @@ function LoginView({ error, setError }: { error: string | null, setError: (e: st
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg p-6">
+    <div className={cn("min-h-screen flex items-center justify-center p-6 transition-colors", isDarkMode ? "bg-slate-950" : "bg-slate-50")}>
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full bg-white rounded-lg shadow-xl p-10 text-center border border-border"
+        className="max-w-md w-full bg-white dark:bg-slate-900 rounded-lg shadow-xl p-10 text-center border border-slate-200 dark:border-slate-800 relative shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)]"
       >
-        <div className="bg-white w-full max-w-[200px] h-16 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100 gap-3 px-4">
+        <div className="absolute top-4 right-4 print:hidden">
+          <button
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-400 dark:text-slate-500"
+          >
+            {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
+        </div>
+        <div className="bg-white dark:bg-slate-800 w-full max-w-[200px] h-16 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100 dark:border-slate-700 gap-3 px-4">
           <img src={LOGO_VINHO} alt="Logo CPS" className="w-10 h-10 object-contain" />
-          <div className="w-px h-8 bg-slate-200"></div>
+          <div className="w-px h-8 bg-slate-200 dark:bg-slate-600"></div>
           <img src={LOGO_COC} alt="Plataforma COC" className="h-6 object-contain" />
         </div>
-        <h1 className="text-2xl font-bold text-primary mb-2 uppercase tracking-tight">Colégio Progresso Santista</h1>
-        <p className="text-slate-500 mb-8 text-sm">Acesso restrito para professores.</p>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 uppercase tracking-tight">Colégio Progresso Santista</h1>
+        <p className="text-slate-500 dark:text-slate-400 mb-8 text-sm">Acesso restrito para professores.</p>
         
         {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm font-bold mb-6 flex items-center gap-2">
+          <div className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 p-3 rounded-md text-sm font-bold mb-6 flex items-center gap-2 border border-red-100 dark:border-red-900">
             <AlertCircle className="w-4 h-4" />
             {error}
           </div>
@@ -1073,37 +1107,37 @@ function LoginView({ error, setError }: { error: string | null, setError: (e: st
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="text-left space-y-1">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Usuário</label>
+            <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Usuário</label>
             <input 
               type="text" 
               placeholder="Ex: joao.silva" 
               value={username}
               onChange={e => setUsername(e.target.value)}
               required
-              className="w-full px-4 py-3 rounded-md border border-border focus:border-accent outline-none text-sm"
+              className="w-full px-4 py-3 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:border-accent outline-none text-sm transition-colors"
             />
           </div>
           <div className="text-left space-y-1">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Senha</label>
+            <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Senha</label>
             <input 
               type="password" 
               placeholder="••••••••" 
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              className="w-full px-4 py-3 rounded-md border border-border focus:border-accent outline-none text-sm"
+              className="w-full px-4 py-3 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:border-accent outline-none text-sm transition-colors"
             />
           </div>
           <button 
             type="submit"
             disabled={loading}
-            className="w-full bg-primary text-white py-3 px-6 rounded-md font-bold flex items-center justify-center gap-3 hover:bg-primary/90 transition-all shadow-sm disabled:opacity-50 mt-4"
+            className="w-full bg-slate-900 dark:bg-white text-white dark:text-black py-3 px-6 rounded-md font-bold flex items-center justify-center gap-3 hover:opacity-90 transition-all shadow-sm disabled:opacity-50 mt-4"
           >
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Entrar no Sistema'}
           </button>
         </form>
 
-        <p className="mt-8 text-xs text-slate-400 font-medium">
+        <p className="mt-8 text-xs text-slate-400 dark:text-slate-500 font-medium">
           Caso tenha esquecido seus dados, entre em contato com a secretaria pedagógica.
         </p>
       </motion.div>
@@ -1199,16 +1233,16 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
-        <div className="lg:col-span-3 bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm">
-          <div className="px-4 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-slate-50/50">
+        <div className="lg:col-span-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
+          <div className="px-4 py-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-slate-50/50 dark:bg-slate-900/50">
             <div className="space-y-3">
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">{showAll ? 'Base de Dados Completa' : 'Avaliações Recentes'}</h3>
+              <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">{showAll ? 'Base de Dados Completa' : 'Avaliações Recentes'}</h3>
               
               <div className="flex flex-wrap gap-2">
                 <select 
                   value={bimesterFilter}
                   onChange={e => setBimesterFilter(e.target.value)}
-                  className="text-[10px] font-black border border-slate-200 rounded-lg px-3 py-1.5 outline-none bg-white uppercase tracking-wider shadow-sm focus:ring-2 focus:ring-primary/10 transition-all"
+                  className="text-[10px] font-black border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 outline-none bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 uppercase tracking-wider shadow-sm focus:ring-2 focus:ring-primary/10 transition-all"
                 >
                   <option value="">Bimestres</option>
                   <option value="1º Bimestre">1º Bim.</option>
@@ -1220,7 +1254,7 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                 <select 
                    value={classFilter}
                    onChange={e => setClassFilter(e.target.value)}
-                   className="text-[10px] font-black border border-slate-200 rounded-lg px-3 py-1.5 outline-none bg-white uppercase tracking-wider shadow-sm focus:ring-2 focus:ring-primary/10 transition-all"
+                   className="text-[10px] font-black border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 outline-none bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 uppercase tracking-wider shadow-sm focus:ring-2 focus:ring-primary/10 transition-all"
                 >
                   <option value="">Turmas</option>
                   {schoolInfo.classes.map(c => (
@@ -1399,13 +1433,13 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
 
 function StatCard({ label, value, icon, color }: { label: string, value: any, icon: React.ReactNode, color: string }) {
   return (
-    <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4 transition-all hover:shadow-md">
-      <div className="p-3 rounded-lg bg-slate-50 text-primary">
+    <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-4 transition-all hover:shadow-md">
+      <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800 text-primary dark:text-accent">
         {React.cloneElement(icon as React.ReactElement, { className: "w-6 h-6" })}
       </div>
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5">{label}</p>
-        <p className="text-xl font-display font-black text-slate-800 tracking-tight leading-none">{value}</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-0.5">{label}</p>
+        <p className="text-xl font-display font-black text-slate-800 dark:text-slate-100 tracking-tight leading-none">{value}</p>
       </div>
     </div>
   );
@@ -6107,19 +6141,28 @@ function CronogramaEstudosView({
   isAdmin, 
   schoolInfo, 
   bimesters,
-  userProfile 
+  userProfile,
+  onRefresh 
 }: { 
   exams: Exam[], 
   isAdmin: boolean, 
   schoolInfo: any, 
   bimesters: string[],
-  userProfile: any
+  userProfile: any,
+  onRefresh: () => void
 }) {
   const [selectedClass, setSelectedClass] = useState(schoolInfo.classes[0] || '');
   const [selectedBimester, setSelectedBimester] = useState(bimesters[0] || '');
   const [selectedExamType, setSelectedExamType] = useState('TODAS');
   const [isEditing, setIsEditing] = useState(false);
   const [tempExams, setTempExams] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newContentData, setNewContentData] = useState({
+    subject: '',
+    examDate: new Date().toISOString().split('T')[0],
+    examType: 'Cronograma'
+  });
 
   const availableExamTypes = useMemo(() => {
     const types = new Set(exams.map(e => e.examType));
@@ -6155,6 +6198,56 @@ function CronogramaEstudosView({
 
   const handleContentChange = (examId: string, content: string) => {
     setTempExams(prev => ({ ...prev, [examId]: content }));
+  };
+
+  const handleSaveAll = async () => {
+    setIsSaving(true);
+    try {
+      const updates = Object.entries(tempExams).map(([id, content]) => 
+        supabase.from('exams').update({ content }).eq('id', id)
+      );
+      await Promise.all(updates);
+      setIsEditing(false);
+      setTempExams({});
+      onRefresh();
+    } catch (error) {
+      console.error("Error saving content:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string, title: string) => {
+    if (!confirm(`Deseja realmente excluir o conteúdo de "${title}"?`)) return;
+    
+    try {
+      await supabase.from('exams').delete().eq('id', id);
+      onRefresh();
+    } catch (error) {
+      console.error("Error deleting content:", error);
+    }
+  };
+
+  const handleAddContent = async () => {
+    if (!newContentData.subject) return;
+    
+    try {
+      await supabase.from('exams').insert({
+        professor_id: userProfile.id,
+        class_year: selectedClass,
+        subject: newContentData.subject,
+        exam_type: newContentData.examType,
+        exam_date: newContentData.examDate,
+        bimester: selectedBimester,
+        content: '',
+        answer_key: { _metadata: { isExternal: true, subject: newContentData.subject, classYear: selectedClass } }
+      });
+      setIsAdding(false);
+      setNewContentData({ ...newContentData, subject: '' });
+      onRefresh();
+    } catch (error) {
+      console.error("Error adding content:", error);
+    }
   };
 
   return (
@@ -6207,33 +6300,47 @@ function CronogramaEstudosView({
           <select 
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            className="px-4 py-2 bg-white border-2 border-black rounded-lg font-black text-xs uppercase"
+            className="px-4 py-2 bg-white dark:bg-slate-900 border-2 border-black dark:border-slate-800 rounded-lg font-black text-xs uppercase text-slate-900 dark:text-slate-100"
           >
             {schoolInfo.classes.map((c: string) => <option key={c} value={c}>{c}</option>)}
           </select>
           <select 
             value={selectedBimester}
             onChange={(e) => setSelectedBimester(e.target.value)}
-            className="px-4 py-2 bg-white border-2 border-black rounded-lg font-black text-xs uppercase"
+            className="px-4 py-2 bg-white dark:bg-slate-900 border-2 border-black dark:border-slate-800 rounded-lg font-black text-xs uppercase text-slate-900 dark:text-slate-100"
           >
             {bimesters.map((b: string) => <option key={b} value={b}>{b}</option>)}
           </select>
           <select 
             value={selectedExamType}
             onChange={(e) => setSelectedExamType(e.target.value)}
-            className="px-4 py-2 bg-white border-2 border-black rounded-lg font-black text-xs uppercase"
+            className="px-4 py-2 bg-white dark:bg-slate-900 border-2 border-black dark:border-slate-800 rounded-lg font-black text-xs uppercase text-slate-900 dark:text-slate-100"
           >
             {availableExamTypes.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
           <button 
-            onClick={() => setIsEditing(!isEditing)}
+            onClick={() => setIsAdding(true)}
+            className="flex items-center gap-2 px-6 py-2 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg font-black text-xs uppercase hover:bg-slate-200 transition-colors border-2 border-black dark:border-slate-800"
+          >
+            <Plus className="w-4 h-4" />
+            Novo Conteúdo
+          </button>
+          <button 
+            onClick={() => {
+              if (isEditing) {
+                handleSaveAll();
+              } else {
+                setIsEditing(true);
+              }
+            }}
+            disabled={isSaving}
             className={cn(
-              "flex items-center gap-2 px-6 py-2 rounded-lg font-black text-xs uppercase transition-colors border-2 border-black",
-              isEditing ? "bg-accent text-white" : "bg-white text-black hover:bg-slate-50"
+              "flex items-center gap-2 px-6 py-2 rounded-lg font-black text-xs uppercase transition-colors border-2 border-black dark:border-slate-800",
+              isEditing ? "bg-accent text-white" : "bg-white dark:bg-slate-900 text-black dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
             )}
           >
-            {isEditing ? <Eye className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
-            {isEditing ? "Finalizar Edição" : "Editar Conteúdos"}
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : isEditing ? <Save className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
+            {isSaving ? "Salvando..." : isEditing ? "Salvar Alterações" : "Editar Conteúdos"}
           </button>
           <button 
             onClick={handlePrint}
@@ -6252,7 +6359,7 @@ function CronogramaEstudosView({
              <img src={LOGO_VINHO} alt="Logo" className="w-12 h-12 object-contain" />
              <div className="text-left">
                <h1 className="text-xl font-black uppercase leading-none print:text-lg">Roteiro de Estudos</h1>
-               <p className="text-[10px] font-bold uppercase text-slate-600 mt-0.5">Colégio Coc Santa Rosália</p>
+               <p className="text-[10px] font-bold uppercase text-slate-600 mt-0.5">Colégio Progresso Santista</p>
              </div>
           </div>
           <div className="grid grid-cols-3 w-full gap-2">
@@ -6297,13 +6404,19 @@ function CronogramaEstudosView({
                     </td>
                     <td className="p-2 border-r border-black align-top space-y-3">
                       {(dailyExams as Exam[]).map(ex => (
-                        <div key={ex.id} className="space-y-0.5">
+                        <div key={ex.id} className="group relative space-y-0.5">
                           <div className="inline-block px-1 py-px bg-black text-white text-[8px] font-black uppercase rounded-[2px]">
                             {ex.examType}
                           </div>
-                          <div className="font-black text-black text-[11px] uppercase leading-tight">
+                          <div className="font-black text-black text-[11px] uppercase leading-tight pr-6">
                             {stripHtml(ex.subject)}
                           </div>
+                          <button 
+                            onClick={() => handleDelete(ex.id, stripHtml(ex.subject))}
+                            className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-red-500 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100 print:hidden"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
                         </div>
                       ))}
                     </td>
@@ -6346,6 +6459,72 @@ function CronogramaEstudosView({
             </tbody>
           </table>
         </div>
+
+        {isAdding && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4 no-print">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-white dark:bg-slate-900 border-4 border-black p-8 rounded-sm max-w-md w-full shadow-[12px_12px_0px_0px_rgba(0,0,0,1)]"
+            >
+              <h3 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
+                <Plus className="w-5 h-5" />
+                Adicionar Conteúdo
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Disciplina</label>
+                  <input 
+                    type="text"
+                    value={newContentData.subject}
+                    onChange={e => setNewContentData({...newContentData, subject: e.target.value})}
+                    placeholder="Ex: Matemática"
+                    className="w-full px-4 py-2 border-2 border-black rounded-lg font-bold outline-none dark:bg-slate-800 dark:text-white"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Data</label>
+                    <input 
+                      type="date"
+                      value={newContentData.examDate}
+                      onChange={e => setNewContentData({...newContentData, examDate: e.target.value})}
+                      className="w-full px-4 py-2 border-2 border-black rounded-lg font-bold outline-none dark:bg-slate-800 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Tipo</label>
+                    <select
+                      value={newContentData.examType}
+                      onChange={e => setNewContentData({...newContentData, examType: e.target.value})}
+                      className="w-full px-4 py-2 border-2 border-black rounded-lg font-bold outline-none dark:bg-slate-800 dark:text-white"
+                    >
+                      <option value="PI">PI</option>
+                      <option value="PII">PII</option>
+                      <option value="PIII">PIII</option>
+                      <option value="Atividade">Atividade</option>
+                      <option value="Cronograma">Cronograma</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-4">
+                  <button 
+                    onClick={() => setIsAdding(false)}
+                    className="flex-1 py-3 px-4 border-2 border-black font-black uppercase text-xs hover:bg-slate-50 transition-colors dark:text-white dark:hover:bg-slate-800"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={handleAddContent}
+                    className="flex-1 py-3 px-4 bg-black text-white border-2 border-black font-black uppercase text-xs hover:bg-slate-800 transition-colors"
+                  >
+                    Adicionar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
 
         {/* Print Footer */}
         <div className="hidden print:block mt-8 border-t border-black pt-4 text-center">
