@@ -3472,27 +3472,36 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
       <style dangerouslySetInnerHTML={{ __html: `
         @page {
           size: A4;
-          margin: 15mm;
+          margin: 10mm 15mm;
         }
         @media print {
           body {
             margin: 0 !important;
             padding: 0 !important;
             background: white !important;
+            -webkit-print-color-adjust: exact;
           }
           .print-container {
             margin: 0 !important;
             padding: 0 !important;
             width: 100% !important;
+            display: block !important;
           }
           .exam-content {
             border: none !important;
             box-shadow: none !important;
-            margin: 0 auto !important;
+            margin: 0 !important;
             width: 100% !important;
             max-width: 100% !important;
-            min-height: auto !important;
+            min-height: 0 !important;
             padding: 0 !important;
+            display: block !important;
+            overflow: hidden !important;
+          }
+          /* Prevent extra blank pages */
+          html, body {
+            height: auto !important;
+            overflow: visible !important;
           }
         }
       ` }} />
@@ -3507,7 +3516,7 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
         <div className="flex gap-3">
           <button 
             onClick={() => {
-              alert("Dica: Na próxima tela, mude o destino (Impressora) para 'Salvar como PDF' caso queira o arquivo em PDF, ou selecione sua impressora para imprimir em papel.");
+              alert("Dica: Na próxima tela, mude o destino (Impressora) para 'Salvar como PDF' caso queira o arquivo em PDF, ou selecione sua impressora para imprimir em papel. \n\nIMPORTANTE: Verifique se a opção 'Cabeçalhos e Rodapés' está DESMARCADA nas configurações de impressão para evitar nomes extras no topo das páginas.");
               handleStandardPrint();
             }}
             className="bg-primary text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-primary/90 shadow-sm disabled:opacity-50"
@@ -3580,12 +3589,12 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
           <div 
             key={`exam-${sIdx}`} 
             className={cn(
-              "exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto text-black print:border-none print:shadow-none print:max-w-none print:w-full print:min-h-0 flex flex-col print:m-0 print:p-2",
+              "exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto text-black print:border-none print:shadow-none print:max-w-none print:w-full print:min-h-0 print:m-0 print:p-0",
               sIdx === studentsToRender.length - 1 ? "" : "print:break-after-page"
             )}
             style={{ fontSize: `${exam.fontSize || 13}px`, fontFamily: exam.fontFamily || 'Inter' }}
           >
-            <div className="flex-1">
+            <div className="print:p-1">
             {/* Main Header Box */}
             <div className="border-[3px] border-black border-dashed p-1 mb-8">
               
@@ -3730,9 +3739,9 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
             </div>
 
             </div>
-
-            <div className="mt-8 pt-4 border-t border-black/10 flex items-end justify-between text-[11px] font-bold uppercase break-inside-avoid">
-              <div className="flex flex-col gap-1">
+            
+            <div className="mt-4 pt-2 border-t border-black/10 flex items-center justify-between text-[11px] font-bold uppercase break-inside-avoid print:mt-2">
+              <div className="flex flex-col">
                 <span>Boa Sorte! • {exam.subject}</span>
                 <span className="text-[8px] opacity-40">Colégio Progresso Santista</span>
               </div>
