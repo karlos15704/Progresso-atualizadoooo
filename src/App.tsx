@@ -3408,8 +3408,19 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
   const handleStandardPrint = () => {
     const exams = document.getElementById('exams-container');
     if (exams) {
+      const originalTitle = document.title;
+      // Format: Turma - Tipo de Prova
+      const classYear = selectedClassId || exam.classYear || 'Geral';
+      const examType = exam.examType || 'Prova';
+      document.title = `${classYear} - ${examType}`;
+
       exams.classList.remove('print:hidden');
       window.print();
+
+      // Restore title after a short delay so the print dialog captures it
+      setTimeout(() => {
+        document.title = originalTitle;
+      }, 500);
     }
   };
 
@@ -3426,6 +3437,33 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
 
   return (
     <div className="space-y-8 print-container print:space-y-0">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @page {
+          size: A4;
+          margin: 15mm;
+        }
+        @media print {
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+          }
+          .print-container {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+          }
+          .exam-content {
+            border: none !important;
+            box-shadow: none !important;
+            margin: 0 auto !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-height: auto !important;
+            padding: 0 !important;
+          }
+        }
+      ` }} />
       <div className="flex items-center justify-between no-print mb-4 px-4">
         <button 
           onClick={onBack}
@@ -3510,7 +3548,7 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
           <div 
             key={`exam-${sIdx}`} 
             className={cn(
-              "exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto text-black print:border-none print:shadow-none print:max-w-none print:w-[210mm] print:min-h-[297mm] flex flex-col justify-between print:m-0 print:p-8",
+              "exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto text-black print:border-none print:shadow-none print:max-w-none print:w-full print:min-h-0 flex flex-col justify-between print:m-0 print:p-2",
               sIdx === studentsToRender.length - 1 ? "" : "print:break-after-page"
             )}
             style={{ fontSize: `${exam.fontSize || 13}px`, fontFamily: exam.fontFamily || 'Inter' }}
