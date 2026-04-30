@@ -140,6 +140,7 @@ interface Question {
   options: string[];
   correctAnswer: string;
   points?: number | string;
+  align?: 'left' | 'center';
 }
 
 interface Exam {
@@ -1511,7 +1512,8 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
       correctAnswer: type === 'objective' ? 'A' : '',
       points: 1,
       imageSize: 100,
-      imageAlign: 'center'
+      imageAlign: 'center',
+      align: 'left'
     }]);
   };
 
@@ -1813,6 +1815,43 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
                   </span>
                 </div>
                 <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-bold text-slate-500">Alinhamento:</label>
+                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                      <button 
+                        onClick={() => {
+                          const newQs = [...questions];
+                          const realIdx = questions.findIndex(origQ => origQ.id === q.id);
+                          if (realIdx !== -1) {
+                            newQs[realIdx].align = 'left';
+                            setQuestions(newQs);
+                          }
+                        }}
+                        className={cn(
+                          "px-2 py-1 rounded text-[10px] font-bold transition-all",
+                          (!q.align || q.align === 'left') ? "bg-white text-accent shadow-sm" : "text-slate-500"
+                        )}
+                      >
+                        Esquerda
+                      </button>
+                      <button 
+                        onClick={() => {
+                          const newQs = [...questions];
+                          const realIdx = questions.findIndex(origQ => origQ.id === q.id);
+                          if (realIdx !== -1) {
+                            newQs[realIdx].align = 'center';
+                            setQuestions(newQs);
+                          }
+                        }}
+                        className={cn(
+                          "px-2 py-1 rounded text-[10px] font-bold transition-all",
+                          q.align === 'center' ? "bg-white text-accent shadow-sm" : "text-slate-500"
+                        )}
+                      >
+                        Centro
+                      </button>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-2">
                     <label className="text-xs font-bold text-slate-500">Pontuação:</label>
                     <input 
@@ -3649,8 +3688,8 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
             {/* Questions */}
             <div className="space-y-10">
               {exam.questions.map((q, idx) => (
-                <div key={q.id} className="space-y-4 break-inside-avoid">
-                  <div className="w-full text-left px-4 flex items-start justify-start gap-1">
+                <div key={q.id} className={cn("space-y-4 break-inside-avoid", q.align === 'center' ? "text-center" : "text-left")}>
+                  <div className={cn("w-full px-4 flex items-start gap-1", q.align === 'center' ? "justify-center" : "justify-start")}>
                     <span className="font-bold text-sm min-w-[20px]">{idx + 1}.</span>
                     <SafeHTML 
                       html={q.text} 
@@ -3673,13 +3712,13 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
                   )}
 
                   {q.type === 'essay' ? (
-                    <div className="px-8 space-y-4 pt-2">
+                    <div className={cn("px-8 space-y-4 pt-2", q.align === 'center' ? "mx-auto w-full" : "")}>
                        {Array.from({ length: 5 }).map((_, i) => (
                          <div key={i} className="border-b border-black/30 h-8"></div>
                        ))}
                     </div>
                   ) : (
-                    <div className="flex flex-col items-start w-fit mx-auto space-y-1">
+                    <div className={cn("flex flex-col w-fit space-y-1", q.align === 'center' ? "mx-auto items-center" : "ml-12 items-start")}>
                       {['a', 'b', 'c', 'd', 'e'].map((letter, i) => (
                         q.options[i] && (
                           <div key={letter} className="flex gap-2">
