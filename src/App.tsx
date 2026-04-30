@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { scanBubbleSheet, generatePrintableAnswerSheet } from './lib/omrEngine';
 import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
 import { Editor, EditorProvider, Toolbar, BtnBold, BtnItalic, BtnUnderline, BtnStrikeThrough, BtnNumberedList, BtnBulletList, BtnClearFormatting, BtnStyles, Separator } from 'react-simple-wysiwyg';
@@ -502,20 +501,12 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem('theme');
-    if (saved) return saved === 'dark';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
+    localStorage.setItem('theme', 'light');
+    document.documentElement.classList.remove('dark');
+  }, []);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [view, setView] = useState<'dashboard' | 'create' | 'reports' | 'admin' | 'schedule' | 'print' | 'studentReports' | 'printReport' | 'boletim' | 'diary' | 'cronograma' | 'settings'>('dashboard');
@@ -767,7 +758,7 @@ export default function App() {
   }
 
   if (!user) {
-    return <LoginView error={error} setError={setError} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />;
+    return <LoginView error={error} setError={setError} />;
   }
 
   return (
@@ -798,13 +789,6 @@ export default function App() {
         </div>
         
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-400"
-            title={isDarkMode ? "Mudar para modo claro" : "Mudar para modo escuro"}
-          >
-            {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </button>
           <div className="hidden md:flex flex-col items-end">
             <span className="text-sm font-medium text-slate-900 dark:text-slate-200">{user.displayName || user.email?.replace('@cps.local', '')}</span>
             <span className="text-xs text-slate-500 dark:text-slate-400">{isAdmin ? 'Administrador' : 'Professor'}</span>
@@ -1133,7 +1117,7 @@ function MobileNavButton({ active, onClick, icon, label }: { active: boolean, on
   );
 }
 
-function LoginView({ error, setError, isDarkMode, setIsDarkMode }: { error: string | null, setError: (e: string | null) => void, isDarkMode: boolean, setIsDarkMode: (v: boolean) => void }) {
+function LoginView({ error, setError }: { error: string | null, setError: (e: string | null) => void }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -1162,30 +1146,22 @@ function LoginView({ error, setError, isDarkMode, setIsDarkMode }: { error: stri
   };
 
   return (
-    <div className={cn("min-h-screen flex items-center justify-center p-6 transition-colors", isDarkMode ? "bg-slate-950" : "bg-slate-50")}>
+    <div className="min-h-screen flex items-center justify-center p-6 transition-colors bg-slate-50">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full bg-white dark:bg-slate-900 rounded-lg shadow-xl p-10 text-center border border-slate-200 dark:border-slate-800 relative shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)]"
+        className="max-w-md w-full bg-white rounded-lg shadow-xl p-10 text-center border border-slate-200 relative shadow-[0_20px_50px_rgba(0,0,0,0.1)]"
       >
-        <div className="absolute top-4 right-4 print:hidden">
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-400 dark:text-slate-500"
-          >
-            {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </button>
-        </div>
-        <div className="bg-white dark:bg-slate-800 w-full max-w-[200px] h-16 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100 dark:border-slate-700 gap-3 px-4">
+        <div className="bg-white w-full max-w-[200px] h-16 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100 gap-3 px-4">
           <img src={LOGO_VINHO} alt="Logo CPS" className="w-10 h-10 object-contain" />
-          <div className="w-px h-8 bg-slate-200 dark:bg-slate-600"></div>
+          <div className="w-px h-8 bg-slate-200"></div>
           <img src={LOGO_COC} alt="Plataforma COC" className="h-6 object-contain" />
         </div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 uppercase tracking-tight">Colégio Progresso Santista</h1>
-        <p className="text-slate-500 dark:text-slate-400 mb-8 text-sm">Acesso restrito para professores.</p>
+        <h1 className="text-2xl font-bold text-slate-900 mb-2 uppercase tracking-tight">Colégio Progresso Santista</h1>
+        <p className="text-slate-500 mb-8 text-sm">Acesso restrito para professores.</p>
         
         {error && (
-          <div className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 p-3 rounded-md text-sm font-bold mb-6 flex items-center gap-2 border border-red-100 dark:border-red-900">
+          <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm font-bold mb-6 flex items-center gap-2 border border-red-100">
             <AlertCircle className="w-4 h-4" />
             {error}
           </div>
@@ -1193,37 +1169,37 @@ function LoginView({ error, setError, isDarkMode, setIsDarkMode }: { error: stri
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="text-left space-y-1">
-            <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Usuário</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Usuário</label>
             <input 
               type="text" 
               placeholder="Ex: joao.silva" 
               value={username}
               onChange={e => setUsername(e.target.value)}
               required
-              className="w-full px-4 py-3 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:border-accent outline-none text-sm transition-colors"
+              className="w-full px-4 py-3 rounded-md border border-slate-200 bg-white text-slate-900 focus:border-accent outline-none text-sm transition-colors"
             />
           </div>
           <div className="text-left space-y-1">
-            <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Senha</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Senha</label>
             <input 
               type="password" 
               placeholder="••••••••" 
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              className="w-full px-4 py-3 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:border-accent outline-none text-sm transition-colors"
+              className="w-full px-4 py-3 rounded-md border border-slate-200 bg-white text-slate-900 focus:border-accent outline-none text-sm transition-colors"
             />
           </div>
           <button 
             type="submit"
             disabled={loading}
-            className="w-full bg-slate-900 dark:bg-white text-white dark:text-black py-3 px-6 rounded-md font-bold flex items-center justify-center gap-3 hover:opacity-90 transition-all shadow-sm disabled:opacity-50 mt-4"
+            className="w-full bg-slate-900 text-white py-3 px-6 rounded-md font-bold flex items-center justify-center gap-3 hover:opacity-90 transition-all shadow-sm disabled:opacity-50 mt-4"
           >
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Entrar no Sistema'}
           </button>
         </form>
 
-        <p className="mt-8 text-xs text-slate-400 dark:text-slate-500 font-medium">
+        <p className="mt-8 text-xs text-slate-400 font-medium">
           Caso tenha esquecido seus dados, entre em contato com a secretaria pedagógica.
         </p>
       </motion.div>
@@ -3430,23 +3406,10 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
   };
 
   const handleStandardPrint = () => {
-    const sheets = document.getElementById('answer-sheets-container');
     const exams = document.getElementById('exams-container');
-    if (sheets && exams) {
-      sheets.classList.remove('print:hidden');
+    if (exams) {
       exams.classList.remove('print:hidden');
       window.print();
-    }
-  };
-
-  const handlePrintGabaritos = () => {
-    const sheets = document.getElementById('answer-sheets-container');
-    const exams = document.getElementById('exams-container');
-    if (sheets && exams) {
-      exams.classList.add('print:hidden');
-      sheets.classList.remove('print:hidden');
-      window.print();
-      exams.classList.remove('print:hidden');
     }
   };
 
@@ -3702,94 +3665,6 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
               <div className="flex flex-col gap-1">
                 <span>Boa Sorte! • {exam.subject}</span>
                 <span className="text-[8px] opacity-40">Colégio Progresso Santista</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Answer Sheets Container (OMR Compatible) */}
-      <div id="answer-sheets-container" className="space-y-12 print:space-y-0 print:break-before-page">
-        {studentsToRender.map((student, sIdx) => (
-          <div 
-            key={`sheet-${sIdx}`} 
-            className={cn(
-              "answer-sheet-page bg-white p-12 border border-border max-w-[210mm] mx-auto mt-10 print:border-none print:shadow-none print:mt-0 print:max-w-none print:w-[210mm] print:min-h-[297mm] relative print:overflow-visible print-avoid-break",
-              sIdx === studentsToRender.length - 1 ? "" : "print:break-after-page"
-            )}
-          >
-            {/* OMR Markers */}
-            <div className="absolute top-4 left-4 omr-marker"></div>
-            <div className="absolute top-4 right-4 omr-marker"></div>
-            <div className="absolute bottom-4 left-4 omr-marker"></div>
-            <div className="absolute bottom-4 right-4 omr-marker"></div>
-
-            {/* Identity QR Code */}
-            {student.name && (
-              <div className="absolute top-6 right-12 z-10 border-2 border-black/5 p-1 bg-white">
-                <QRCodeImage data={`${student.name}|${student.classId || exam.classYear || ''}`} />
-                <div className="text-[6px] text-center font-black mt-0.5 opacity-50 uppercase">ID DIGITAL</div>
-              </div>
-            )}
-
-            <div className="text-center border-b-2 border-primary pb-6 mb-8 mt-4">
-              <div className="flex justify-center mb-2">
-                <img src={LOGO_VINHO} alt="Logo" className="h-10 object-contain" />
-              </div>
-              <h2 className="text-lg font-black text-primary uppercase">Caderno de Respostas • Folha Óptica</h2>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">
-                {(exam.title || '').replace(/<[^>]*>/g, '').replace(/[-–]?\s*\(?\b(PII|PIII)\b\)?\s*/gi, '').replace(/\(\s*\)/g, '').trim()} • {exam.subject}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-4 gap-6 mb-10">
-              <div className="col-span-2 border border-slate-200 p-4 rounded bg-slate-50">
-                <label className="block text-[10px] font-black text-primary uppercase mb-1">Nome do Aluno:</label>
-                {student.name ? (
-                  <div className="h-8 border-b-2 border-transparent flex items-end pb-1 font-bold text-slate-800 text-lg uppercase truncate">{student.name}</div>
-                ) : (
-                  <div className="h-8 border-b-2 border-slate-400 flex items-end pb-1 font-bold text-slate-800 text-lg uppercase truncate"></div>
-                )}
-              </div>
-              <div className="border border-slate-200 p-4 rounded bg-slate-50">
-                <label className="block text-[10px] font-black text-primary uppercase mb-1 text-center">Turma:</label>
-                <div className="h-8 border-b-2 border-slate-400 flex items-end justify-center pb-1 font-black text-primary text-xl uppercase tracking-widest">{student.classId || exam.classYear}</div>
-              </div>
-              <div className="border border-slate-200 p-4 rounded bg-slate-50">
-                <label className="block text-[10px] font-black text-primary uppercase mb-1 text-center">Professor:</label>
-                <div className="h-8 border-b-2 border-transparent flex items-end justify-center pb-1 font-bold text-slate-700 text-[10px] uppercase truncate">{professorName}</div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-y-4 gap-x-8 p-6 border-2 border-slate-100 rounded-xl print:border-slate-300 print:gap-y-3">
-              {exam.questions.filter(q => q.type !== 'essay').map((q, idx) => (
-                <div key={q.id} className="flex items-center gap-4 print-avoid-break">
-                  <span className="w-8 font-black text-primary text-sm">{String(idx + 1).padStart(2, '0')}</span>
-                  <div className="flex gap-2">
-                    {['A', 'B', 'C', 'D', 'E'].map(letter => (
-                      <div 
-                        key={letter}
-                        className="w-10 h-10 rounded-full border-2 border-slate-300 flex items-center justify-center text-xs font-black text-slate-400"
-                      >
-                        {letter}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-8 bg-slate-50 p-6 rounded-lg border border-slate-200">
-              <h3 className="text-xs font-black text-primary uppercase mb-4 text-center">Instruções de Preenchimento:</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <ul className="text-[10px] text-slate-600 space-y-2 list-disc ml-4 font-bold">
-                  <li>Utilize caneta azul ou preta.</li>
-                  <li>Preencha totalmente o círculo.</li>
-                </ul>
-                <ul className="text-[10px] text-slate-600 space-y-2 list-disc ml-4 font-bold">
-                  <li>Não rasure os quadrados pretos nos cantos.</li>
-                  <li>O scanner não lerá marcas duplas.</li>
-                </ul>
               </div>
             </div>
           </div>
