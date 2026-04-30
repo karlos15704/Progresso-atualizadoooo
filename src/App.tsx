@@ -3587,7 +3587,7 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
           <div 
             key={`exam-${sIdx}`} 
             className={cn(
-              "exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto text-black print:border-none print:shadow-none print:max-w-none print:w-full print:min-h-0 flex flex-col justify-between print:m-0 print:p-2",
+              "exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto text-black print:border-none print:shadow-none print:max-w-none print:w-full print:min-h-0 flex flex-col print:m-0 print:p-2",
               sIdx === studentsToRender.length - 1 ? "" : "print:break-after-page"
             )}
             style={{ fontSize: `${exam.fontSize || 13}px`, fontFamily: exam.fontFamily || 'Inter' }}
@@ -3738,7 +3738,7 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
 
             </div>
 
-            <div className="mt-20 pt-8 border-t border-black/10 flex items-end justify-between text-[11px] font-bold uppercase">
+            <div className="mt-8 pt-4 border-t border-black/10 flex items-end justify-between text-[11px] font-bold uppercase break-inside-avoid">
               <div className="flex flex-col gap-1">
                 <span>Boa Sorte! • {exam.subject}</span>
                 <span className="text-[8px] opacity-40">Colégio Progresso Santista</span>
