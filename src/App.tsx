@@ -54,7 +54,11 @@ import {
   Check,
   ClipboardList,
   ArrowLeft,
-  LayoutDashboard
+  LayoutDashboard,
+  FileSpreadsheet,
+  Paperclip,
+  PlusSquare,
+  FilePlus,
 } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
@@ -1478,7 +1482,7 @@ function StatCard({ label, value, icon, color }: { label: string, value: any, ic
 }
 
 function DiaryView({ user, exams, results, userProfile }: { user: User, exams: Exam[], results: Result[], userProfile: any }) {
-  const [activeTab, setActiveTab] = useState<'diarios' | 'alunos' | 'aulas' | 'avaliacoes' | 'notas'>('diarios');
+  const [activeTab, setActiveTab] = useState<'diarios' | 'alunos' | 'aulas' | 'avaliacoes' | 'atividades' | 'notas' | 'relatorio'>('diarios');
   const [selectedBimester, setSelectedBimester] = useState('1º BIMESTRE');
   const schoolInfo = getSchoolInfo();
   
@@ -1534,10 +1538,10 @@ function DiaryView({ user, exams, results, userProfile }: { user: User, exams: E
   }, [exams, selectedClass, selectedSubject, selectedBimester]);
 
   const lessons = [
-    { date: '28/01/2026', day: 'Quarta', content: 'Acolhimento', count: 2 },
-    { date: '04/02/2026', day: 'Quarta', content: 'Apresentação do projeto Valentine\'s Day', count: 2 },
-    { date: '11/02/2026', day: 'Quarta', content: 'Valentine\'s Day', count: 2 },
-    { date: '18/02/2026', day: 'Quarta', content: 'Atividades suspensas "CINZAS"', count: 2 },
+    { date: '28/01/2026', day: 'Quarta', content: 'Acolhimento', count: 2, material: true, frequency: true },
+    { date: '04/02/2026', day: 'Quarta', content: 'Apresentação do projeto Valentine\'s Day', count: 2, material: false, frequency: true },
+    { date: '11/02/2026', day: 'Quarta', content: 'Valentine\'s Day', count: 2, material: true, frequency: true },
+    { date: '18/02/2026', day: 'Quarta', content: 'Atividades suspensas "CINZAS"', count: 2, material: false, frequency: false },
   ];
 
   return (
@@ -1550,40 +1554,40 @@ function DiaryView({ user, exams, results, userProfile }: { user: User, exams: E
         </div>
       </div>
 
-      {/* Filters Bar */}
-      <div className="bg-slate-50 border border-slate-200 p-3 rounded-md flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-slate-600">Exercício:</label>
-          <select className="text-xs border border-slate-300 rounded px-2 py-1 outline-none bg-white min-w-[100px]">
+      {/* Filters Bar - Proesc Concept */}
+      <div className="bg-[#f0f3f5] border border-slate-200 p-4 rounded flex flex-wrap items-center gap-6">
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-bold text-slate-600 uppercase">Exercício:</label>
+          <select className="text-xs border border-slate-300 rounded px-2 py-1.5 outline-none bg-white min-w-[80px]">
             <option>2026</option>
           </select>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-slate-600">Turma:</label>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-bold text-slate-600 uppercase">Turma:</label>
           <select 
             value={selectedClass} 
             onChange={e => setSelectedClass(e.target.value)}
-            className="text-xs border border-slate-300 rounded px-2 py-1 outline-none bg-white min-w-[150px]"
+            className="text-xs border border-slate-300 rounded px-2 py-1.5 outline-none bg-white min-w-[150px]"
           >
             {schoolInfo.classes.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-slate-600">Disciplina:</label>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-bold text-slate-600 uppercase">Disciplina:</label>
           <select 
             value={selectedSubject}
             onChange={e => setSelectedSubject(e.target.value)}
-            className="text-xs border border-slate-300 rounded px-2 py-1 outline-none bg-white min-w-[200px]"
+            className="text-xs border border-slate-300 rounded px-2 py-1.5 outline-none bg-white min-w-[200px]"
           >
             {schoolInfo.subjects.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-slate-600">Período Letivo:</label>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-bold text-slate-600 uppercase">Período Letivo:</label>
           <select 
             value={selectedBimester}
             onChange={e => setSelectedBimester(e.target.value)}
-            className="text-xs border border-slate-300 rounded px-2 py-1 outline-none bg-white min-w-[150px]"
+            className="text-xs border border-slate-300 rounded px-2 py-1.5 outline-none bg-white min-w-[150px]"
           >
             <option>1º BIMESTRE</option>
             <option>2º BIMESTRE</option>
@@ -1591,20 +1595,20 @@ function DiaryView({ user, exams, results, userProfile }: { user: User, exams: E
             <option>4º BIMESTRE</option>
           </select>
         </div>
-        <button className="bg-[#2c71b1] hover:bg-[#245e94] text-white px-4 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition-colors ml-auto">
+        <button className="bg-[#2c71b1] hover:bg-[#245e94] text-white px-6 py-2 rounded text-xs font-bold flex items-center gap-2 transition-colors mt-4 md:mt-0 ml-auto self-end">
           <Search className="w-3.5 h-3.5" />
           Pesquisar
         </button>
       </div>
 
       <div className="bg-white border border-slate-200 rounded shadow-sm overflow-hidden">
-        {/* Navigation Tabs */}
-        <div className="flex bg-[#f8fafb] border-b border-slate-200">
+        {/* Navigation Tabs - Proesc Layout */}
+        <div className="flex bg-[#f8fafb] border-b border-slate-200 overflow-x-auto">
           <button 
             onClick={() => setActiveTab('diarios')}
             className={cn(
-              "px-6 py-2.5 text-xs font-bold transition-colors flex items-center gap-2 border-r border-slate-200",
-              activeTab === 'diarios' ? "bg-white text-slate-900 border-b-2 border-b-white" : "text-slate-500 hover:bg-slate-100"
+              "px-6 py-3.5 text-xs font-bold transition-all flex items-center gap-2 border-r border-slate-200 min-w-[120px] justify-center",
+              activeTab === 'diarios' ? "bg-white text-[#2c71b1] border-b-2 border-b-[#2c71b1]" : "text-slate-500 hover:bg-slate-100"
             )}
           >
             <Layout className="w-4 h-4" />
@@ -1613,18 +1617,18 @@ function DiaryView({ user, exams, results, userProfile }: { user: User, exams: E
           <button 
             onClick={() => setActiveTab('alunos')}
             className={cn(
-              "px-6 py-2.5 text-xs font-bold transition-colors flex items-center gap-2 border-r border-slate-200",
-              activeTab === 'alunos' ? "bg-white text-slate-900 border-b-2 border-b-white" : "text-slate-500 hover:bg-slate-100"
+              "px-6 py-3.5 text-xs font-bold transition-all flex items-center gap-2 border-r border-slate-200 min-w-[120px] justify-center",
+              activeTab === 'alunos' ? "bg-white text-[#2c71b1] border-b-2 border-b-[#2c71b1]" : "text-slate-500 hover:bg-slate-100"
             )}
           >
-            <Users className="w-4 h-4" />
+            <UserCircle className="w-4 h-4" />
             Alunos
           </button>
           <button 
             onClick={() => setActiveTab('aulas')}
             className={cn(
-              "px-6 py-2.5 text-xs font-bold transition-colors flex items-center gap-2 border-r border-slate-200",
-              activeTab === 'aulas' ? "bg-white text-slate-900 border-b-2 border-b-white" : "text-slate-500 hover:bg-slate-100"
+              "px-6 py-3.5 text-xs font-bold transition-all flex items-center gap-2 border-r border-slate-200 min-w-[120px] justify-center",
+              activeTab === 'aulas' ? "bg-white text-[#2c71b1] border-b-2 border-b-[#2c71b1]" : "text-slate-500 hover:bg-slate-100"
             )}
           >
             <BookOpen className="w-4 h-4" />
@@ -1633,28 +1637,48 @@ function DiaryView({ user, exams, results, userProfile }: { user: User, exams: E
           <button 
             onClick={() => setActiveTab('avaliacoes')}
             className={cn(
-              "px-6 py-2.5 text-xs font-bold transition-colors flex items-center gap-2 border-r border-slate-200",
-              activeTab === 'avaliacoes' ? "bg-white text-slate-900 border-b-2 border-b-white" : "text-slate-500 hover:bg-slate-100"
+              "px-6 py-3.5 text-xs font-bold transition-all flex items-center gap-2 border-r border-slate-200 min-w-[120px] justify-center",
+              activeTab === 'avaliacoes' ? "bg-white text-[#2c71b1] border-b-2 border-b-[#2c71b1]" : "text-slate-500 hover:bg-slate-100"
             )}
           >
-            <FileText className="w-4 h-4" />
+            <FileSpreadsheet className="w-4 h-4" />
             Avaliações
+          </button>
+          <button 
+            onClick={() => setActiveTab('atividades')}
+            className={cn(
+              "px-6 py-3.5 text-xs font-bold transition-all flex items-center gap-2 border-r border-slate-200 min-w-[120px] justify-center",
+              activeTab === 'atividades' ? "bg-white text-[#2c71b1] border-b-2 border-b-[#2c71b1]" : "text-slate-500 hover:bg-slate-100"
+            )}
+          >
+            <ClipboardList className="w-4 h-4" />
+            Atividades
           </button>
           <button 
             onClick={() => setActiveTab('notas')}
             className={cn(
-              "px-6 py-2.5 text-xs font-bold transition-colors flex items-center gap-2",
-              activeTab === 'notas' ? "bg-white text-slate-900 border-b-2 border-b-white" : "text-slate-500 hover:bg-slate-100"
+              "px-6 py-3.5 text-xs font-bold transition-all flex items-center gap-2 border-r border-slate-200 min-w-[150px] justify-center whitespace-nowrap",
+              activeTab === 'notas' ? "bg-white text-[#2c71b1] border-b-2 border-b-[#2c71b1]" : "text-slate-500 hover:bg-slate-100"
             )}
           >
             <CheckSquare className="w-4 h-4" />
             Notas por avaliação
           </button>
+          <button 
+            onClick={() => setActiveTab('relatorio')}
+            className={cn(
+              "px-6 py-3.5 text-xs font-bold transition-all flex items-center gap-2 min-w-[120px] justify-center",
+              activeTab === 'relatorio' ? "bg-white text-[#2c71b1] border-b-2 border-b-[#2c71b1]" : "text-slate-500 hover:bg-slate-100"
+            )}
+          >
+            <FileText className="w-4 h-4" />
+            Relatório
+          </button>
         </div>
 
         <div className="p-1">
-          <div className="bg-[#fcfcfc] border border-slate-200 px-4 py-2 text-[10px] font-bold text-slate-600 uppercase">
-            TURMA: {selectedClass} / {selectedSubject} / ENSINO FUNDAMENTAL / 2026
+          <div className="bg-[#fcfcfc] border border-slate-200 px-4 py-2 text-[10px] font-bold text-slate-600 uppercase flex items-center justify-between">
+            <span>TURMA: {selectedClass} / {selectedSubject} / ENSINO FUNDAMENTAL / 2026</span>
           </div>
 
           <div className="p-4">
@@ -1664,14 +1688,14 @@ function DiaryView({ user, exams, results, userProfile }: { user: User, exams: E
                   <tr className="bg-slate-50 text-left border-b border-slate-200">
                     <th className="p-3 text-[11px] font-bold text-slate-600 w-20">Situação</th>
                     <th className="p-3 text-[11px] font-bold text-slate-600">Diário</th>
-                    <th className="p-3 text-[11px] font-bold text-slate-600 w-20 text-center">Aulas dadas</th>
+                    <th className="p-3 text-[11px] font-bold text-slate-600 w-24 text-center">Aulas dadas</th>
                     <th className="p-3 text-[11px] font-bold text-slate-600 w-40 text-center">Comandos</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="border-b border-slate-100 text-xs">
                     <td className="p-3">
-                      <span className="bg-[#5cb85c] text-white px-2 py-0.5 rounded text-[9px] font-bold">Diário Entregue: 29/04</span>
+                      <span className="bg-[#5cb85c] text-white px-2 py-0.5 rounded text-[9px] font-bold uppercase">Entregue</span>
                     </td>
                     <td className="p-3">
                       <div className="flex flex-col gap-1">
@@ -1686,11 +1710,11 @@ function DiaryView({ user, exams, results, userProfile }: { user: User, exams: E
                     <td className="p-3 text-center font-bold">28</td>
                     <td className="p-3">
                       <div className="flex items-center justify-center gap-2">
-                        <button className="border border-slate-300 p-1.5 rounded hover:bg-slate-50 flex items-center gap-2 text-[10px] font-bold">
+                        <button className="border border-slate-200 text-slate-600 p-1.5 rounded hover:bg-slate-50 flex items-center gap-2 text-[10px] font-bold">
                           <RotateCcw className="w-3 h-3" /> Solicitar devolução
                         </button>
-                        <button className="border border-slate-300 p-1.5 rounded hover:bg-slate-50"><Search className="w-3 h-3" /></button>
-                        <button className="border border-slate-300 p-1.5 rounded hover:bg-slate-50"><Layout className="w-3 h-3" /></button>
+                        <button className="border border-slate-200 text-slate-400 p-1.5 rounded hover:bg-slate-50"><Search className="w-3.5 h-3.5" /></button>
+                        <button className="border border-slate-200 text-slate-400 p-1.5 rounded hover:bg-slate-50"><Layout className="w-3.5 h-3.5" /></button>
                       </div>
                     </td>
                   </tr>
@@ -1702,40 +1726,43 @@ function DiaryView({ user, exams, results, userProfile }: { user: User, exams: E
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-slate-50 text-left border-b border-slate-200">
-                    <th className="p-3 text-[11px] font-bold text-slate-600">Alunos ({studentsForClass.length})</th>
-                    <th className="p-3 text-[11px] font-bold text-slate-600 w-32">Situação</th>
-                    <th className="p-3 text-[11px] font-bold text-slate-600 w-32 text-center">Relatório Anual</th>
-                    <th className="p-3 text-[11px] font-bold text-slate-600 w-32 text-center">Responsável</th>
-                    <th className="p-3 text-[11px] font-bold text-slate-600 w-32 text-center">Comandos</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-600">Alunos ({studentsForClass.length})</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-600 w-32">Situação</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-600 w-40 text-center">Relatório Bimestral</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-600 w-32 text-center">Responsável</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-600 w-32 text-center">Comandos</th>
                   </tr>
                 </thead>
                 <tbody>
                   {studentsForClass.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-slate-400 italic text-xs">Nenhum aluno encontrado para esta turma.</td>
+                      <td colSpan={5} className="p-12 text-center text-slate-400 italic text-xs">Nenhum aluno encontrado para esta turma.</td>
                     </tr>
                   ) : (
                     studentsForClass.map((s, i) => (
-                      <tr key={i} className="border-b border-slate-100 text-[11px]">
-                        <td className="p-3">
+                      <tr key={i} className="border-b border-slate-100 text-[11px] hover:bg-slate-50 transition-colors">
+                        <td className="p-4">
                           <div className="flex flex-col">
                             <span className="font-bold text-slate-800">{s.name}</span>
-                            <span className="text-blue-600 text-[9px] cursor-pointer">Nenhuma falta lançada</span>
+                            <span className="text-blue-600 text-[9px] cursor-pointer mt-1 font-medium italic">Nenhuma falta lançada</span>
                           </div>
                         </td>
-                        <td className="p-3 text-slate-600 uppercase font-medium">CURSANDO</td>
-                        <td className="p-3 text-center">
-                          <button className="bg-blue-400/80 hover:bg-blue-500 text-white px-3 py-1 rounded flex items-center gap-1.5 mx-auto text-[10px] font-bold">
-                            <FileText className="w-3 h-3" /> Avaliar
+                        <td className="p-4 text-slate-600 uppercase font-bold text-[10px]">CURSANDO</td>
+                        <td className="p-4 text-center">
+                          <button 
+                            onClick={() => setActiveTab('relatorio')}
+                            className="bg-[#3b5998] hover:bg-[#2d4373] text-white px-4 py-1.5 rounded flex items-center gap-2 mx-auto text-[10px] font-bold uppercase transition-colors"
+                          >
+                            <FileText className="w-3.5 h-3.5" /> Avaliar
                           </button>
                         </td>
-                        <td className="p-3 text-center">
-                          <span className="bg-[#5cb85c]/80 text-white px-4 py-1 rounded text-[10px] font-medium block w-fit mx-auto">Professor(a)</span>
+                        <td className="p-4 text-center">
+                          <span className="bg-[#5cb85c] text-white px-4 py-1 rounded text-[9px] font-bold uppercase block w-fit mx-auto">Responsável</span>
                         </td>
-                        <td className="p-3">
-                          <div className="flex items-center justify-center gap-1">
-                            <button className="border border-slate-300 p-1 rounded hover:bg-slate-50"><Search className="w-3 h-3" /></button>
-                            <button className="bg-amber-500 text-white p-1 rounded hover:bg-amber-600"><Mail className="w-3 h-3" /></button>
+                        <td className="p-4">
+                          <div className="flex items-center justify-center gap-2">
+                             <button className="border border-slate-200 text-slate-400 p-1.5 rounded hover:bg-slate-50"><Search className="w-3.5 h-3.5" /></button>
+                             <button className="bg-amber-500 text-white p-1.5 rounded hover:bg-amber-600"><Mail className="w-3.5 h-3.5" /></button>
                           </div>
                         </td>
                       </tr>
@@ -1749,26 +1776,54 @@ function DiaryView({ user, exams, results, userProfile }: { user: User, exams: E
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-slate-50 text-left border-b border-slate-200">
-                    <th className="p-3 text-[11px] font-bold text-slate-600 w-40">Data da aula</th>
-                    <th className="p-3 text-[11px] font-bold text-slate-600">Conteúdo</th>
-                    <th className="p-3 text-[11px] font-bold text-slate-600 w-24 text-center">Aulas dadas</th>
-                    <th className="p-3 text-[11px] font-bold text-slate-600 w-40 text-center">Comandos</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-600 w-10">
+                      <input type="checkbox" className="rounded" />
+                    </th>
+                    <th className="p-4 text-[11px] font-bold text-slate-600 w-16 text-center">Material</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-600 w-40">Data da aula</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-600">Conteúdo</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-600 w-24 text-center">Aulas dadas</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-600 w-24 text-center whitespace-nowrap">Lançamento de Frequência</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-600 w-32 text-center text-slate-300">Comandos</th>
                   </tr>
                 </thead>
                 <tbody>
                   {lessons.map((l, i) => (
-                    <tr key={i} className="border-b border-slate-100 text-[11px]">
-                      <td className="p-3">
+                    <tr key={i} className="border-b border-slate-100 text-[11px] hover:bg-slate-50 transition-colors">
+                      <td className="p-4 text-center"><input type="checkbox" className="rounded" /></td>
+                      <td className="p-4 text-center">
+                         <div className="flex items-center justify-center">
+                           {l.material ? (
+                             <Paperclip className="w-3.5 h-3.5 text-slate-400" />
+                           ) : (
+                             <PlusSquare className="w-3.5 h-3.5 text-slate-300" />
+                           )}
+                         </div>
+                      </td>
+                      <td className="p-4">
                         <div className="flex flex-col">
                           <span className="font-bold text-slate-800">{l.date}</span>
-                          <span className="text-slate-500">{l.day}</span>
+                          <span className="text-slate-400 text-[10px]">{l.day}</span>
                         </div>
                       </td>
-                      <td className="p-3 text-slate-700">{l.content}</td>
-                      <td className="p-3 text-center font-bold">{l.count}</td>
-                      <td className="p-3 text-center">
-                         <div className="flex justify-center gap-4">
-                           <button className="text-slate-400 hover:text-slate-600 transition-colors"><Search className="w-4 h-4" /></button>
+                      <td className="p-4 text-slate-700 font-medium">{l.content}</td>
+                      <td className="p-4 text-center font-black text-slate-900 text-sm">{l.count}</td>
+                      <td className="p-4 text-center">
+                         <div className="flex justify-center">
+                           {l.frequency ? (
+                             <div className="w-5 h-5 rounded bg-blue-500 text-white flex items-center justify-center cursor-pointer">
+                               <Info className="w-3 h-3" />
+                             </div>
+                           ) : (
+                             <div className="w-5 h-5 rounded bg-slate-200 text-slate-400 flex items-center justify-center">
+                               <Info className="w-3 h-3" />
+                             </div>
+                           )}
+                         </div>
+                      </td>
+                      <td className="p-4 text-center">
+                         <div className="flex justify-center">
+                           <Search className="w-4 h-4 text-slate-300" />
                          </div>
                       </td>
                     </tr>
@@ -1781,39 +1836,39 @@ function DiaryView({ user, exams, results, userProfile }: { user: User, exams: E
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-slate-50 text-left border-b border-slate-200">
-                    <th className="p-3 text-[11px] font-bold text-slate-600 w-10">
+                    <th className="p-4 text-[11px] font-bold text-slate-600 w-10 text-center">
                        <input type="checkbox" className="rounded" />
                     </th>
-                    <th className="p-3 text-[11px] font-bold text-slate-600 w-32">Data da avaliação</th>
-                    <th className="p-3 text-[11px] font-bold text-slate-600">Avaliação</th>
-                    <th className="p-3 text-[11px] font-bold text-slate-600 w-32">Tipo</th>
-                    <th className="p-3 text-[11px] font-bold text-slate-600 w-32 text-center">Comandos</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-600 w-40">Data da avaliação</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-600">Avaliação</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-600 w-32">Tipo</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-600 w-32 text-center text-slate-300">Comandos</th>
                   </tr>
                 </thead>
                 <tbody>
                   {examsForView.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-slate-400 italic text-xs">Nenhuma avaliação encontrada para este período.</td>
+                      <td colSpan={5} className="p-12 text-center text-slate-400 italic text-xs">Nenhuma avaliação encontrada para este período.</td>
                     </tr>
                   ) : (
                     examsForView.map((e, idx) => (
-                      <tr key={e.id} className="border-b border-slate-100 text-[11px]">
-                         <td className="p-3 text-center"><input type="checkbox" className="rounded" /></td>
-                        <td className="p-3">
+                      <tr key={e.id} className="border-b border-slate-100 text-[11px] hover:bg-slate-50 transition-colors">
+                        <td className="p-4 text-center"><input type="checkbox" className="rounded" /></td>
+                        <td className="p-4">
                           <div className="flex flex-col">
                             <span className="font-bold text-slate-800">{e.examDate || 'Sem data'}</span>
                           </div>
                         </td>
-                        <td className="p-3">
+                        <td className="p-4">
                            <div className="flex flex-col">
                              <span className="font-bold text-slate-800">{e.title}</span>
-                             <span className="text-blue-600 text-[9px] cursor-pointer" onClick={() => setActiveTab('notas')}>Ver notas</span>
+                             <span className="text-blue-600 text-[9px] cursor-pointer mt-1 font-bold underline" onClick={() => setActiveTab('notas')}>Ver lançamento de notas</span>
                            </div>
                         </td>
-                        <td className="p-3 text-slate-600 uppercase font-medium">{e.examType}</td>
-                        <td className="p-3">
-                          <div className="flex items-center justify-center gap-4">
-                            <button className="text-slate-400 hover:text-slate-600 transition-colors"><Search className="w-4 h-4" /></button>
+                        <td className="p-4 text-slate-600 uppercase font-black text-[10px]">{e.examType}</td>
+                        <td className="p-4">
+                          <div className="flex items-center justify-center">
+                            <Search className="w-4 h-4 text-slate-300" />
                           </div>
                         </td>
                       </tr>
@@ -1823,49 +1878,58 @@ function DiaryView({ user, exams, results, userProfile }: { user: User, exams: E
               </table>
             )}
 
+            {activeTab === 'atividades' && (
+              <div className="p-12 text-center">
+                 <div className="flex flex-col items-center gap-4 text-slate-400">
+                    <ClipboardList className="w-12 h-12 opacity-20" />
+                    <p className="text-xs font-medium italic">Nenhuma atividade registrada para este diário.</p>
+                 </div>
+              </div>
+            )}
+
             {activeTab === 'notas' && (
               <div className="space-y-4">
-                <div className="flex justify-end">
-                  <button className="border border-slate-300 px-4 py-1.5 rounded text-xs font-bold flex items-center gap-2 hover:bg-slate-50 text-slate-700">
-                    <Edit3 className="w-3.5 h-3.5" /> Editar todos
+                <div className="flex justify-end pt-2">
+                  <button className="border border-slate-200 px-6 py-2 rounded text-[11px] font-bold flex items-center gap-2 hover:bg-slate-50 text-slate-700 uppercase transition-all shadow-sm">
+                    <Edit3 className="w-3.5 h-3.5 text-[#2c71b1]" /> Editar todos
                   </button>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse border border-slate-200">
                     <thead>
                       <tr className="bg-slate-50">
-                        <th rowSpan={2} className="border border-slate-200 p-3 text-[11px] font-bold text-slate-600 text-center uppercase min-w-[250px]">Aluno</th>
-                        <th colSpan={1} className="border border-slate-200 p-2 text-[11px] font-black text-white text-center bg-[#8bc34a]">PI</th>
-                        <th colSpan={1} className="border border-slate-200 p-2 text-[11px] font-black text-slate-800 text-center bg-slate-200">PII</th>
-                        <th colSpan={1} className="border border-slate-200 p-2 text-[11px] font-black text-slate-800 text-center bg-slate-200">PIII</th>
-                        <th colSpan={1} className="border border-slate-200 p-2 text-[11px] font-black text-slate-800 text-center bg-slate-200">RB</th>
-                        <th rowSpan={2} className="border border-slate-200 p-3 text-[11px] font-bold bg-[#fcfcfc] text-center w-24">NOTA PARCIAL</th>
-                        <th rowSpan={2} className="border border-slate-200 p-3 text-[11px] font-bold text-slate-600 text-center w-40">AÇÕES</th>
+                        <th rowSpan={2} className="border border-slate-200 p-4 text-[11px] font-bold text-slate-600 text-center uppercase min-w-[300px]">Aluno</th>
+                        <th colSpan={1} className="border border-slate-200 p-2.5 text-[11px] font-black text-white text-center bg-[#8bc34a]">PI</th>
+                        <th colSpan={1} className="border border-slate-200 p-2.5 text-[11px] font-black text-slate-800 text-center bg-slate-100">PII</th>
+                        <th colSpan={1} className="border border-slate-200 p-2.5 text-[11px] font-black text-slate-800 text-center bg-slate-100">PIII</th>
+                        <th colSpan={1} className="border border-slate-200 p-2.5 text-[11px] font-black text-slate-800 text-center bg-slate-100">RB</th>
+                        <th rowSpan={2} className="border border-slate-200 p-4 text-[11px] font-black bg-[#fcfcfc] text-center w-28 uppercase text-slate-800">Nota Parcial</th>
+                        <th rowSpan={2} className="border border-slate-200 p-4 text-[11px] font-bold text-slate-600 text-center w-48 uppercase">Ações</th>
                       </tr>
                       <tr className="bg-slate-50">
-                        <th className="border border-slate-200 p-2 text-[9px] text-center bg-[#8bc34a] text-white">Nota máxima: 10</th>
-                        <th className="border border-slate-200 p-2 text-[9px] text-center bg-slate-200 text-slate-600">Nota máxima: 10</th>
-                        <th className="border border-slate-200 p-2 text-[9px] text-center bg-slate-200 text-slate-600">Nota máxima: 10</th>
-                        <th className="border border-slate-200 p-2 text-[9px] text-center bg-slate-200 text-slate-600">Nota máxima: 10</th>
+                        <th className="border border-slate-200 p-2 text-[9px] text-center bg-[#8bc34a] text-white font-medium italic">Nota máxima: 10</th>
+                        <th className="border border-slate-200 p-2 text-[9px] text-center bg-slate-100 text-slate-500 font-medium italic">Nota máxima: 10</th>
+                        <th className="border border-slate-200 p-2 text-[9px] text-center bg-slate-100 text-slate-500 font-medium italic">Nota máxima: 10</th>
+                        <th className="border border-slate-200 p-2 text-[9px] text-center bg-slate-100 text-slate-500 font-medium italic">Nota máxima: 10</th>
                       </tr>
                     </thead>
                     <tbody>
                       {studentsWithGrades.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="p-8 text-center text-slate-400 italic text-xs">Nenhum aluno encontrado para gerar notas.</td>
+                          <td colSpan={7} className="p-12 text-center text-slate-400 italic text-xs">Nenhum aluno encontrado para gerar lançamentos de notas.</td>
                         </tr>
                       ) : (
                         studentsWithGrades.map((s, idx) => (
                           <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                            <td className="border border-slate-200 p-3 text-[11px] font-bold text-slate-700">{s.name}</td>
-                            <td className="border border-slate-200 p-3 text-center text-xs font-medium text-slate-700 bg-[#8bc34a]/5">{s.notes.p1.toFixed(1)}</td>
-                            <td className="border border-slate-200 p-3 text-center text-xs font-medium text-slate-700 bg-slate-50">{s.notes.p2.toFixed(1)}</td>
-                            <td className="border border-slate-200 p-3 text-center text-xs font-medium text-slate-700 bg-slate-50">{s.notes.p3.toFixed(1)}</td>
-                            <td className="border border-slate-200 p-3 text-center text-xs font-medium text-slate-700 bg-slate-50">{s.notes.p4.toFixed(1)}</td>
-                            <td className="border border-slate-200 p-3 text-center text-xs font-black text-slate-900 bg-[#f9f9f9]">{((s.notes.p1 + s.notes.p2 + s.notes.p3 + s.notes.p4) / 4).toFixed(1)}</td>
-                            <td className="border border-slate-200 p-2 text-center">
-                              <button className="border border-slate-200 px-3 py-1.5 rounded text-[10px] font-bold flex items-center gap-1.5 mx-auto hover:bg-slate-100 transition-colors">
-                                <Edit3 className="w-3 h-3" /> Editar por aluno
+                            <td className="border border-slate-200 p-4 text-[11px] font-bold text-slate-800 uppercase tracking-tight">{s.name}</td>
+                            <td className="border border-slate-200 p-4 text-center text-xs font-black text-[#689f38] bg-[#8bc34a]/10">{s.notes.p1.toFixed(1)}</td>
+                            <td className="border border-slate-200 p-4 text-center text-xs font-black text-slate-600 bg-slate-50">{s.notes.p2.toFixed(1)}</td>
+                            <td className="border border-slate-200 p-4 text-center text-xs font-black text-slate-600 bg-slate-50">{s.notes.p3.toFixed(1)}</td>
+                            <td className="border border-slate-200 p-4 text-center text-xs font-black text-slate-600 bg-slate-50">{s.notes.p4.toFixed(1)}</td>
+                            <td className="border border-slate-200 p-4 text-center text-sm font-black text-[#d32f2f] bg-[#f9f9f9]">{((s.notes.p1 + s.notes.p2 + s.notes.p3 + s.notes.p4) / 4).toFixed(1)}</td>
+                            <td className="border border-slate-200 p-3 text-center">
+                              <button className="border border-slate-200 px-4 py-2 rounded text-[10px] font-black uppercase flex items-center gap-2 mx-auto hover:bg-slate-100 transition-all text-slate-700">
+                                <Edit3 className="w-3.5 h-3.5 text-[#2c71b1]" /> Editar por aluno
                               </button>
                             </td>
                           </tr>
@@ -1876,22 +1940,58 @@ function DiaryView({ user, exams, results, userProfile }: { user: User, exams: E
                 </div>
               </div>
             )}
+
+            {activeTab === 'relatorio' && (
+              <div className="space-y-6">
+                 <div className="bg-blue-50 border border-blue-100 p-5 rounded-lg flex items-start gap-4">
+                    <Info className="w-6 h-6 text-blue-500 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-blue-900 text-sm font-black uppercase mb-1">Relatórios de Desempenho Bimestral - {selectedBimester}</h4>
+                      <p className="text-blue-700 text-[11px] font-medium">Selecione um aluno abaixo para redigir ou editar o relatório pedagógico deste bimestre.</p>
+                    </div>
+                 </div>
+
+                 <div className="grid grid-cols-1 gap-3">
+                    {studentsForClass.map((s, i) => (
+                      <div key={i} className="border border-slate-200 rounded-lg p-5 hover:shadow-md transition-all bg-white flex flex-col md:flex-row md:items-center justify-between gap-5 border-l-4 border-l-[#2c71b1]">
+                        <div className="flex items-center gap-5">
+                          <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-black text-lg border border-slate-200">
+                            {s.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-slate-800 uppercase tracking-tight">{s.name}</p>
+                            <div className="flex items-center gap-3 mt-1">
+                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{selectedClass} • {selectedSubject}</p>
+                               <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                               <span className="text-[9px] font-bold text-[#5cb85c] uppercase">Cursando</span>
+                            </div>
+                          </div>
+                        </div>
+                        <button className="bg-[#2c71b1] hover:bg-[#245e94] text-white px-8 py-3 rounded-md text-[11px] font-black uppercase transition-all shadow-sm flex items-center gap-2">
+                          <FilePlus className="w-4 h-4" />
+                          Escrever Relatório
+                        </button>
+                      </div>
+                    ))}
+                 </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Footer Info Box */}
-        {(activeTab === 'diarios' || activeTab === 'avaliacoes' || activeTab === 'alunos') && (
-          <div className="bg-[#f8fafb] border-t border-slate-200 p-4 mt-8">
-            <h4 className="text-blue-800 text-xs font-bold mb-3 flex items-center gap-2">
-              <Info className="w-3.5 h-3.5" /> Informações do diário atual
+        {(activeTab === 'diarios' || activeTab === 'avaliacoes' || activeTab === 'alunos' || activeTab === 'relatorio' || activeTab === 'aulas') && (
+          <div className="bg-[#f8fafb] border-t border-slate-200 p-6 mt-8">
+            <h4 className="text-[#2c71b1] text-xs font-black uppercase mb-4 flex items-center gap-2 tracking-wider">
+              <Info className="w-4 h-4" /> Informações do diário atual
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-1 text-[10px] font-bold text-slate-600 uppercase">
-              <div className="flex items-center gap-2"><Check className="w-3 h-3 text-blue-800" /> Turma: {selectedClass}</div>
-              <div className="flex items-center gap-2"><Check className="w-3 h-3 text-blue-800" /> Professor: {userProfile?.professional_name || user.email?.split('@')[0]}</div>
-              <div className="flex items-center gap-2"><Check className="w-3 h-3 text-blue-800" /> Exercício: 2026</div>
-              <div className="flex items-center gap-2"><Check className="w-3 h-3 text-blue-800" /> Disciplina: {selectedSubject}</div>
-              <div className="flex items-center gap-2"><Check className="w-3 h-3 text-blue-800" /> Turno: MANHÃ</div>
-              <div className="flex items-center gap-2"><Check className="w-3 h-3 text-blue-800" /> Criterio Avaliativo: NOTAS FUNDAMENTAL</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-16 gap-y-2.5 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+              <div className="flex items-center gap-3"><Check className="w-4 h-4 text-[#2c71b1]" /> Turma: <span className="text-slate-800">{selectedClass}</span></div>
+              <div className="flex items-center gap-3"><Check className="w-4 h-4 text-[#2c71b1]" /> Professor: <span className="text-slate-800">{userProfile?.professional_name || user.email?.split('@')[0]}</span></div>
+              <div className="flex items-center gap-3"><Check className="w-4 h-4 text-[#2c71b1]" /> Exercício: <span className="text-slate-800">2026</span></div>
+              <div className="flex items-center gap-3"><Check className="w-4 h-4 text-[#2c71b1]" /> Disciplina: <span className="text-slate-800">{selectedSubject}</span></div>
+              <div className="flex items-center gap-3"><Check className="w-4 h-4 text-[#2c71b1]" /> Turno: <span className="text-slate-800">MANHÃ</span></div>
+              <div className="flex items-center gap-3"><Check className="w-4 h-4 text-[#2c71b1]" /> Criterio: <span className="text-slate-800">NOTAS FUNDAMENTAL</span></div>
             </div>
           </div>
         )}
