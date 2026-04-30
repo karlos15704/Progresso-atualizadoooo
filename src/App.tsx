@@ -3560,9 +3560,28 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">
-              Alunos Selecionados ({selectedStudentNames.length})
-            </label>
+            <div className="flex justify-between items-end mb-2">
+              <label className="block text-sm font-bold text-slate-700">
+                Alunos Selecionados ({selectedStudentNames.length})
+              </label>
+              {selectedClassId && (
+                <button 
+                  onClick={() => {
+                    const studsForClass = allStudents.filter((s: Student) => s.classId === selectedClassId).map((s: Student) => s.name);
+                    if (selectedStudentNames.length === studsForClass.length) {
+                      setSelectedStudentNames([]);
+                    } else {
+                      setSelectedStudentNames(studsForClass);
+                    }
+                  }}
+                  className="text-[10px] uppercase font-black text-primary hover:underline"
+                >
+                  {selectedStudentNames.length === allStudents.filter((s: Student) => s.classId === selectedClassId).length 
+                    ? 'Desmarcar Todos' 
+                    : 'Selecionar Todos'}
+                </button>
+              )}
+            </div>
             <div className="border border-border rounded-md h-48 overflow-y-auto p-3 bg-slate-50 space-y-1">
               {allStudents.filter((s: Student) => s.classId === selectedClassId).length === 0 && (
                 <div className="text-sm text-slate-400 italic">Por favor selecione uma turma...</div>
