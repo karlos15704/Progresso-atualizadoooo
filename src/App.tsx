@@ -48,7 +48,13 @@ import {
   ShieldCheck,
   Lock,
   UserCog,
-  KeyRound
+  KeyRound,
+  Layout,
+  Info,
+  Check,
+  ClipboardList,
+  ArrowLeft,
+  LayoutDashboard
 } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
@@ -132,7 +138,7 @@ const stripHtml = (html: string) => {
 // Types
 interface Question {
   id: number;
-  type?: 'objective' | 'essay';
+  type?: 'objective' | 'essay' | 'true-false';
   text: string;
   image?: string;
   imageSize?: number;
@@ -912,7 +918,7 @@ export default function App() {
               const { error } = await supabase.auth.updateUser({ password: newPw + "_cpsAuth" });
               if (error) throw error;
             }} />}
-            {view === 'diary' && <DigitalDiaryView user={user} isAdmin={isAdmin} userProfile={userProfile} />}
+            {view === 'diary' && <DiaryView user={user} />}
             {view === 'boletim' && <BoletimView results={results} exams={exams} isAdmin={isAdmin} user={user} userProfile={userProfile} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
             {view === 'cronograma' && <CronogramaEstudosView exams={exams} isAdmin={isAdmin} schoolInfo={getSchoolInfo()} bimesters={['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre']} userProfile={userProfile} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
           </AnimatePresence>
@@ -1060,7 +1066,7 @@ export default function App() {
       {/* Mobile Nav */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-black border-t border-slate-200 dark:border-slate-800 px-1 py-1 flex justify-between items-center overflow-x-auto gap-0.5 shadow-[0_-8px_15px_rgba(0,0,0,0.08)] z-[100] animate-in slide-in-from-bottom-5 print:hidden text-slate-600 dark:text-slate-400 transition-colors">
         <MobileNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<BarChart3 size={18} />} label="Início" />
-        <MobileNavButton active={view === 'diary'} onClick={() => setView('diary')} icon={<BookOpen size={18} />} label="Diário" />
+        <MobileNavButton active={view === 'diary'} onClick={() => setView('diary')} icon={<ClipboardList size={18} />} label="Diário" />
         <MobileNavButton active={view === 'boletim'} onClick={() => setView('boletim')} icon={<FileText size={18} />} label="Boletim" />
         <MobileNavButton active={view === 'cronograma'} onClick={() => setView('cronograma')} icon={<Calendar size={18} />} label="Provas" />
         <MobileNavButton active={view === 'studentReports'} onClick={() => setView('studentReports')} icon={<UserIcon size={18} />} label="Obs" />
@@ -1466,6 +1472,333 @@ function StatCard({ label, value, icon, color }: { label: string, value: any, ic
       <div>
         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-0.5">{label}</p>
         <p className="text-xl font-display font-black text-slate-800 dark:text-slate-100 tracking-tight leading-none">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function DiaryView({ user }: { user: User }) {
+  const [activeTab, setActiveTab] = useState<'diarios' | 'alunos' | 'aulas' | 'avaliacoes' | 'notas'>('diarios');
+  const [selectedBimester, setSelectedBimester] = useState('1º BIMESTRE');
+  const [selectedClass, setSelectedClass] = useState('6º ANO A');
+  const [selectedSubject, setSelectedSubject] = useState('LÍNGUA INGLESA');
+
+  const students = [
+    { name: 'ADRIELLY LUCIA PERES SANTOS SILVA', status: 'CURSANDO', notes: { p1: 6, p2: 5, p3: 1, p4: 4 } },
+    { name: 'BEATRIZ TEIXEIRA DA SILVA', status: 'CURSANDO', notes: { p1: 10, p2: 6.5, p3: 3, p4: 4 } },
+    { name: 'BERNARDO DE PAULA ARAUJO', status: 'CURSANDO', notes: { p1: 6, p2: 4, p3: 2, p4: 3 } },
+    { name: 'BERNARDO DONATO JAQUES SANTOS', status: 'CURSANDO', notes: { p1: 8, p2: 4.5, p3: 3, p4: 4 } },
+    { name: 'BERNARDO SILVA', status: 'CURSANDO', notes: { p1: 6, p2: 5, p3: 6, p4: 5 } },
+  ];
+
+  const lessons = [
+    { date: '28/01/2026', day: 'Quarta', content: 'Acolhimento', count: 2 },
+    { date: '04/02/2026', day: 'Quarta', content: 'Apresentação do projeto Valentine\'s Day', count: 2 },
+    { date: '11/02/2026', day: 'Quarta', content: 'Valentine\'s Day', count: 2 },
+    { date: '18/02/2026', day: 'Quarta', content: 'Atividades suspensas "CINZAS"', count: 2 },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-sm text-slate-500">
+        <span className="font-bold text-slate-900">Diários do Professor</span> / Lista
+        <div className="ml-auto flex items-center gap-2">
+          <span>Exercício:</span>
+          <span className="font-bold text-slate-900">2026</span>
+        </div>
+      </div>
+
+      {/* Filters Bar */}
+      <div className="bg-slate-50 border border-slate-200 p-3 rounded-md flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-bold text-slate-600">Exercício:</label>
+          <select className="text-xs border border-slate-300 rounded px-2 py-1 outline-none bg-white min-w-[100px]">
+            <option>2026</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-bold text-slate-600">Turma:</label>
+          <select 
+            value={selectedClass} 
+            onChange={e => setSelectedClass(e.target.value)}
+            className="text-xs border border-slate-300 rounded px-2 py-1 outline-none bg-white min-w-[150px]"
+          >
+            <option>6º ANO A</option>
+            <option>7º ANO A</option>
+            <option>8º ANO A</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-bold text-slate-600">Disciplina:</label>
+          <select 
+            value={selectedSubject}
+            onChange={e => setSelectedSubject(e.target.value)}
+            className="text-xs border border-slate-300 rounded px-2 py-1 outline-none bg-white min-w-[200px]"
+          >
+            <option>LÍNGUA INGLESA</option>
+            <option>MATEMÁTICA</option>
+            <option>PORTUGUÊS</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-bold text-slate-600">Período Letivo:</label>
+          <select 
+            value={selectedBimester}
+            onChange={e => setSelectedBimester(e.target.value)}
+            className="text-xs border border-slate-300 rounded px-2 py-1 outline-none bg-white min-w-[150px]"
+          >
+            <option>1º BIMESTRE</option>
+            <option>2º BIMESTRE</option>
+            <option>3º BIMESTRE</option>
+            <option>4º BIMESTRE</option>
+          </select>
+        </div>
+        <button className="bg-[#2c71b1] hover:bg-[#245e94] text-white px-4 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition-colors ml-auto">
+          <Search className="w-3.5 h-3.5" />
+          Pesquisar
+        </button>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded shadow-sm overflow-hidden">
+        {/* Navigation Tabs */}
+        <div className="flex bg-[#f8fafb] border-b border-slate-200">
+          <button 
+            onClick={() => setActiveTab('diarios')}
+            className={cn(
+              "px-6 py-2.5 text-xs font-bold transition-colors flex items-center gap-2 border-r border-slate-200",
+              activeTab === 'diarios' ? "bg-white text-slate-900 border-b-2 border-b-white" : "text-slate-500 hover:bg-slate-100"
+            )}
+          >
+            <Layout className="w-4 h-4" />
+            Diários
+          </button>
+          <button 
+            onClick={() => setActiveTab('alunos')}
+            className={cn(
+              "px-6 py-2.5 text-xs font-bold transition-colors flex items-center gap-2 border-r border-slate-200",
+              activeTab === 'alunos' ? "bg-white text-slate-900 border-b-2 border-b-white" : "text-slate-500 hover:bg-slate-100"
+            )}
+          >
+            <Users className="w-4 h-4" />
+            Alunos
+          </button>
+          <button 
+            onClick={() => setActiveTab('aulas')}
+            className={cn(
+              "px-6 py-2.5 text-xs font-bold transition-colors flex items-center gap-2 border-r border-slate-200",
+              activeTab === 'aulas' ? "bg-white text-slate-900 border-b-2 border-b-white" : "text-slate-500 hover:bg-slate-100"
+            )}
+          >
+            <BookOpen className="w-4 h-4" />
+            Aulas
+          </button>
+          <button 
+            onClick={() => setActiveTab('avaliacoes')}
+            className={cn(
+              "px-6 py-2.5 text-xs font-bold transition-colors flex items-center gap-2 border-r border-slate-200",
+              activeTab === 'avaliacoes' ? "bg-white text-slate-900 border-b-2 border-b-white" : "text-slate-500 hover:bg-slate-100"
+            )}
+          >
+            <FileText className="w-4 h-4" />
+            Avaliações
+          </button>
+          <button 
+            onClick={() => setActiveTab('notas')}
+            className={cn(
+              "px-6 py-2.5 text-xs font-bold transition-colors flex items-center gap-2",
+              activeTab === 'notas' ? "bg-white text-slate-900 border-b-2 border-b-white" : "text-slate-500 hover:bg-slate-100"
+            )}
+          >
+            <CheckSquare className="w-4 h-4" />
+            Notas por avaliação
+          </button>
+        </div>
+
+        <div className="p-1">
+          <div className="bg-[#fcfcfc] border border-slate-200 px-4 py-2 text-[10px] font-bold text-slate-600 uppercase">
+            TURMA: {selectedClass} / {selectedSubject} / 6º ANO / ENSINO FUNDAMENTAL / 2026
+          </div>
+
+          <div className="p-4">
+            {activeTab === 'diarios' && (
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-left border-b border-slate-200">
+                    <th className="p-3 text-[11px] font-bold text-slate-600 w-20">Situação</th>
+                    <th className="p-3 text-[11px] font-bold text-slate-600">Diário</th>
+                    <th className="p-3 text-[11px] font-bold text-slate-600 w-20 text-center">Aulas dadas</th>
+                    <th className="p-3 text-[11px] font-bold text-slate-600 w-40 text-center">Comandos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-slate-100 text-xs">
+                    <td className="p-3">
+                      <span className="bg-[#5cb85c] text-white px-2 py-0.5 rounded text-[9px] font-bold">Diário Entregue: 29/04</span>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-bold text-slate-800">{selectedBimester}</span>
+                        <div className="flex gap-4 text-blue-600 underline text-[10px]">
+                          <button onClick={() => setActiveTab('alunos')}>Ver alunos</button>
+                          <button onClick={() => setActiveTab('aulas')}>28 aulas</button>
+                          <button onClick={() => setActiveTab('avaliacoes')}>4 avaliações</button>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-3 text-center font-bold">28</td>
+                    <td className="p-3">
+                      <div className="flex items-center justify-center gap-2">
+                        <button className="border border-slate-300 p-1.5 rounded hover:bg-slate-50 flex items-center gap-2 text-[10px] font-bold">
+                          <RotateCcw className="w-3 h-3" /> Solicitar devolução
+                        </button>
+                        <button className="border border-slate-300 p-1.5 rounded hover:bg-slate-50"><Search className="w-3 h-3" /></button>
+                        <button className="border border-slate-300 p-1.5 rounded hover:bg-slate-50"><Layout className="w-3 h-3" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
+
+            {activeTab === 'alunos' && (
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-left border-b border-slate-200">
+                    <th className="p-3 text-[11px] font-bold text-slate-600">Alunos</th>
+                    <th className="p-3 text-[11px] font-bold text-slate-600 w-32">Situação</th>
+                    <th className="p-3 text-[11px] font-bold text-slate-600 w-32 text-center">Relatório Anual</th>
+                    <th className="p-3 text-[11px] font-bold text-slate-600 w-32 text-center">Responsável</th>
+                    <th className="p-3 text-[11px] font-bold text-slate-600 w-32 text-center">Comandos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {students.map((s, i) => (
+                    <tr key={i} className="border-b border-slate-100 text-[11px]">
+                      <td className="p-3">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-800">{s.name}</span>
+                          <span className="text-blue-600 text-[9px] cursor-pointer">Nenhuma falta lançada</span>
+                        </div>
+                      </td>
+                      <td className="p-3 text-slate-600 uppercase font-medium">{s.status}</td>
+                      <td className="p-3 text-center">
+                        <button className="bg-blue-400/80 hover:bg-blue-500 text-white px-3 py-1 rounded flex items-center gap-1.5 mx-auto text-[10px] font-bold">
+                          <FileText className="w-3 h-3" /> Avaliar
+                        </button>
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className="bg-[#5cb85c]/80 text-white px-4 py-1 rounded text-[10px] font-medium block w-fit mx-auto">Professor(a)</span>
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center justify-center gap-1">
+                          <button className="border border-slate-300 p-1 rounded hover:bg-slate-50"><Search className="w-3 h-3" /></button>
+                          <button className="bg-amber-500 text-white p-1 rounded hover:bg-amber-600"><Mail className="w-3 h-3" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {activeTab === 'aulas' && (
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-left border-b border-slate-200">
+                    <th className="p-3 text-[11px] font-bold text-slate-600 w-40">Data da aula</th>
+                    <th className="p-3 text-[11px] font-bold text-slate-600">Conteúdo</th>
+                    <th className="p-3 text-[11px] font-bold text-slate-600 w-24 text-center">Aulas dadas</th>
+                    <th className="p-3 text-[11px] font-bold text-slate-600 w-40 text-center">Comandos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lessons.map((l, i) => (
+                    <tr key={i} className="border-b border-slate-100 text-[11px]">
+                      <td className="p-3">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-800">{l.date}</span>
+                          <span className="text-slate-500">{l.day}</span>
+                        </div>
+                      </td>
+                      <td className="p-3 text-slate-700">{l.content}</td>
+                      <td className="p-3 text-center font-bold">{l.count}</td>
+                      <td className="p-3 text-center">
+                         <div className="flex justify-center gap-4">
+                           <button className="text-slate-400 hover:text-slate-600 transition-colors"><Search className="w-4 h-4" /></button>
+                         </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {activeTab === 'notas' && (
+              <div className="space-y-4">
+                <div className="flex justify-end">
+                  <button className="border border-slate-300 px-4 py-1.5 rounded text-xs font-bold flex items-center gap-2 hover:bg-slate-50 text-slate-700">
+                    <Edit3 className="w-3.5 h-3.5" /> Editar todos
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse border border-slate-200">
+                    <thead>
+                      <tr className="bg-slate-50">
+                        <th rowSpan={2} className="border border-slate-200 p-3 text-[11px] font-bold text-slate-600 text-center uppercase min-w-[250px]">Aluno</th>
+                        <th colSpan={1} className="border border-slate-200 p-2 text-[11px] font-black text-white text-center bg-[#8bc34a]">PI</th>
+                        <th colSpan={1} className="border border-slate-200 p-2 text-[11px] font-black text-slate-800 text-center bg-slate-200">PII</th>
+                        <th colSpan={1} className="border border-slate-200 p-2 text-[11px] font-black text-slate-800 text-center bg-slate-200">PIII</th>
+                        <th colSpan={1} className="border border-slate-200 p-2 text-[11px] font-black text-slate-800 text-center bg-slate-200">RB</th>
+                        <th rowSpan={2} className="border border-slate-200 p-3 text-[11px] font-bold bg-[#fcfcfc] text-center w-24">NOTA PARCIAL</th>
+                        <th rowSpan={2} className="border border-slate-200 p-3 text-[11px] font-bold text-slate-600 text-center w-40">AÇÕES</th>
+                      </tr>
+                      <tr className="bg-slate-50">
+                        <th className="border border-slate-200 p-2 text-[9px] text-center bg-[#8bc34a] text-white">Nota máxima: 10</th>
+                        <th className="border border-slate-200 p-2 text-[9px] text-center bg-slate-200 text-slate-600">Nota máxima: 10</th>
+                        <th className="border border-slate-200 p-2 text-[9px] text-center bg-slate-200 text-slate-600">Nota máxima: 10</th>
+                        <th className="border border-slate-200 p-2 text-[9px] text-center bg-slate-200 text-slate-600">Nota máxima: 10</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {students.map((s, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="border border-slate-200 p-3 text-[11px] font-bold text-slate-700">{s.name}</td>
+                          <td className="border border-slate-200 p-3 text-center text-xs font-medium text-slate-700 bg-[#8bc34a]/5">{s.notes.p1.toFixed(1)}</td>
+                          <td className="border border-slate-200 p-3 text-center text-xs font-medium text-red-600 bg-slate-50">{s.notes.p2.toFixed(1)}</td>
+                          <td className="border border-slate-200 p-3 text-center text-xs font-medium text-red-600 bg-slate-50">{s.notes.p3.toFixed(1)}</td>
+                          <td className="border border-slate-200 p-3 text-center text-xs font-medium text-red-600 bg-slate-50">{s.notes.p4.toFixed(1)}</td>
+                          <td className="border border-slate-200 p-3 text-center text-xs font-black text-red-600 bg-[#f9f9f9]">{(Object.values(s.notes).reduce((a, b) => a + b, 0) / 4).toFixed(1)}</td>
+                          <td className="border border-slate-200 p-2 text-center">
+                            <button className="border border-slate-200 px-3 py-1.5 rounded text-[10px] font-bold flex items-center gap-1.5 mx-auto hover:bg-slate-100 transition-colors">
+                              <Edit3 className="w-3 h-3" /> Editar por aluno
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer Info Box */}
+        {(activeTab === 'diarios' || activeTab === 'avaliacoes') && (
+          <div className="bg-[#f8fafb] border-t border-slate-200 p-4 mt-8">
+            <h4 className="text-blue-800 text-xs font-bold mb-3 flex items-center gap-2">
+              <Info className="w-3.5 h-3.5" /> Informações do diário atual
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-1 text-[10px] font-bold text-slate-600 uppercase">
+              <div className="flex items-center gap-2"><Check className="w-3 h-3 text-blue-800" /> Turma: {selectedClass}</div>
+              <div className="flex items-center gap-2"><Check className="w-3 h-3 text-blue-800" /> Professor: {user.email?.split('@')[0]}</div>
+              <div className="flex items-center gap-2"><Check className="w-3 h-3 text-blue-800" /> Exercício: 2026</div>
+              <div className="flex items-center gap-2"><Check className="w-3 h-3 text-blue-800" /> Disciplina: {selectedSubject}</div>
+              <div className="flex items-center gap-2"><Check className="w-3 h-3 text-blue-800" /> Turno: MANHÃ</div>
+              <div className="flex items-center gap-2"><Check className="w-3 h-3 text-blue-800" /> Criterio Avaliativo: NOTAS FUNDAMENTAL</div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
