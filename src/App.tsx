@@ -1237,7 +1237,6 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
   userProfile: any
 }) {
   const schoolInfo = getSchoolInfo();
-  const [showAll, setShowAll] = useState(false);
   const [bimesterFilter, setBimesterFilter] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -1249,7 +1248,7 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
     const matchCategory = categoryFilter === '' || e.examType === categoryFilter;
     return matchBimester && matchClass && matchCategory;
   });
-  const displayExams = showAll ? filteredExams : filteredExams.slice(0, 10);
+  const displayExams = filteredExams;
 
   // Auto-check if we are the special master admin
   const isMasterAdmin = user.email === 'cps@cps.local';
@@ -1300,7 +1299,7 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
         <div className="lg:col-span-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
           <div className="px-4 py-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-slate-50/50 dark:bg-slate-900/50">
             <div className="space-y-3">
-              <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">{showAll ? 'Base de Dados Completa' : 'Avaliações Recentes'}</h3>
+              <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">Base de Dados de Avaliações</h3>
               
               <div className="flex flex-wrap gap-2">
                 <select 
@@ -1338,12 +1337,6 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                 </select>
               </div>
             </div>
-            <button 
-              onClick={() => setShowAll(!showAll)} 
-              className="text-[10px] bg-white dark:bg-slate-900 border-2 border-black dark:border-slate-700 text-slate-900 dark:text-slate-100 px-4 py-2 rounded-lg font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.1)] self-start sm:self-center active:translate-x-0.5 active:translate-y-0.5"
-            >
-              {showAll ? 'Ver Resumo' : 'Expandir Tudo'}
-            </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
