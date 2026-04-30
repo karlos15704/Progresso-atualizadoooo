@@ -918,7 +918,7 @@ export default function App() {
               const { error } = await supabase.auth.updateUser({ password: newPw + "_cpsAuth" });
               if (error) throw error;
             }} />}
-            {view === 'diary' && <DiaryView user={user} />}
+            {view === 'diary' && <DiaryView user={user} exams={exams} results={results} userProfile={userProfile} />}
             {view === 'boletim' && <BoletimView results={results} exams={exams} isAdmin={isAdmin} user={user} userProfile={userProfile} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
             {view === 'cronograma' && <CronogramaEstudosView exams={exams} isAdmin={isAdmin} schoolInfo={getSchoolInfo()} bimesters={['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre']} userProfile={userProfile} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
           </AnimatePresence>
@@ -1477,19 +1477,61 @@ function StatCard({ label, value, icon, color }: { label: string, value: any, ic
   );
 }
 
-function DiaryView({ user }: { user: User }) {
+function DiaryView({ user, exams, results, userProfile }: { user: User, exams: Exam[], results: Result[], userProfile: any }) {
   const [activeTab, setActiveTab] = useState<'diarios' | 'alunos' | 'aulas' | 'avaliacoes' | 'notas'>('diarios');
   const [selectedBimester, setSelectedBimester] = useState('1º BIMESTRE');
-  const [selectedClass, setSelectedClass] = useState('6º ANO A');
-  const [selectedSubject, setSelectedSubject] = useState('LÍNGUA INGLESA');
+  const schoolInfo = getSchoolInfo();
+  
+  // Initialize with real data if available
+  const [selectedClass, setSelectedClass] = useState(schoolInfo.classes[0] || '6º A');
+  const [selectedSubject, setSelectedSubject] = useState(schoolInfo.subjects[0] || 'MATEMÁTICA');
 
-  const students = [
-    { name: 'ADRIELLY LUCIA PERES SANTOS SILVA', status: 'CURSANDO', notes: { p1: 6, p2: 5, p3: 1, p4: 4 } },
-    { name: 'BEATRIZ TEIXEIRA DA SILVA', status: 'CURSANDO', notes: { p1: 10, p2: 6.5, p3: 3, p4: 4 } },
-    { name: 'BERNARDO DE PAULA ARAUJO', status: 'CURSANDO', notes: { p1: 6, p2: 4, p3: 2, p4: 3 } },
-    { name: 'BERNARDO DONATO JAQUES SANTOS', status: 'CURSANDO', notes: { p1: 8, p2: 4.5, p3: 3, p4: 4 } },
-    { name: 'BERNARDO SILVA', status: 'CURSANDO', notes: { p1: 6, p2: 5, p3: 6, p4: 5 } },
-  ];
+  // Sync students from real DB
+  const allStudentsList = useMemo(() => {
+    return Object.values(schoolInfo.studentsDB).flat();
+  }, [schoolInfo.studentsDB]);
+
+  const studentsForClass = useMemo(() => {
+    return allStudentsList.filter(s => s.classId === selectedClass);
+  }, [allStudentsList, selectedClass]);
+
+  // Map results for the specific class/subject/bimester
+  const studentsWithGrades = useMemo(() => {
+    return studentsForClass.map(s => {
+      // Find results for this student in this subject/bimester
+      const studentResults = results.filter(r => 
+        r.studentName === s.name && 
+        (r.bimester?.toUpperCase() === selectedBimester.toUpperCase())
+      ).map(r => ({
+        result: r,
+        exam: exams.find(e => e.id === r.examId)
+      })).filter(item => item.exam?.subject === selectedSubject);
+
+      // Map to columns based on examType
+      const getScore = (type: string) => {
+        return studentResults.find(item => item.exam?.examType === type)?.result.score || 0;
+      };
+
+      return {
+        name: s.name,
+        status: 'CURSANDO',
+        notes: {
+          p1: getScore('PI'),
+          p2: getScore('PII'),
+          p3: getScore('PIII'),
+          p4: getScore('RB')
+        }
+      };
+    });
+  }, [studentsForClass, results, exams, selectedBimester, selectedSubject]);
+
+  const examsForView = useMemo(() => {
+    return exams.filter(e => 
+      e.classYear === selectedClass && 
+      e.subject === selectedSubject && 
+      (e.bimester?.toUpperCase() === selectedBimester.toUpperCase())
+    );
+  }, [exams, selectedClass, selectedSubject, selectedBimester]);
 
   const lessons = [
     { date: '28/01/2026', day: 'Quarta', content: 'Acolhimento', count: 2 },
@@ -1523,9 +1565,7 @@ function DiaryView({ user }: { user: User }) {
             onChange={e => setSelectedClass(e.target.value)}
             className="text-xs border border-slate-300 rounded px-2 py-1 outline-none bg-white min-w-[150px]"
           >
-            <option>6º ANO A</option>
-            <option>7º ANO A</option>
-            <option>8º ANO A</option>
+            {schoolInfo.classes.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <div className="flex items-center gap-2">
@@ -1535,9 +1575,7 @@ function DiaryView({ user }: { user: User }) {
             onChange={e => setSelectedSubject(e.target.value)}
             className="text-xs border border-slate-300 rounded px-2 py-1 outline-none bg-white min-w-[200px]"
           >
-            <option>LÍNGUA INGLESA</option>
-            <option>MATEMÁTICA</option>
-            <option>PORTUGUÊS</option>
+            {schoolInfo.subjects.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
         <div className="flex items-center gap-2">
@@ -1616,7 +1654,7 @@ function DiaryView({ user }: { user: User }) {
 
         <div className="p-1">
           <div className="bg-[#fcfcfc] border border-slate-200 px-4 py-2 text-[10px] font-bold text-slate-600 uppercase">
-            TURMA: {selectedClass} / {selectedSubject} / 6º ANO / ENSINO FUNDAMENTAL / 2026
+            TURMA: {selectedClass} / {selectedSubject} / ENSINO FUNDAMENTAL / 2026
           </div>
 
           <div className="p-4">
@@ -1639,9 +1677,9 @@ function DiaryView({ user }: { user: User }) {
                       <div className="flex flex-col gap-1">
                         <span className="font-bold text-slate-800">{selectedBimester}</span>
                         <div className="flex gap-4 text-blue-600 underline text-[10px]">
-                          <button onClick={() => setActiveTab('alunos')}>Ver alunos</button>
+                          <button onClick={() => setActiveTab('alunos')}>Ver {studentsForClass.length} alunos</button>
                           <button onClick={() => setActiveTab('aulas')}>28 aulas</button>
-                          <button onClick={() => setActiveTab('avaliacoes')}>4 avaliações</button>
+                          <button onClick={() => setActiveTab('avaliacoes')}>{examsForView.length} avaliações</button>
                         </div>
                       </div>
                     </td>
@@ -1664,7 +1702,7 @@ function DiaryView({ user }: { user: User }) {
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-slate-50 text-left border-b border-slate-200">
-                    <th className="p-3 text-[11px] font-bold text-slate-600">Alunos</th>
+                    <th className="p-3 text-[11px] font-bold text-slate-600">Alunos ({studentsForClass.length})</th>
                     <th className="p-3 text-[11px] font-bold text-slate-600 w-32">Situação</th>
                     <th className="p-3 text-[11px] font-bold text-slate-600 w-32 text-center">Relatório Anual</th>
                     <th className="p-3 text-[11px] font-bold text-slate-600 w-32 text-center">Responsável</th>
@@ -1672,31 +1710,37 @@ function DiaryView({ user }: { user: User }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {students.map((s, i) => (
-                    <tr key={i} className="border-b border-slate-100 text-[11px]">
-                      <td className="p-3">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-800">{s.name}</span>
-                          <span className="text-blue-600 text-[9px] cursor-pointer">Nenhuma falta lançada</span>
-                        </div>
-                      </td>
-                      <td className="p-3 text-slate-600 uppercase font-medium">{s.status}</td>
-                      <td className="p-3 text-center">
-                        <button className="bg-blue-400/80 hover:bg-blue-500 text-white px-3 py-1 rounded flex items-center gap-1.5 mx-auto text-[10px] font-bold">
-                          <FileText className="w-3 h-3" /> Avaliar
-                        </button>
-                      </td>
-                      <td className="p-3 text-center">
-                        <span className="bg-[#5cb85c]/80 text-white px-4 py-1 rounded text-[10px] font-medium block w-fit mx-auto">Professor(a)</span>
-                      </td>
-                      <td className="p-3">
-                        <div className="flex items-center justify-center gap-1">
-                          <button className="border border-slate-300 p-1 rounded hover:bg-slate-50"><Search className="w-3 h-3" /></button>
-                          <button className="bg-amber-500 text-white p-1 rounded hover:bg-amber-600"><Mail className="w-3 h-3" /></button>
-                        </div>
-                      </td>
+                  {studentsForClass.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-slate-400 italic text-xs">Nenhum aluno encontrado para esta turma.</td>
                     </tr>
-                  ))}
+                  ) : (
+                    studentsForClass.map((s, i) => (
+                      <tr key={i} className="border-b border-slate-100 text-[11px]">
+                        <td className="p-3">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-800">{s.name}</span>
+                            <span className="text-blue-600 text-[9px] cursor-pointer">Nenhuma falta lançada</span>
+                          </div>
+                        </td>
+                        <td className="p-3 text-slate-600 uppercase font-medium">CURSANDO</td>
+                        <td className="p-3 text-center">
+                          <button className="bg-blue-400/80 hover:bg-blue-500 text-white px-3 py-1 rounded flex items-center gap-1.5 mx-auto text-[10px] font-bold">
+                            <FileText className="w-3 h-3" /> Avaliar
+                          </button>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className="bg-[#5cb85c]/80 text-white px-4 py-1 rounded text-[10px] font-medium block w-fit mx-auto">Professor(a)</span>
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center justify-center gap-1">
+                            <button className="border border-slate-300 p-1 rounded hover:bg-slate-50"><Search className="w-3 h-3" /></button>
+                            <button className="bg-amber-500 text-white p-1 rounded hover:bg-amber-600"><Mail className="w-3 h-3" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             )}
@@ -1733,6 +1777,52 @@ function DiaryView({ user }: { user: User }) {
               </table>
             )}
 
+            {activeTab === 'avaliacoes' && (
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-left border-b border-slate-200">
+                    <th className="p-3 text-[11px] font-bold text-slate-600 w-10">
+                       <input type="checkbox" className="rounded" />
+                    </th>
+                    <th className="p-3 text-[11px] font-bold text-slate-600 w-32">Data da avaliação</th>
+                    <th className="p-3 text-[11px] font-bold text-slate-600">Avaliação</th>
+                    <th className="p-3 text-[11px] font-bold text-slate-600 w-32">Tipo</th>
+                    <th className="p-3 text-[11px] font-bold text-slate-600 w-32 text-center">Comandos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {examsForView.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-slate-400 italic text-xs">Nenhuma avaliação encontrada para este período.</td>
+                    </tr>
+                  ) : (
+                    examsForView.map((e, idx) => (
+                      <tr key={e.id} className="border-b border-slate-100 text-[11px]">
+                         <td className="p-3 text-center"><input type="checkbox" className="rounded" /></td>
+                        <td className="p-3">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-800">{e.examDate || 'Sem data'}</span>
+                          </div>
+                        </td>
+                        <td className="p-3">
+                           <div className="flex flex-col">
+                             <span className="font-bold text-slate-800">{e.title}</span>
+                             <span className="text-blue-600 text-[9px] cursor-pointer" onClick={() => setActiveTab('notas')}>Ver notas</span>
+                           </div>
+                        </td>
+                        <td className="p-3 text-slate-600 uppercase font-medium">{e.examType}</td>
+                        <td className="p-3">
+                          <div className="flex items-center justify-center gap-4">
+                            <button className="text-slate-400 hover:text-slate-600 transition-colors"><Search className="w-4 h-4" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            )}
+
             {activeTab === 'notas' && (
               <div className="space-y-4">
                 <div className="flex justify-end">
@@ -1760,21 +1850,27 @@ function DiaryView({ user }: { user: User }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {students.map((s, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                          <td className="border border-slate-200 p-3 text-[11px] font-bold text-slate-700">{s.name}</td>
-                          <td className="border border-slate-200 p-3 text-center text-xs font-medium text-slate-700 bg-[#8bc34a]/5">{s.notes.p1.toFixed(1)}</td>
-                          <td className="border border-slate-200 p-3 text-center text-xs font-medium text-red-600 bg-slate-50">{s.notes.p2.toFixed(1)}</td>
-                          <td className="border border-slate-200 p-3 text-center text-xs font-medium text-red-600 bg-slate-50">{s.notes.p3.toFixed(1)}</td>
-                          <td className="border border-slate-200 p-3 text-center text-xs font-medium text-red-600 bg-slate-50">{s.notes.p4.toFixed(1)}</td>
-                          <td className="border border-slate-200 p-3 text-center text-xs font-black text-red-600 bg-[#f9f9f9]">{(Object.values(s.notes).reduce((a, b) => a + b, 0) / 4).toFixed(1)}</td>
-                          <td className="border border-slate-200 p-2 text-center">
-                            <button className="border border-slate-200 px-3 py-1.5 rounded text-[10px] font-bold flex items-center gap-1.5 mx-auto hover:bg-slate-100 transition-colors">
-                              <Edit3 className="w-3 h-3" /> Editar por aluno
-                            </button>
-                          </td>
+                      {studentsWithGrades.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="p-8 text-center text-slate-400 italic text-xs">Nenhum aluno encontrado para gerar notas.</td>
                         </tr>
-                      ))}
+                      ) : (
+                        studentsWithGrades.map((s, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                            <td className="border border-slate-200 p-3 text-[11px] font-bold text-slate-700">{s.name}</td>
+                            <td className="border border-slate-200 p-3 text-center text-xs font-medium text-slate-700 bg-[#8bc34a]/5">{s.notes.p1.toFixed(1)}</td>
+                            <td className="border border-slate-200 p-3 text-center text-xs font-medium text-slate-700 bg-slate-50">{s.notes.p2.toFixed(1)}</td>
+                            <td className="border border-slate-200 p-3 text-center text-xs font-medium text-slate-700 bg-slate-50">{s.notes.p3.toFixed(1)}</td>
+                            <td className="border border-slate-200 p-3 text-center text-xs font-medium text-slate-700 bg-slate-50">{s.notes.p4.toFixed(1)}</td>
+                            <td className="border border-slate-200 p-3 text-center text-xs font-black text-slate-900 bg-[#f9f9f9]">{((s.notes.p1 + s.notes.p2 + s.notes.p3 + s.notes.p4) / 4).toFixed(1)}</td>
+                            <td className="border border-slate-200 p-2 text-center">
+                              <button className="border border-slate-200 px-3 py-1.5 rounded text-[10px] font-bold flex items-center gap-1.5 mx-auto hover:bg-slate-100 transition-colors">
+                                <Edit3 className="w-3 h-3" /> Editar por aluno
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1784,14 +1880,14 @@ function DiaryView({ user }: { user: User }) {
         </div>
 
         {/* Footer Info Box */}
-        {(activeTab === 'diarios' || activeTab === 'avaliacoes') && (
+        {(activeTab === 'diarios' || activeTab === 'avaliacoes' || activeTab === 'alunos') && (
           <div className="bg-[#f8fafb] border-t border-slate-200 p-4 mt-8">
             <h4 className="text-blue-800 text-xs font-bold mb-3 flex items-center gap-2">
               <Info className="w-3.5 h-3.5" /> Informações do diário atual
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-1 text-[10px] font-bold text-slate-600 uppercase">
               <div className="flex items-center gap-2"><Check className="w-3 h-3 text-blue-800" /> Turma: {selectedClass}</div>
-              <div className="flex items-center gap-2"><Check className="w-3 h-3 text-blue-800" /> Professor: {user.email?.split('@')[0]}</div>
+              <div className="flex items-center gap-2"><Check className="w-3 h-3 text-blue-800" /> Professor: {userProfile?.professional_name || user.email?.split('@')[0]}</div>
               <div className="flex items-center gap-2"><Check className="w-3 h-3 text-blue-800" /> Exercício: 2026</div>
               <div className="flex items-center gap-2"><Check className="w-3 h-3 text-blue-800" /> Disciplina: {selectedSubject}</div>
               <div className="flex items-center gap-2"><Check className="w-3 h-3 text-blue-800" /> Turno: MANHÃ</div>
@@ -4153,9 +4249,9 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
 
             </div>
             
-            <div className="mt-4 pt-2 border-t border-black/10 flex items-center justify-center text-[11px] font-bold uppercase break-inside-avoid print:mt-2">
+            <div className="mt-2 flex items-center justify-center text-[11px] font-bold uppercase break-inside-avoid print:mt-2">
               <div className="flex flex-col text-center">
-                <span>Boa Sorte! • {exam.subject}</span>
+                <span>Boa Prova! • {exam.subject}</span>
                 <span className="text-[8px] opacity-40">Colégio Progresso Santista</span>
               </div>
             </div>
