@@ -3759,8 +3759,8 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
 
             </div>
             
-            <div className="mt-4 pt-2 border-t border-black/10 flex items-center justify-between text-[11px] font-bold uppercase break-inside-avoid print:mt-2">
-              <div className="flex flex-col">
+            <div className="mt-4 pt-2 border-t border-black/10 flex items-center justify-center text-[11px] font-bold uppercase break-inside-avoid print:mt-2">
+              <div className="flex flex-col text-center">
                 <span>Boa Sorte! • {exam.subject}</span>
                 <span className="text-[8px] opacity-40">Colégio Progresso Santista</span>
               </div>
