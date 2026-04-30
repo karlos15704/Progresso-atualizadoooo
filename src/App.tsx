@@ -1809,6 +1809,23 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => {
+                        const newQs = [...questions];
+                        const realIdx = questions.findIndex(origQ => origQ.id === q.id);
+                        if (realIdx !== -1) {
+                          newQs[realIdx].options = ['Verdadeiro', 'Falso'];
+                          newQs[realIdx].correctAnswer = 'A';
+                          setQuestions(newQs);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black uppercase rounded-md transition-colors flex items-center gap-1.5"
+                    >
+                      <Sparkles className="w-3 h-3 text-accent" />
+                      Verdadeiro ou Falso
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <label className="text-xs font-bold text-slate-500">Alinhamento:</label>
                     <div className="flex bg-slate-100 p-1 rounded-lg">
                       <button 
@@ -1941,42 +1958,85 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
               </div>
 
               {q.type !== 'essay' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                  {['A', 'B', 'C', 'D', 'E'].map((opt, optIdx) => (
-                    <div key={opt} className="flex items-center gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 items-start">
+                  {(q.options || []).map((opt, optIdx) => (
+                    <div key={optIdx} className="flex items-center gap-3 group">
                       <button 
                         onClick={() => {
                           const newQs = [...questions];
                           const realIdx = questions.findIndex(origQ => origQ.id === q.id);
                           if (realIdx !== -1) {
-                            newQs[realIdx].correctAnswer = opt;
+                            newQs[realIdx].correctAnswer = String.fromCharCode(65 + optIdx);
                             setQuestions(newQs);
                           }
                         }}
                         className={cn(
-                          "w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-xs transition-all",
-                          q.correctAnswer === opt 
+                          "w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-xs transition-all shrink-0",
+                          q.correctAnswer === String.fromCharCode(65 + optIdx)
                             ? "bg-primary border-primary text-white" 
                             : "border-border text-slate-400 hover:border-slate-300"
                         )}
                       >
-                        {opt}
+                        {String.fromCharCode(65 + optIdx)}
                       </button>
-                      <input 
-                        value={q.options[optIdx]}
-                        onChange={e => {
-                          const newQs = [...questions];
-                          const realIdx = questions.findIndex(origQ => origQ.id === q.id);
-                          if (realIdx !== -1) {
-                            newQs[realIdx].options[optIdx] = e.target.value;
-                            setQuestions(newQs);
-                          }
-                        }}
-                        placeholder={`Opção ${opt}`}
-                        className="flex-1 px-3 py-1.5 rounded border border-slate-100 focus:border-accent outline-none text-sm"
-                      />
+                      <div className="relative flex-1">
+                        <input 
+                          value={opt}
+                          onChange={e => {
+                            const newQs = [...questions];
+                            const realIdx = questions.findIndex(origQ => origQ.id === q.id);
+                            if (realIdx !== -1) {
+                              const newOpts = [...(newQs[realIdx].options || [])];
+                              newOpts[optIdx] = e.target.value;
+                              newQs[realIdx].options = newOpts;
+                              setQuestions(newQs);
+                            }
+                          }}
+                          placeholder={`Opção ${String.fromCharCode(65 + optIdx)}`}
+                          className="w-full px-3 py-1.5 rounded border border-slate-100 focus:border-accent outline-none text-sm pr-8"
+                        />
+                        {q.options && q.options.length > 2 && (
+                          <button 
+                            onClick={() => {
+                              const newQs = [...questions];
+                              const realIdx = questions.findIndex(origQ => origQ.id === q.id);
+                              if (realIdx !== -1) {
+                                const newOpts = q.options.filter((_, i) => i !== optIdx);
+                                newQs[realIdx].options = newOpts;
+                                // Reset correct answer if it was deleted or shifted
+                                if (q.correctAnswer === String.fromCharCode(65 + optIdx)) {
+                                  newQs[realIdx].correctAnswer = 'A';
+                                } else if (q.correctAnswer > String.fromCharCode(65 + optIdx)) {
+                                  newQs[realIdx].correctAnswer = String.fromCharCode(q.correctAnswer.charCodeAt(0) - 1);
+                                }
+                                setQuestions(newQs);
+                              }
+                            }}
+                            className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
+                  
+                  {q.options && q.options.length < 10 && (
+                    <button 
+                      onClick={() => {
+                        const newQs = [...questions];
+                        const realIdx = questions.findIndex(origQ => origQ.id === q.id);
+                        if (realIdx !== -1) {
+                          newQs[realIdx].options = [...(q.options || []), ''];
+                          setQuestions(newQs);
+                        }
+                      }}
+                      className="flex items-center justify-center gap-2 py-1.5 border-2 border-dashed border-slate-100 rounded-md text-slate-400 hover:text-accent hover:border-accent transition-all font-bold text-[10px] uppercase tracking-widest bg-slate-50/50 min-h-[34px]"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Adicionar Alternativa
+                    </button>
+                  )}
                 </div>
               )}
               
@@ -3740,17 +3800,18 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
                     </div>
                   ) : (
                     <div className={cn("flex flex-col w-fit space-y-1", q.align === 'center' ? "mx-auto items-center" : "ml-12 items-start")}>
-                      {['a', 'b', 'c', 'd', 'e'].map((letter, i) => (
-                        q.options[i] && (
+                      {(q.options || []).map((optText, i) => {
+                        const letter = String.fromCharCode(97 + i); // a, b, c...
+                        return optText && (
                           <div key={letter} className="flex gap-2">
-                            <span className="text-sm font-bold">{letter})</span>
-                            <SafeHTML 
-                              html={q.options[i]} 
-                              className="text-sm q-text-html-container" 
-                            />
+                             <span className="text-sm font-bold">{letter})</span>
+                             <SafeHTML 
+                               html={optText} 
+                               className="text-sm q-text-html-container" 
+                             />
                           </div>
-                        )
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
