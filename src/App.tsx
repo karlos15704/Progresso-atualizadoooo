@@ -922,7 +922,7 @@ export default function App() {
               const { error } = await supabase.auth.updateUser({ password: newPw + "_cpsAuth" });
               if (error) throw error;
             }} />}
-            {view === 'diary' && <DiaryView user={user} exams={exams} results={results} userProfile={userProfile} />}
+            {view === 'diary' && <DigitalDiaryView user={user} isAdmin={isAdmin} userProfile={userProfile} />}
             {view === 'boletim' && <BoletimView results={results} exams={exams} isAdmin={isAdmin} user={user} userProfile={userProfile} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
             {view === 'cronograma' && <CronogramaEstudosView exams={exams} isAdmin={isAdmin} schoolInfo={getSchoolInfo()} bimesters={['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre']} userProfile={userProfile} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />}
           </AnimatePresence>
@@ -1226,11 +1226,13 @@ const EXAM_CATEGORIES = [
   'PIV', 
   'PV', 
   'PVI', 
+  'Recuperação',
   'Recuperação Bimestral', 
   'Recuperação Final',
   'Trabalho',
   'Simulado',
-  'Atividade'
+  'Atividade',
+  'Projeto'
 ];
 
 function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintExam, onEditExam, onDeleteExam, professors, onReassignProfessor, userProfile }: { 
@@ -1476,525 +1478,6 @@ function StatCard({ label, value, icon, color }: { label: string, value: any, ic
       <div>
         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-0.5">{label}</p>
         <p className="text-xl font-display font-black text-slate-800 dark:text-slate-100 tracking-tight leading-none">{value}</p>
-      </div>
-    </div>
-  );
-}
-
-function DiaryView({ user, exams, results, userProfile }: { user: User, exams: Exam[], results: Result[], userProfile: any }) {
-  const [activeTab, setActiveTab] = useState<'diarios' | 'alunos' | 'aulas' | 'avaliacoes' | 'atividades' | 'notas' | 'relatorio'>('diarios');
-  const [selectedBimester, setSelectedBimester] = useState('1º BIMESTRE');
-  const schoolInfo = getSchoolInfo();
-  
-  // Initialize with real data if available
-  const [selectedClass, setSelectedClass] = useState(schoolInfo.classes[0] || '6º A');
-  const [selectedSubject, setSelectedSubject] = useState(schoolInfo.subjects[0] || 'MATEMÁTICA');
-
-  // Sync students from real DB
-  const allStudentsList = useMemo(() => {
-    return Object.values(schoolInfo.studentsDB).flat();
-  }, [schoolInfo.studentsDB]);
-
-  const studentsForClass = useMemo(() => {
-    return allStudentsList.filter(s => s.classId === selectedClass);
-  }, [allStudentsList, selectedClass]);
-
-  // Map results for the specific class/subject/bimester
-  const studentsWithGrades = useMemo(() => {
-    return studentsForClass.map(s => {
-      // Find results for this student in this subject/bimester
-      const studentResults = results.filter(r => 
-        r.studentName === s.name && 
-        (r.bimester?.toUpperCase() === selectedBimester.toUpperCase())
-      ).map(r => ({
-        result: r,
-        exam: exams.find(e => e.id === r.examId)
-      })).filter(item => item.exam?.subject === selectedSubject);
-
-      // Map to columns based on examType
-      const getScore = (type: string) => {
-        return studentResults.find(item => item.exam?.examType === type)?.result.score || 0;
-      };
-
-      return {
-        name: s.name,
-        status: 'CURSANDO',
-        notes: {
-          p1: getScore('PI'),
-          p2: getScore('PII'),
-          p3: getScore('PIII'),
-          p4: getScore('RB')
-        }
-      };
-    });
-  }, [studentsForClass, results, exams, selectedBimester, selectedSubject]);
-
-  const examsForView = useMemo(() => {
-    return exams.filter(e => 
-      e.classYear === selectedClass && 
-      e.subject === selectedSubject && 
-      (e.bimester?.toUpperCase() === selectedBimester.toUpperCase())
-    );
-  }, [exams, selectedClass, selectedSubject, selectedBimester]);
-
-  const lessons = [
-    { date: '28/01/2026', day: 'Quarta', content: 'Acolhimento', count: 2, material: true, frequency: true },
-    { date: '04/02/2026', day: 'Quarta', content: 'Apresentação do projeto Valentine\'s Day', count: 2, material: false, frequency: true },
-    { date: '11/02/2026', day: 'Quarta', content: 'Valentine\'s Day', count: 2, material: true, frequency: true },
-    { date: '18/02/2026', day: 'Quarta', content: 'Atividades suspensas "CINZAS"', count: 2, material: false, frequency: false },
-  ];
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-sm text-slate-500">
-        <span className="font-bold text-slate-900">Diários do Professor</span> / Lista
-        <div className="ml-auto flex items-center gap-2">
-          <span>Exercício:</span>
-          <span className="font-bold text-slate-900">2026</span>
-        </div>
-      </div>
-
-      {/* Filters Bar - Proesc Concept */}
-      <div className="bg-[#f0f3f5] border border-slate-200 p-4 rounded flex flex-wrap items-center gap-6">
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-bold text-slate-600 uppercase">Exercício:</label>
-          <select className="text-xs border border-slate-300 rounded px-2 py-1.5 outline-none bg-white min-w-[80px]">
-            <option>2026</option>
-          </select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-bold text-slate-600 uppercase">Turma:</label>
-          <select 
-            value={selectedClass} 
-            onChange={e => setSelectedClass(e.target.value)}
-            className="text-xs border border-slate-300 rounded px-2 py-1.5 outline-none bg-white min-w-[150px]"
-          >
-            {schoolInfo.classes.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-bold text-slate-600 uppercase">Disciplina:</label>
-          <select 
-            value={selectedSubject}
-            onChange={e => setSelectedSubject(e.target.value)}
-            className="text-xs border border-slate-300 rounded px-2 py-1.5 outline-none bg-white min-w-[200px]"
-          >
-            {schoolInfo.subjects.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-bold text-slate-600 uppercase">Período Letivo:</label>
-          <select 
-            value={selectedBimester}
-            onChange={e => setSelectedBimester(e.target.value)}
-            className="text-xs border border-slate-300 rounded px-2 py-1.5 outline-none bg-white min-w-[150px]"
-          >
-            <option>1º BIMESTRE</option>
-            <option>2º BIMESTRE</option>
-            <option>3º BIMESTRE</option>
-            <option>4º BIMESTRE</option>
-          </select>
-        </div>
-        <button className="bg-[#2c71b1] hover:bg-[#245e94] text-white px-6 py-2 rounded text-xs font-bold flex items-center gap-2 transition-colors mt-4 md:mt-0 ml-auto self-end">
-          <Search className="w-3.5 h-3.5" />
-          Pesquisar
-        </button>
-      </div>
-
-      <div className="bg-white border border-slate-200 rounded shadow-sm overflow-hidden">
-        {/* Navigation Tabs - Proesc Layout */}
-        <div className="flex bg-[#f8fafb] border-b border-slate-200 overflow-x-auto">
-          <button 
-            onClick={() => setActiveTab('diarios')}
-            className={cn(
-              "px-6 py-3.5 text-xs font-bold transition-all flex items-center gap-2 border-r border-slate-200 min-w-[120px] justify-center",
-              activeTab === 'diarios' ? "bg-white text-[#2c71b1] border-b-2 border-b-[#2c71b1]" : "text-slate-500 hover:bg-slate-100"
-            )}
-          >
-            <Layout className="w-4 h-4" />
-            Diários
-          </button>
-          <button 
-            onClick={() => setActiveTab('alunos')}
-            className={cn(
-              "px-6 py-3.5 text-xs font-bold transition-all flex items-center gap-2 border-r border-slate-200 min-w-[120px] justify-center",
-              activeTab === 'alunos' ? "bg-white text-[#2c71b1] border-b-2 border-b-[#2c71b1]" : "text-slate-500 hover:bg-slate-100"
-            )}
-          >
-            <UserCircle className="w-4 h-4" />
-            Alunos
-          </button>
-          <button 
-            onClick={() => setActiveTab('aulas')}
-            className={cn(
-              "px-6 py-3.5 text-xs font-bold transition-all flex items-center gap-2 border-r border-slate-200 min-w-[120px] justify-center",
-              activeTab === 'aulas' ? "bg-white text-[#2c71b1] border-b-2 border-b-[#2c71b1]" : "text-slate-500 hover:bg-slate-100"
-            )}
-          >
-            <BookOpen className="w-4 h-4" />
-            Aulas
-          </button>
-          <button 
-            onClick={() => setActiveTab('avaliacoes')}
-            className={cn(
-              "px-6 py-3.5 text-xs font-bold transition-all flex items-center gap-2 border-r border-slate-200 min-w-[120px] justify-center",
-              activeTab === 'avaliacoes' ? "bg-white text-[#2c71b1] border-b-2 border-b-[#2c71b1]" : "text-slate-500 hover:bg-slate-100"
-            )}
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            Avaliações
-          </button>
-          <button 
-            onClick={() => setActiveTab('atividades')}
-            className={cn(
-              "px-6 py-3.5 text-xs font-bold transition-all flex items-center gap-2 border-r border-slate-200 min-w-[120px] justify-center",
-              activeTab === 'atividades' ? "bg-white text-[#2c71b1] border-b-2 border-b-[#2c71b1]" : "text-slate-500 hover:bg-slate-100"
-            )}
-          >
-            <ClipboardList className="w-4 h-4" />
-            Atividades
-          </button>
-          <button 
-            onClick={() => setActiveTab('notas')}
-            className={cn(
-              "px-6 py-3.5 text-xs font-bold transition-all flex items-center gap-2 border-r border-slate-200 min-w-[150px] justify-center whitespace-nowrap",
-              activeTab === 'notas' ? "bg-white text-[#2c71b1] border-b-2 border-b-[#2c71b1]" : "text-slate-500 hover:bg-slate-100"
-            )}
-          >
-            <CheckSquare className="w-4 h-4" />
-            Notas por avaliação
-          </button>
-          <button 
-            onClick={() => setActiveTab('relatorio')}
-            className={cn(
-              "px-6 py-3.5 text-xs font-bold transition-all flex items-center gap-2 min-w-[120px] justify-center",
-              activeTab === 'relatorio' ? "bg-white text-[#2c71b1] border-b-2 border-b-[#2c71b1]" : "text-slate-500 hover:bg-slate-100"
-            )}
-          >
-            <FileText className="w-4 h-4" />
-            Relatório
-          </button>
-        </div>
-
-        <div className="p-1">
-          <div className="bg-[#fcfcfc] border border-slate-200 px-4 py-2 text-[10px] font-bold text-slate-600 uppercase flex items-center justify-between">
-            <span>TURMA: {selectedClass} / {selectedSubject} / ENSINO FUNDAMENTAL / 2026</span>
-          </div>
-
-          <div className="p-4">
-            {activeTab === 'diarios' && (
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 text-left border-b border-slate-200">
-                    <th className="p-3 text-[11px] font-bold text-slate-600 w-20">Situação</th>
-                    <th className="p-3 text-[11px] font-bold text-slate-600">Diário</th>
-                    <th className="p-3 text-[11px] font-bold text-slate-600 w-24 text-center">Aulas dadas</th>
-                    <th className="p-3 text-[11px] font-bold text-slate-600 w-40 text-center">Comandos</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b border-slate-100 text-xs">
-                    <td className="p-3">
-                      <span className="bg-[#5cb85c] text-white px-2 py-0.5 rounded text-[9px] font-bold uppercase">Entregue</span>
-                    </td>
-                    <td className="p-3">
-                      <div className="flex flex-col gap-1">
-                        <span className="font-bold text-slate-800">{selectedBimester}</span>
-                        <div className="flex gap-4 text-blue-600 underline text-[10px]">
-                          <button onClick={() => setActiveTab('alunos')}>Ver {studentsForClass.length} alunos</button>
-                          <button onClick={() => setActiveTab('aulas')}>28 aulas</button>
-                          <button onClick={() => setActiveTab('avaliacoes')}>{examsForView.length} avaliações</button>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-3 text-center font-bold">28</td>
-                    <td className="p-3">
-                      <div className="flex items-center justify-center gap-2">
-                        <button className="border border-slate-200 text-slate-600 p-1.5 rounded hover:bg-slate-50 flex items-center gap-2 text-[10px] font-bold">
-                          <RotateCcw className="w-3 h-3" /> Solicitar devolução
-                        </button>
-                        <button className="border border-slate-200 text-slate-400 p-1.5 rounded hover:bg-slate-50"><Search className="w-3.5 h-3.5" /></button>
-                        <button className="border border-slate-200 text-slate-400 p-1.5 rounded hover:bg-slate-50"><Layout className="w-3.5 h-3.5" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            )}
-
-            {activeTab === 'alunos' && (
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 text-left border-b border-slate-200">
-                    <th className="p-4 text-[11px] font-bold text-slate-600">Alunos ({studentsForClass.length})</th>
-                    <th className="p-4 text-[11px] font-bold text-slate-600 w-32">Situação</th>
-                    <th className="p-4 text-[11px] font-bold text-slate-600 w-40 text-center">Relatório Bimestral</th>
-                    <th className="p-4 text-[11px] font-bold text-slate-600 w-32 text-center">Responsável</th>
-                    <th className="p-4 text-[11px] font-bold text-slate-600 w-32 text-center">Comandos</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {studentsForClass.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="p-12 text-center text-slate-400 italic text-xs">Nenhum aluno encontrado para esta turma.</td>
-                    </tr>
-                  ) : (
-                    studentsForClass.map((s, i) => (
-                      <tr key={i} className="border-b border-slate-100 text-[11px] hover:bg-slate-50 transition-colors">
-                        <td className="p-4">
-                          <div className="flex flex-col">
-                            <span className="font-bold text-slate-800">{s.name}</span>
-                            <span className="text-blue-600 text-[9px] cursor-pointer mt-1 font-medium italic">Nenhuma falta lançada</span>
-                          </div>
-                        </td>
-                        <td className="p-4 text-slate-600 uppercase font-bold text-[10px]">CURSANDO</td>
-                        <td className="p-4 text-center">
-                          <button 
-                            onClick={() => setActiveTab('relatorio')}
-                            className="bg-[#3b5998] hover:bg-[#2d4373] text-white px-4 py-1.5 rounded flex items-center gap-2 mx-auto text-[10px] font-bold uppercase transition-colors"
-                          >
-                            <FileText className="w-3.5 h-3.5" /> Avaliar
-                          </button>
-                        </td>
-                        <td className="p-4 text-center">
-                          <span className="bg-[#5cb85c] text-white px-4 py-1 rounded text-[9px] font-bold uppercase block w-fit mx-auto">Responsável</span>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center justify-center gap-2">
-                             <button className="border border-slate-200 text-slate-400 p-1.5 rounded hover:bg-slate-50"><Search className="w-3.5 h-3.5" /></button>
-                             <button className="bg-amber-500 text-white p-1.5 rounded hover:bg-amber-600"><Mail className="w-3.5 h-3.5" /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            )}
-
-            {activeTab === 'aulas' && (
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 text-left border-b border-slate-200">
-                    <th className="p-4 text-[11px] font-bold text-slate-600 w-10">
-                      <input type="checkbox" className="rounded" />
-                    </th>
-                    <th className="p-4 text-[11px] font-bold text-slate-600 w-16 text-center">Material</th>
-                    <th className="p-4 text-[11px] font-bold text-slate-600 w-40">Data da aula</th>
-                    <th className="p-4 text-[11px] font-bold text-slate-600">Conteúdo</th>
-                    <th className="p-4 text-[11px] font-bold text-slate-600 w-24 text-center">Aulas dadas</th>
-                    <th className="p-4 text-[11px] font-bold text-slate-600 w-24 text-center whitespace-nowrap">Lançamento de Frequência</th>
-                    <th className="p-4 text-[11px] font-bold text-slate-600 w-32 text-center text-slate-300">Comandos</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lessons.map((l, i) => (
-                    <tr key={i} className="border-b border-slate-100 text-[11px] hover:bg-slate-50 transition-colors">
-                      <td className="p-4 text-center"><input type="checkbox" className="rounded" /></td>
-                      <td className="p-4 text-center">
-                         <div className="flex items-center justify-center">
-                           {l.material ? (
-                             <Paperclip className="w-3.5 h-3.5 text-slate-400" />
-                           ) : (
-                             <PlusSquare className="w-3.5 h-3.5 text-slate-300" />
-                           )}
-                         </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-800">{l.date}</span>
-                          <span className="text-slate-400 text-[10px]">{l.day}</span>
-                        </div>
-                      </td>
-                      <td className="p-4 text-slate-700 font-medium">{l.content}</td>
-                      <td className="p-4 text-center font-black text-slate-900 text-sm">{l.count}</td>
-                      <td className="p-4 text-center">
-                         <div className="flex justify-center">
-                           {l.frequency ? (
-                             <div className="w-5 h-5 rounded bg-blue-500 text-white flex items-center justify-center cursor-pointer">
-                               <Info className="w-3 h-3" />
-                             </div>
-                           ) : (
-                             <div className="w-5 h-5 rounded bg-slate-200 text-slate-400 flex items-center justify-center">
-                               <Info className="w-3 h-3" />
-                             </div>
-                           )}
-                         </div>
-                      </td>
-                      <td className="p-4 text-center">
-                         <div className="flex justify-center">
-                           <Search className="w-4 h-4 text-slate-300" />
-                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-
-            {activeTab === 'avaliacoes' && (
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 text-left border-b border-slate-200">
-                    <th className="p-4 text-[11px] font-bold text-slate-600 w-10 text-center">
-                       <input type="checkbox" className="rounded" />
-                    </th>
-                    <th className="p-4 text-[11px] font-bold text-slate-600 w-40">Data da avaliação</th>
-                    <th className="p-4 text-[11px] font-bold text-slate-600">Avaliação</th>
-                    <th className="p-4 text-[11px] font-bold text-slate-600 w-32">Tipo</th>
-                    <th className="p-4 text-[11px] font-bold text-slate-600 w-32 text-center text-slate-300">Comandos</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {examsForView.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="p-12 text-center text-slate-400 italic text-xs">Nenhuma avaliação encontrada para este período.</td>
-                    </tr>
-                  ) : (
-                    examsForView.map((e, idx) => (
-                      <tr key={e.id} className="border-b border-slate-100 text-[11px] hover:bg-slate-50 transition-colors">
-                        <td className="p-4 text-center"><input type="checkbox" className="rounded" /></td>
-                        <td className="p-4">
-                          <div className="flex flex-col">
-                            <span className="font-bold text-slate-800">{e.examDate || 'Sem data'}</span>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                           <div className="flex flex-col">
-                             <span className="font-bold text-slate-800">{e.title}</span>
-                             <span className="text-blue-600 text-[9px] cursor-pointer mt-1 font-bold underline" onClick={() => setActiveTab('notas')}>Ver lançamento de notas</span>
-                           </div>
-                        </td>
-                        <td className="p-4 text-slate-600 uppercase font-black text-[10px]">{e.examType}</td>
-                        <td className="p-4">
-                          <div className="flex items-center justify-center">
-                            <Search className="w-4 h-4 text-slate-300" />
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            )}
-
-            {activeTab === 'atividades' && (
-              <div className="p-12 text-center">
-                 <div className="flex flex-col items-center gap-4 text-slate-400">
-                    <ClipboardList className="w-12 h-12 opacity-20" />
-                    <p className="text-xs font-medium italic">Nenhuma atividade registrada para este diário.</p>
-                 </div>
-              </div>
-            )}
-
-            {activeTab === 'notas' && (
-              <div className="space-y-4">
-                <div className="flex justify-end pt-2">
-                  <button className="border border-slate-200 px-6 py-2 rounded text-[11px] font-bold flex items-center gap-2 hover:bg-slate-50 text-slate-700 uppercase transition-all shadow-sm">
-                    <Edit3 className="w-3.5 h-3.5 text-[#2c71b1]" /> Editar todos
-                  </button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-slate-200">
-                    <thead>
-                      <tr className="bg-slate-50">
-                        <th rowSpan={2} className="border border-slate-200 p-4 text-[11px] font-bold text-slate-600 text-center uppercase min-w-[300px]">Aluno</th>
-                        <th colSpan={1} className="border border-slate-200 p-2.5 text-[11px] font-black text-white text-center bg-[#8bc34a]">PI</th>
-                        <th colSpan={1} className="border border-slate-200 p-2.5 text-[11px] font-black text-slate-800 text-center bg-slate-100">PII</th>
-                        <th colSpan={1} className="border border-slate-200 p-2.5 text-[11px] font-black text-slate-800 text-center bg-slate-100">PIII</th>
-                        <th colSpan={1} className="border border-slate-200 p-2.5 text-[11px] font-black text-slate-800 text-center bg-slate-100">RB</th>
-                        <th rowSpan={2} className="border border-slate-200 p-4 text-[11px] font-black bg-[#fcfcfc] text-center w-28 uppercase text-slate-800">Nota Parcial</th>
-                        <th rowSpan={2} className="border border-slate-200 p-4 text-[11px] font-bold text-slate-600 text-center w-48 uppercase">Ações</th>
-                      </tr>
-                      <tr className="bg-slate-50">
-                        <th className="border border-slate-200 p-2 text-[9px] text-center bg-[#8bc34a] text-white font-medium italic">Nota máxima: 10</th>
-                        <th className="border border-slate-200 p-2 text-[9px] text-center bg-slate-100 text-slate-500 font-medium italic">Nota máxima: 10</th>
-                        <th className="border border-slate-200 p-2 text-[9px] text-center bg-slate-100 text-slate-500 font-medium italic">Nota máxima: 10</th>
-                        <th className="border border-slate-200 p-2 text-[9px] text-center bg-slate-100 text-slate-500 font-medium italic">Nota máxima: 10</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {studentsWithGrades.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="p-12 text-center text-slate-400 italic text-xs">Nenhum aluno encontrado para gerar lançamentos de notas.</td>
-                        </tr>
-                      ) : (
-                        studentsWithGrades.map((s, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                            <td className="border border-slate-200 p-4 text-[11px] font-bold text-slate-800 uppercase tracking-tight">{s.name}</td>
-                            <td className="border border-slate-200 p-4 text-center text-xs font-black text-[#689f38] bg-[#8bc34a]/10">{s.notes.p1.toFixed(1)}</td>
-                            <td className="border border-slate-200 p-4 text-center text-xs font-black text-slate-600 bg-slate-50">{s.notes.p2.toFixed(1)}</td>
-                            <td className="border border-slate-200 p-4 text-center text-xs font-black text-slate-600 bg-slate-50">{s.notes.p3.toFixed(1)}</td>
-                            <td className="border border-slate-200 p-4 text-center text-xs font-black text-slate-600 bg-slate-50">{s.notes.p4.toFixed(1)}</td>
-                            <td className="border border-slate-200 p-4 text-center text-sm font-black text-[#d32f2f] bg-[#f9f9f9]">{((s.notes.p1 + s.notes.p2 + s.notes.p3 + s.notes.p4) / 4).toFixed(1)}</td>
-                            <td className="border border-slate-200 p-3 text-center">
-                              <button className="border border-slate-200 px-4 py-2 rounded text-[10px] font-black uppercase flex items-center gap-2 mx-auto hover:bg-slate-100 transition-all text-slate-700">
-                                <Edit3 className="w-3.5 h-3.5 text-[#2c71b1]" /> Editar por aluno
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'relatorio' && (
-              <div className="space-y-6">
-                 <div className="bg-blue-50 border border-blue-100 p-5 rounded-lg flex items-start gap-4">
-                    <Info className="w-6 h-6 text-blue-500 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-blue-900 text-sm font-black uppercase mb-1">Relatórios de Desempenho Bimestral - {selectedBimester}</h4>
-                      <p className="text-blue-700 text-[11px] font-medium">Selecione um aluno abaixo para redigir ou editar o relatório pedagógico deste bimestre.</p>
-                    </div>
-                 </div>
-
-                 <div className="grid grid-cols-1 gap-3">
-                    {studentsForClass.map((s, i) => (
-                      <div key={i} className="border border-slate-200 rounded-lg p-5 hover:shadow-md transition-all bg-white flex flex-col md:flex-row md:items-center justify-between gap-5 border-l-4 border-l-[#2c71b1]">
-                        <div className="flex items-center gap-5">
-                          <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-black text-lg border border-slate-200">
-                            {s.name.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="text-sm font-black text-slate-800 uppercase tracking-tight">{s.name}</p>
-                            <div className="flex items-center gap-3 mt-1">
-                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{selectedClass} • {selectedSubject}</p>
-                               <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                               <span className="text-[9px] font-bold text-[#5cb85c] uppercase">Cursando</span>
-                            </div>
-                          </div>
-                        </div>
-                        <button className="bg-[#2c71b1] hover:bg-[#245e94] text-white px-8 py-3 rounded-md text-[11px] font-black uppercase transition-all shadow-sm flex items-center gap-2">
-                          <FilePlus className="w-4 h-4" />
-                          Escrever Relatório
-                        </button>
-                      </div>
-                    ))}
-                 </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Footer Info Box */}
-        {(activeTab === 'diarios' || activeTab === 'avaliacoes' || activeTab === 'alunos' || activeTab === 'relatorio' || activeTab === 'aulas') && (
-          <div className="bg-[#f8fafb] border-t border-slate-200 p-6 mt-8">
-            <h4 className="text-[#2c71b1] text-xs font-black uppercase mb-4 flex items-center gap-2 tracking-wider">
-              <Info className="w-4 h-4" /> Informações do diário atual
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-16 gap-y-2.5 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-              <div className="flex items-center gap-3"><Check className="w-4 h-4 text-[#2c71b1]" /> Turma: <span className="text-slate-800">{selectedClass}</span></div>
-              <div className="flex items-center gap-3"><Check className="w-4 h-4 text-[#2c71b1]" /> Professor: <span className="text-slate-800">{userProfile?.professional_name || user.email?.split('@')[0]}</span></div>
-              <div className="flex items-center gap-3"><Check className="w-4 h-4 text-[#2c71b1]" /> Exercício: <span className="text-slate-800">2026</span></div>
-              <div className="flex items-center gap-3"><Check className="w-4 h-4 text-[#2c71b1]" /> Disciplina: <span className="text-slate-800">{selectedSubject}</span></div>
-              <div className="flex items-center gap-3"><Check className="w-4 h-4 text-[#2c71b1]" /> Turno: <span className="text-slate-800">MANHÃ</span></div>
-              <div className="flex items-center gap-3"><Check className="w-4 h-4 text-[#2c71b1]" /> Criterio: <span className="text-slate-800">NOTAS FUNDAMENTAL</span></div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -5137,7 +4620,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
     const studentResults = results.filter(r => r.studentName === studentName);
     const regularResults = studentResults.filter(r => {
       const ex = exams.find(e => e.id === r.examId);
-      return ex && ex.examType !== 'Recuperação Bimestral' && ex.examType !== 'Recuperação Final';
+      return ex && !ex.examType?.toLowerCase().includes('recuperação');
     });
     return regularResults.length > 0 
       ? regularResults.reduce((acc, r) => acc + (Number(r.score) / r.maxScore * 10), 0) / regularResults.length
@@ -5670,10 +5153,10 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
     }
   };
 
-  const displayRegularExams = exams.filter(e => e.examType !== 'Recuperação Bimestral' && e.examType !== 'Recuperação Final');
-  const displayRecoveryExams = exams.filter(e => e.examType === 'Recuperação Bimestral' || e.examType === 'Recuperação Final');
+  const displayRegularExams = exams.filter(e => !e.examType?.toLowerCase().includes('recuperação'));
+  const displayRecoveryExams = exams.filter(e => e.examType?.toLowerCase().includes('recuperação'));
 
-  const examSortOrder = ['PI', 'PII', 'PIII', 'PIV', 'PV', 'PVI', 'Trabalho', 'Simulado', 'Atividade'];
+  const examSortOrder = ['PI', 'PII', 'PIII', 'PIV', 'PV', 'PVI', 'Trabalho', 'Simulado', 'Atividade', 'Projeto'];
   const sortedRegularExams = [...displayRegularExams].sort((a, b) => {
     const idxA = examSortOrder.indexOf(a.examType);
     const idxB = examSortOrder.indexOf(b.examType);
@@ -6016,12 +5499,12 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                           // Separate Regular Exams from Recovery
                           const regularResults = studentResults.filter(r => {
                             const exam = exams.find(e => e.id === r.examId);
-                            return exam && exam.examType !== 'Recuperação Bimestral' && exam.examType !== 'Recuperação Final';
+                            return exam && !exam.examType?.toLowerCase().includes('recuperação');
                           });
                           
                           const recoveryResult = studentResults.find(r => {
                             const exam = exams.find(e => e.id === r.examId);
-                            return exam && (exam.examType === 'Recuperação Bimestral' || exam.examType === 'Recuperação Final');
+                            return exam && exam.examType?.toLowerCase().includes('recuperação');
                           });
 
                           // Base Average (Regular Exams)
@@ -6147,7 +5630,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                 <button onClick={() => setLaunchingGradesFor(null)} className="p-3 hover:bg-white/10 rounded-full transition-all active:scale-90"><X className="w-7 h-7" /></button>
               </div>
               <div className="max-h-[500px] overflow-y-auto p-4 space-y-2">
-                {(launchingGradesFor.examType === 'Recuperação Bimestral' || launchingGradesFor.examType === 'Recuperação Final') && (
+                {launchingGradesFor.examType?.toLowerCase().includes('recuperação') && (
                   <div className="flex items-center gap-3 p-4 bg-yellow-50 rounded-2xl border border-yellow-100 mb-4">
                     <input 
                       type="checkbox" 
@@ -6175,7 +5658,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                       
                       const studentResults = results.filter(r => r.studentName === student.name);
                       
-                      if (launchingGradesFor.examType === 'Recuperação Bimestral') {
+                      if (launchingGradesFor.examType?.toLowerCase().includes('recuperação')) {
                         const bimesterResults = studentResults.filter(r => 
                           r.bimester === launchingGradesFor.bimester && 
                           r.examId !== launchingGradesFor.id
@@ -6183,7 +5666,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                         
                         const regularResults = bimesterResults.filter(r => {
                           const ex = exams.find(e => e.id === r.examId);
-                          return ex && ex.examType !== 'Recuperação Bimestral' && ex.examType !== 'Recuperação Final';
+                          return ex && !ex.examType?.toLowerCase().includes('recuperação');
                         });
 
                         const baseAvg = regularResults.length > 0 
@@ -6192,7 +5675,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                         return baseAvg < 6;
                       }
 
-                      if (launchingGradesFor.examType === 'Recuperação Final') {
+                      if (launchingGradesFor.examType?.toLowerCase().includes('recuperação')) {
                         // Media Anual
                         const bimesters = ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'];
                         const bimesterAverages = bimesters.map(bim => {
@@ -6200,11 +5683,11 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                           
                           const regular = bimResults.filter(r => {
                             const ex = exams.find(e => e.id === r.examId);
-                            return ex && ex.examType !== 'Recuperação Bimestral' && ex.examType !== 'Recuperação Final';
+                            return ex && !ex.examType?.toLowerCase().includes('recuperação');
                           });
                           const recovery = bimResults.find(r => {
                             const ex = exams.find(e => e.id === r.examId);
-                            return ex && ex.examType === 'Recuperação Bimestral';
+                            return ex && ex.examType?.toLowerCase().includes('recuperação');
                           });
 
                           const base = regular.length > 0
@@ -6226,29 +5709,29 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                       const studentResults = results.filter(r => r.studentName === student.name);
                       let currentAvg = 0;
 
-                      if (launchingGradesFor.examType === 'Recuperação Bimestral') {
+                      if (launchingGradesFor.examType?.toLowerCase().includes('recuperação')) {
                         const bimesterResults = studentResults.filter(r => 
                           r.bimester === launchingGradesFor.bimester && 
                           r.examId !== launchingGradesFor.id
                         );
                         const regularResults = bimesterResults.filter(r => {
                           const ex = exams.find(e => e.id === r.examId);
-                          return ex && ex.examType !== 'Recuperação Bimestral' && ex.examType !== 'Recuperação Final';
+                          return ex && !ex.examType?.toLowerCase().includes('recuperação');
                         });
                         currentAvg = regularResults.length > 0 
                           ? regularResults.reduce((acc, r) => acc + (Number(r.score) / r.maxScore * 10), 0) / regularResults.length
                           : 0;
-                      } else if (launchingGradesFor.examType === 'Recuperação Final') {
+                      } else if (launchingGradesFor.examType?.toLowerCase().includes('recuperação')) {
                         const bimesters = ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'];
                         const bimesterAverages = bimesters.map(bim => {
                           const bimResults = studentResults.filter(r => r.bimester === bim);
                           const regular = bimResults.filter(r => {
                             const ex = exams.find(e => e.id === r.examId);
-                            return ex && ex.examType !== 'Recuperação Bimestral' && ex.examType !== 'Recuperação Final';
+                            return ex && !ex.examType?.toLowerCase().includes('recuperação');
                           });
                           const recovery = bimResults.find(r => {
                             const ex = exams.find(e => e.id === r.examId);
-                            return ex && ex.examType === 'Recuperação Bimestral';
+                            return ex && ex.examType?.toLowerCase().includes('recuperação');
                           });
                           const base = regular.length > 0 ? regular.reduce((acc, r) => acc + (Number(r.score) / r.maxScore * 10), 0) / regular.length : 0;
                           return (recovery && base < 6) ? (base + (recovery.score / recovery.maxScore * 10)) / 2 : base;
@@ -6260,7 +5743,7 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                         <tr key={student.name} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                           <td className="p-3 text-xs font-bold text-slate-700 uppercase">{student.name}</td>
                           <td className="p-3 text-center">
-                             {(launchingGradesFor.examType === 'Recuperação Bimestral' || launchingGradesFor.examType === 'Recuperação Final') ? (
+                             {launchingGradesFor.examType?.toLowerCase().includes('recuperação') ? (
                                <span className={`text-sm font-black ${currentAvg < 6 ? 'text-red-600' : 'text-blue-600'}`}>
                                  {currentAvg.toFixed(1).replace('.', ',')}
                                </span>
@@ -6272,10 +5755,10 @@ function DigitalDiaryView({ user, isAdmin, userProfile }: { user: User, isAdmin:
                                 step="0.1"
                                 min="0"
                                 max="10"
-                                disabled={!isAuthorized(launchingGradesFor.classYear, launchingGradesFor.subject) || ((launchingGradesFor.examType === 'Recuperação Bimestral' || launchingGradesFor.examType === 'Recuperação Final') && currentAvg >= 6)}
+                                disabled={!isAuthorized(launchingGradesFor.classYear, launchingGradesFor.subject) || (launchingGradesFor.examType?.toLowerCase().includes('recuperação') && currentAvg >= 6)}
                                 value={gradeInputs[student.name] !== undefined ? gradeInputs[student.name] : ''}
                                 onChange={e => setGradeInputs({...gradeInputs, [student.name]: e.target.value})}
-                                placeholder={((launchingGradesFor.examType === 'Recuperação Bimestral' || launchingGradesFor.examType === 'Recuperação Final') && currentAvg >= 6) ? 'N/A' : '0,0'}
+                                placeholder={(launchingGradesFor.examType?.toLowerCase().includes('recuperação') && currentAvg >= 6) ? 'N/A' : '0,0'}
                                 className="w-full bg-slate-100 border-2 border-transparent focus:border-accent focus:bg-white rounded-xl px-4 py-2 text-center text-lg font-black text-slate-900 outline-none transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-inner"
                               />
                           </td>
@@ -6885,6 +6368,10 @@ function CronogramaEstudosView({
                       <option value="PII">PII</option>
                       <option value="PIII">PIII</option>
                       <option value="Atividade">Atividade</option>
+                      <option value="Trabalho">Trabalho</option>
+                      <option value="Simulado">Simulado</option>
+                      <option value="Recuperação">Recuperação</option>
+                      <option value="Projeto">Projeto</option>
                       <option value="Cronograma">Cronograma</option>
                     </select>
                   </div>
@@ -7029,11 +6516,11 @@ function BoletimItem({
                 // Separate Regular from Recovery
                 const regular = subjectBimResults.filter(r => {
                   const ex = exams.find(e => e.id === r.examId);
-                  return ex && ex.examType !== 'Recuperação Bimestral';
+                  return ex && !ex.examType?.toLowerCase().includes('recuperação');
                 });
                 const recovery = subjectBimResults.find(r => {
                   const ex = exams.find(e => e.id === r.examId);
-                  return ex && ex.examType === 'Recuperação Bimestral';
+                  return ex && ex.examType?.toLowerCase().includes('recuperação');
                 });
 
                 const baseAvg = regular.length > 0
