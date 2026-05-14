@@ -2220,6 +2220,20 @@ function AdminView({ user, onResetPassword }: { user: User, onResetPassword: (ui
   const [configLoading, setConfigLoading] = useState(false);
   const [resettingPwUser, setResettingPwUser] = useState<any | null>(null);
   const [newPwVal, setNewPwVal] = useState('');
+  const [isServerConfigured, setIsServerConfigured] = useState(true);
+
+  useEffect(() => {
+    const checkConfig = async () => {
+      try {
+        const res = await fetch('/api/debug-env');
+        const data = await res.json();
+        setIsServerConfigured(data.hasSupabaseServiceKey);
+      } catch (err) {
+        console.error("Failed to check server config:", err);
+      }
+    };
+    checkConfig();
+  }, []);
 
   const toggleSubject = (sub: string) => {
     setSelectedSubjects(prev => 
@@ -2444,6 +2458,20 @@ function AdminView({ user, onResetPassword }: { user: User, onResetPassword: (ui
             exit={{ opacity: 0, y: -10 }}
             className="space-y-8"
           >
+            {!isServerConfigured && (
+              <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 p-6 rounded-2xl flex flex-col md:flex-row items-center gap-6 shadow-sm">
+                <div className="p-4 bg-white dark:bg-slate-900 rounded-xl shadow-sm text-red-600">
+                  <ShieldCheck className="w-8 h-8" />
+                </div>
+                <div className="flex-1 text-center md:text-left">
+                  <h3 className="font-black text-red-900 dark:text-red-400 uppercase tracking-tight text-lg">Configuração Incompleta</h3>
+                  <p className="text-sm text-red-700 dark:text-red-300/80 leading-relaxed max-w-2xl mt-1">
+                    A <b>Service Role Key</b> do Supabase não foi encontrada. Esta chave é necessária para criar professores e redefinir senhas. 
+                    Por favor, adicione o segredo <code className="bg-red-100 dark:bg-red-900/40 px-1.5 py-0.5 rounded font-black">SUPABASE_SERVICE_ROLE_KEY</code> em <b>Settings &gt; Secrets</b> no AI Studio.
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Add User Form */}
               <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border-2 border-slate-200 dark:border-slate-800 shadow-sm">

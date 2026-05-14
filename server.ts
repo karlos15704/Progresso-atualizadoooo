@@ -3,6 +3,9 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import fs from "fs";
 import { createClient } from '@supabase/supabase-js';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
 
 const LOG_FILE = path.join(process.cwd(), 'server-debug.log');
 
@@ -13,7 +16,7 @@ function getSupabaseAdmin() {
     const url = process.env.VITE_SUPABASE_URL || 'https://kieifmfjonynbqvmhzis.supabase.co';
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!key) {
-      throw new Error("SUPABASE_SERVICE_ROLE_KEY environment variable is required for admin operations.");
+      throw new Error("A secret 'SUPABASE_SERVICE_ROLE_KEY' é obrigatória para operações administrativas. Adicione-a em Settings > Secrets.");
     }
     supabaseAdmin = createClient(url, key);
   }
@@ -47,6 +50,7 @@ async function startServer() {
   app.get("/api/debug-env", (req, res) => {
     res.json({
       hasGeminiKey: !!process.env.GEMINI_API_KEY,
+      hasSupabaseServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
       nodeEnv: process.env.NODE_ENV,
       port: 3000
     });
@@ -228,7 +232,7 @@ async function startServer() {
     }
 
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      return res.status(500).json({ error: "Configuração do servidor incompleta (service role key faltando)." });
+      return res.status(500).json({ error: "Configuração do servidor incompleta. Por favor, adicione a secret 'SUPABASE_SERVICE_ROLE_KEY' em Settings > Secrets no AI Studio." });
     }
 
     try {
