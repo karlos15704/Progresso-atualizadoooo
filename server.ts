@@ -14,7 +14,7 @@ let supabaseAdmin: any = null;
 function getSupabaseAdmin() {
   if (!supabaseAdmin) {
     const url = process.env.VITE_SUPABASE_URL || 'https://kieifmfjonynbqvmhzis.supabase.co';
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
     if (!key) {
       throw new Error("A secret 'SUPABASE_SERVICE_ROLE_KEY' é obrigatória para operações administrativas. Adicione-a em Settings > Secrets.");
     }
@@ -50,7 +50,7 @@ async function startServer() {
   app.get("/api/debug-env", (req, res) => {
     res.json({
       hasGeminiKey: !!process.env.GEMINI_API_KEY,
-      hasSupabaseServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      hasSupabaseServiceKey: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY),
       nodeEnv: process.env.NODE_ENV,
       port: 3000
     });
@@ -231,7 +231,7 @@ async function startServer() {
       return res.status(400).json({ error: "Nome, usuário e senha são obrigatórios." });
     }
 
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.VITE_SUPABASE_SERVICE_ROLE_KEY) {
       return res.status(500).json({ error: "Configuração do servidor incompleta. Por favor, adicione a secret 'SUPABASE_SERVICE_ROLE_KEY' em Settings > Secrets no AI Studio." });
     }
 
