@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS attendance (
 );
 
 -- ==========================================
--- 5. POLÍTICAS DE SEGURANÇA (RLS)
+-- 5. POLÍTICAS DE SEGURANÇA (RLS) - REVISADAS
 -- ==========================================
 
 ALTER TABLE allowed_professors ENABLE ROW LEVEL SECURITY;
@@ -137,6 +137,21 @@ ALTER TABLE student_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lessons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE attendance ENABLE ROW LEVEL SECURITY;
 
+-- Helper Function to check if user has access to a subject
+CREATE OR REPLACE FUNCTION public.has_subject_access(target_subject text)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  RETURN (
+    public.is_admin() OR
+    EXISTS (
+      SELECT 1 FROM public.users 
+      WHERE uid = auth.uid() 
+      AND target_subject = ANY(assigned_subjects)
+    )
+  );
+END;
+$$;
+
 -- Allowed Professors
 CREATE POLICY "Public select" ON allowed_professors FOR SELECT USING (true);
 CREATE POLICY "Admin manage" ON allowed_professors FOR ALL USING (public.is_admin());
@@ -144,28 +159,32 @@ CREATE POLICY "Admin manage" ON allowed_professors FOR ALL USING (public.is_admi
 -- Users
 CREATE POLICY "Users view all" ON users FOR SELECT USING (true);
 CREATE POLICY "Users update self" ON users FOR UPDATE USING (uid = auth.uid());
-CREATE POLICY "Admin delete users" ON users FOR DELETE USING (public.is_admin());
+CREATE POLICY "Admin manage all users" ON users FOR ALL USING (public.is_admin());
 CREATE POLICY "Public insert users" ON users FOR INSERT WITH CHECK (true);
 
 -- Exams
-CREATE POLICY "Exams select public" ON exams FOR SELECT USING (true);
-CREATE POLICY "Exams manage own" ON exams FOR ALL USING (professor_id = auth.uid() OR public.is_admin());
+CREATE POLICY "Exams access" ON exams FOR ALL USING (public.has_subject_access(subject));
 
--- Results
-CREATE POLICY "Results insert public" ON results FOR INSERT WITH CHECK (true);
-CREATE POLICY "Results manage own" ON results FOR ALL USING (professor_id = auth.uid() OR public.is_admin());
+-- Results (links to Exams)
+CREATE POLICY "Results access" ON results FOR ALL USING (
+  EXISTS (
+    SELECT 1 FROM exams 
+    WHERE exams.id = results.exam_id 
+    AND public.has_subject_access(exams.subject)
+  )
+);
 
 -- Student Reports
-CREATE POLICY "Reports manage own" ON student_reports FOR ALL USING (professor_id = auth.uid() OR public.is_admin());
+CREATE POLICY "Reports access" ON student_reports FOR ALL USING (public.has_subject_access(subject));
 
 -- Lessons
-CREATE POLICY "Lessons manage own" ON lessons FOR ALL USING (professor_id = auth.uid() OR public.is_admin());
+CREATE POLICY "Lessons access" ON lessons FOR ALL USING (public.has_subject_access(subject));
 
 -- Attendance
-CREATE POLICY "Attendance manage through lesson" ON attendance FOR ALL USING (
+CREATE POLICY "Attendance access" ON attendance FOR ALL USING (
   EXISTS (
     SELECT 1 FROM lessons 
     WHERE lessons.id = attendance.lesson_id 
-    AND (lessons.professor_id = auth.uid() OR public.is_admin())
+    AND public.has_subject_access(lessons.subject)
   )
 );

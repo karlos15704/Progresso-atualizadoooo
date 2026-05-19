@@ -619,7 +619,13 @@ export default function App() {
     if (!user) return;
 
     const fetchExams = async () => {
-      const { data, error } = await supabase.from('exams').select('*').order('created_at', { ascending: false });
+      let query = supabase.from('exams').select('*').order('created_at', { ascending: false });
+      
+      if (!isAdmin && userProfile?.assigned_subjects?.length > 0) {
+        query = query.in('subject', userProfile.assigned_subjects);
+      }
+
+      const { data, error } = await query;
       if (error) {
          console.error("Fetch exams failed:", error.message);
          if (!error.message.includes('infinite recursion')) {
@@ -652,8 +658,12 @@ export default function App() {
     };
 
     const fetchResults = async () => {
-      let query = supabase.from('results').select('*');
-      // Remove the professor_id filter to allow seeing results for shared classes/subjects
+      let query = supabase.from('results').select('*, exams!inner(subject)');
+      
+      if (!isAdmin && userProfile?.assigned_subjects?.length > 0) {
+        query = query.in('exams.subject', userProfile.assigned_subjects);
+      }
+
       const { data } = await query;
       if (data) {
         setResults(data.map(r => ({
@@ -672,8 +682,8 @@ export default function App() {
     const fetchStudentReports = async () => {
       let query = supabase.from('student_reports').select('*').order('created_at', { ascending: false });
       
-      if (!isAdmin) {
-        query = query.eq('professor_id', user.id);
+      if (!isAdmin && userProfile?.assigned_subjects?.length > 0) {
+        query = query.in('subject', userProfile.assigned_subjects);
       }
       const { data } = await query;
       if (data) {
@@ -1695,7 +1705,7 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
               className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm bg-white"
             >
               <option value="">Selecione uma disciplina...</option>
-              {schoolInfo.subjects.map(s => (
+              {(isAdmin ? schoolInfo.subjects : (userProfile?.assigned_subjects || [])).map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
