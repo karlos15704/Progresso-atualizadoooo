@@ -151,6 +151,7 @@ interface Question {
   correctAnswer: string;
   points?: number | string;
   align?: 'left' | 'center';
+  lineCount?: number;
 }
 
 interface Exam {
@@ -1403,6 +1404,16 @@ function DashboardView({ user, isAdmin, exams, results, setView, onSelectPrintEx
                                   onSelectPrintExam(exam);
                                   setView('print');
                                 }}
+                                className="p-1.5 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                                title="Visualizar Prova"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  onSelectPrintExam(exam);
+                                  setView('print');
+                                }}
                                 className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
                                 title="Imprimir"
                               >
@@ -1528,7 +1539,8 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
       points: 1,
       imageSize: 100,
       imageAlign: 'center',
-      align: 'left'
+      align: 'left',
+      lineCount: type === 'essay' ? 5 : undefined
     }]);
   };
 
@@ -1910,6 +1922,31 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
                   </button>
                 </div>
               </div>
+
+              {q.type === 'essay' && (
+                <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-md border border-slate-200">
+                  <div className="flex items-center gap-2">
+                    <LayoutList className="w-4 h-4 text-slate-400" />
+                    <label className="text-xs font-bold text-slate-500">Número de Linhas:</label>
+                    <input 
+                      type="number" 
+                      min="1"
+                      max="50"
+                      value={q.lineCount || 5}
+                      onChange={e => {
+                        const newQs = [...questions];
+                        const realIdx = questions.findIndex(origQ => origQ.id === q.id);
+                        if (realIdx !== -1) {
+                          newQs[realIdx].lineCount = parseInt(e.target.value) || 1;
+                          setQuestions(newQs);
+                        }
+                      }}
+                      className="w-16 px-2 py-1 rounded border border-border focus:border-accent text-sm outline-none bg-white text-center font-bold"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-medium">Define quantas linhas de resposta serão impressas abaixo desta questão.</p>
+                </div>
+              )}
 
               <ProfessionalEditor 
                 value={q.text}
@@ -3820,11 +3857,11 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
             <div className="space-y-10">
               {exam.questions.map((q, idx) => (
                 <div key={q.id} className={cn("space-y-4 break-inside-avoid", q.align === 'center' ? "text-center" : "text-left")}>
-                  <div className={cn("w-full px-4 flex items-start gap-1", q.align === 'center' ? "justify-center" : "justify-start")}>
-                    <span className="font-bold text-sm min-w-[20px]">{idx + 1}.</span>
+                  <div className={cn("w-full px-4 flex items-start gap-1", q.align === 'center' ? "flex-col items-center justify-center text-center" : "justify-start")}>
+                    <span className={cn("font-bold text-sm min-w-[20px]", q.align === 'center' ? "mb-1" : "")}>{idx + 1}.</span>
                     <SafeHTML 
                       html={q.text} 
-                      className="text-sm font-bold leading-relaxed q-text-html-container flex-1" 
+                      className={cn("text-sm font-bold leading-relaxed q-text-html-container", q.align === 'center' ? "" : "flex-1")} 
                     />
                   </div>
                   
@@ -3843,9 +3880,9 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
                   )}
 
                   {q.type === 'essay' ? (
-                    <div className={cn("px-8 space-y-4 pt-2", q.align === 'center' ? "mx-auto w-full" : "")}>
-                       {Array.from({ length: 5 }).map((_, i) => (
-                         <div key={i} className="border-b border-black/30 h-8"></div>
+                    <div className={cn("px-8 space-y-0 pt-1", q.align === 'center' ? "mx-auto w-full" : "")}>
+                       {Array.from({ length: q.lineCount || 5 }).map((_, i) => (
+                         <div key={i} className="border-b border-black/30 h-6"></div>
                        ))}
                     </div>
                   ) : (
