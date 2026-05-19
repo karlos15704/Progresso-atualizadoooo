@@ -622,8 +622,12 @@ export default function App() {
     const fetchExams = async () => {
       let query = supabase.from('exams').select('*').order('created_at', { ascending: false });
       
-      if (!isAdmin && userProfile?.assigned_subjects?.length > 0) {
-        query = query.in('subject', userProfile.assigned_subjects);
+      if (!isAdmin) {
+        if (userProfile?.assigned_subjects?.length > 0) {
+          query = query.in('subject', userProfile.assigned_subjects);
+        } else {
+          query = query.eq('professor_id', user.id);
+        }
       }
 
       const { data, error } = await query;
@@ -661,8 +665,12 @@ export default function App() {
     const fetchResults = async () => {
       let query = supabase.from('results').select('*, exams!inner(subject)');
       
-      if (!isAdmin && userProfile?.assigned_subjects?.length > 0) {
-        query = query.in('exams.subject', userProfile.assigned_subjects);
+      if (!isAdmin) {
+        if (userProfile?.assigned_subjects?.length > 0) {
+          query = query.in('exams.subject', userProfile.assigned_subjects);
+        } else {
+          query = query.eq('professor_id', user.id);
+        }
       }
 
       const { data } = await query;
@@ -683,8 +691,12 @@ export default function App() {
     const fetchStudentReports = async () => {
       let query = supabase.from('student_reports').select('*').order('created_at', { ascending: false });
       
-      if (!isAdmin && userProfile?.assigned_subjects?.length > 0) {
-        query = query.in('subject', userProfile.assigned_subjects);
+      if (!isAdmin) {
+        if (userProfile?.assigned_subjects?.length > 0) {
+          query = query.in('subject', userProfile.assigned_subjects);
+        } else {
+          query = query.eq('professor_id', user.id);
+        }
       }
       const { data } = await query;
       if (data) {
@@ -895,7 +907,7 @@ export default function App() {
         <main className="flex-1 overflow-y-auto p-4 md:p-[30px] pb-32 lg:pb-[30px] bg-[#f8fafc] print:overflow-visible print:p-0 print:static print:block print-container">
           <AnimatePresence mode="wait">
             {view === 'dashboard' && <DashboardView user={user} isAdmin={isAdmin} exams={exams} results={results} setView={setView} onSelectPrintExam={setSelectedPrintExam} onEditExam={e => { setExamToEdit(e); setView('create'); }} onDeleteExam={handleDeleteExam} professors={professors} onReassignProfessor={setExamBeingReassigned} userProfile={userProfile} />}
-            {view === 'create' && <CreateExamView user={user} userProfile={userProfile} setView={setView} examToEdit={examToEdit} onExamSaved={() => { setExamToEdit(null); setRefreshTrigger(prev => prev + 1); setView('dashboard'); }} />}
+            {view === 'create' && <CreateExamView user={user} userProfile={userProfile} setView={setView} examToEdit={examToEdit} professors={professors} onExamSaved={() => { setExamToEdit(null); setRefreshTrigger(prev => prev + 1); setView('dashboard'); }} />}
             {view === 'studentReports' && (
               <StudentReportsView 
                 user={user} 
@@ -1504,7 +1516,7 @@ function StatCard({ label, value, icon, color }: { label: string, value: any, ic
   );
 }
 
-function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }: { user: User, userProfile: any, setView: (v: any) => void, examToEdit?: Exam | null, onExamSaved: () => void }) {
+function CreateExamView({ user, userProfile, setView, examToEdit, professors, onExamSaved }: { user: User, userProfile: any, setView: (v: any) => void, examToEdit?: Exam | null, professors: any[], onExamSaved: () => void }) {
   const schoolInfo = getSchoolInfo();
   const isAdmin = userProfile?.role === 'admin';
   
@@ -1631,11 +1643,11 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto space-y-6 pb-20"
+      className="max-w-[1400px] mx-auto space-y-6 pb-20 px-4"
     >
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-primary">{examToEdit ? 'Editar Prova' : 'Nova Prova'}</h2>
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-sm text-slate-600 font-bold bg-slate-50 px-3 py-1 rounded border border-slate-200 cursor-pointer">
             <input 
               type="checkbox" 
@@ -1643,8 +1655,9 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
               onChange={(e) => setIsExternal(e.target.checked)} 
               className="accent-primary"
             />
-            Prova Externa (Apenas Cronograma)
+            Prova Externa (Cronograma)
           </label>
+          <div className="h-6 w-px bg-slate-200 mx-2" />
           <button onClick={() => setView('dashboard')} className="px-4 py-2 text-slate-500 font-bold text-sm">Cancelar</button>
           <button 
             onClick={handleSave} 
@@ -1664,451 +1677,316 @@ function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }:
         </div>
       )}
 
-      <div className="bg-white p-6 rounded-lg border border-border shadow-sm space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Título da Prova</label>
-            <input 
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="Ex: Prova Mensal de História"
-              className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Bimestre</label>
-            <select 
-              value={bimester}
-              onChange={e => setBimester(e.target.value)}
-              className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm bg-white"
-            >
-              <option value="1º Bimestre">1º Bimestre</option>
-              <option value="2º Bimestre">2º Bimestre</option>
-              <option value="3º Bimestre">3º Bimestre</option>
-              <option value="4º Bimestre">4º Bimestre</option>
-            </select>
-          </div>
-          <div className="space-y-2 col-span-1 md:col-span-3">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Turmas (Pode ser mais de uma)</label>
-            <div className="flex flex-wrap gap-2">
-              {schoolInfo.classes.map(c => {
-                const isSelected = classYear.split(', ').includes(c);
-                return (
-                  <button 
-                    key={c}
-                    type="button"
-                    onClick={() => {
-                      const arr = classYear.split(', ').filter(Boolean);
-                      if (arr.includes(c)) setClassYear(arr.filter(x => x !== c).join(', '));
-                      else setClassYear([...arr, c].join(', '));
-                    }}
-                    className={`px-3 py-1.5 rounded-md text-xs font-bold border transition-colors ${isSelected ? 'bg-primary text-white border-primary' : 'bg-slate-50 text-slate-600 border-border hover:border-slate-400'}`}
-                  >
-                    {c}
-                  </button>
-                )
-              })}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-8 items-start">
+        {/* Editor Side */}
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-lg border border-border shadow-sm space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Título da Prova</label>
+                <input 
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  placeholder="Ex: Prova Mensal de História"
+                  className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Bimestre</label>
+                <select 
+                  value={bimester}
+                  onChange={e => setBimester(e.target.value)}
+                  className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm bg-white"
+                >
+                  <option value="1º Bimestre">1º Bimestre</option>
+                  <option value="2º Bimestre">2º Bimestre</option>
+                  <option value="3º Bimestre">3º Bimestre</option>
+                  <option value="4º Bimestre">4º Bimestre</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Matéria</label>
+                <select 
+                  value={subject}
+                  onChange={e => setSubject(e.target.value)}
+                  className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm bg-white"
+                >
+                  <option value="">Selecione uma disciplina...</option>
+                  {(isAdmin ? schoolInfo.subjects : (userProfile?.assigned_subjects || [])).map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Matéria</label>
-            <select 
-              value={subject}
-              onChange={e => setSubject(e.target.value)}
-              className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm bg-white"
-            >
-              <option value="">Selecione uma disciplina...</option>
-              {(isAdmin ? schoolInfo.subjects : (userProfile?.assigned_subjects || [])).map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tipo (Preencha ou Selecione)</label>
-            <div className="flex gap-2">
-              <input 
-                type="text"
-                list="exam-types"
-                value={examType}
-                onChange={e => setExamType(e.target.value)}
-                placeholder="Ex: PII, AP1, Recuperação..."
-                className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm"
-              />
-              <datalist id="exam-types">
-                {EXAM_CATEGORIES.map(cat => (
-                  <option key={cat} value={cat} />
-                ))}
-              </datalist>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Data da Prova</label>
-            <input 
-              type="date"
-              value={examDate}
-              onChange={e => setExamDate(e.target.value)}
-              className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Horário</label>
-            <input 
-              type="time"
-              value={examTime}
-              onChange={e => setExamTime(e.target.value)}
-              className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider text-left block">Conteúdo Programático</label>
-          <ProfessionalEditor 
-            value={content}
-            onChange={setContent}
-            placeholder="Digite o conteúdo que será cobrado nesta prova..."
-          />
-        </div>
-
-        <div className="pt-4 border-t border-slate-100 flex flex-col md:flex-row gap-6">
-          <div className="space-y-2 flex-1">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tamanho da Fonte (Principal)</label>
-            <div className="flex items-center gap-3">
-              <input 
-                type="range" 
-                min="10" 
-                max="24" 
-                value={fontSize} 
-                onChange={e => setFontSize(parseInt(e.target.value))}
-                className="flex-1 accent-accent"
-              />
-              <span className="text-sm font-bold text-primary w-10">{fontSize}px</span>
-            </div>
-          </div>
-          <div className="space-y-2 flex-1">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Fonte da Prova</label>
-            <select 
-              value={fontFamily}
-              onChange={e => setFontFamily(e.target.value)}
-              className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none text-sm bg-white"
-            >
-              <option value="Inter">Sem Serifa (Inter)</option>
-              <option value="Playfair Display">Serifada (Playfair)</option>
-              <option value="JetBrains Mono">Monoespaçada (Código)</option>
-              <option value="Outfit">Moderna (Outfit)</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {!isExternal && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-primary">Questões</h3>
-            <div className="flex gap-4">
-              <button 
-                onClick={() => addQuestion('objective')}
-                className="text-accent font-bold text-sm flex items-center gap-2 hover:underline"
-              >
-                <Plus className="w-4 h-4" />
-                + Objetiva
-              </button>
-              <button 
-                onClick={() => addQuestion('essay')}
-                className="text-primary font-bold text-sm flex items-center gap-2 hover:underline"
-              >
-                <Plus className="w-4 h-4" />
-                + Dissertativa
-              </button>
-            </div>
-          </div>
-
-          {[...questions].sort((a, b) => {
-            if (a.type === 'essay' && b.type !== 'essay') return 1;
-            if (a.type !== 'essay' && b.type === 'essay') return -1;
-            return (a.id || 0) - (b.id || 0);
-          }).map((q, idx) => (
-            <div key={idx} className="bg-white p-6 rounded-lg border border-border shadow-sm space-y-4 text-left">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[11px] font-bold uppercase tracking-wider">Questão {idx + 1}</span>
-                  <span className={cn(
-                    "text-[10px] font-black uppercase px-2 py-0.5 rounded-full",
-                    q.type === 'essay' ? "bg-blue-100 text-blue-600" : "bg-green-100 text-green-600"
-                  )}>
-                    {q.type === 'essay' ? 'Dissertativa' : 'Objetiva'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Turmas (Pode ser mais de uma)</label>
+              <div className="flex flex-wrap gap-2">
+                {schoolInfo.classes.map(c => {
+                  const isSelected = classYear.split(', ').includes(c);
+                  return (
                     <button 
+                      key={c}
+                      type="button"
                       onClick={() => {
-                        const newQs = [...questions];
-                        const realIdx = questions.findIndex(origQ => origQ.id === q.id);
-                        if (realIdx !== -1) {
-                          newQs[realIdx].options = ['Verdadeiro', 'Falso'];
-                          newQs[realIdx].correctAnswer = 'A';
-                          setQuestions(newQs);
-                        }
+                        const arr = classYear.split(', ').filter(Boolean);
+                        if (arr.includes(c)) setClassYear(arr.filter(x => x !== c).join(', '));
+                        else setClassYear([...arr, c].join(', '));
                       }}
-                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black uppercase rounded-md transition-colors flex items-center gap-1.5"
+                      className={cn(
+                        "px-3 py-1.5 rounded-md text-xs font-bold border transition-all",
+                        isSelected ? "bg-primary text-white border-primary shadow-sm" : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+                      )}
                     >
-                      <Sparkles className="w-3 h-3 text-accent" />
-                      Verdadeiro ou Falso
+                      {c}
                     </button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs font-bold text-slate-500">Alinhamento:</label>
-                    <div className="flex bg-slate-100 p-1 rounded-lg">
-                      <button 
-                        onClick={() => {
-                          const newQs = [...questions];
-                          const realIdx = questions.findIndex(origQ => origQ.id === q.id);
-                          if (realIdx !== -1) {
-                            newQs[realIdx].align = 'left';
-                            setQuestions(newQs);
-                          }
-                        }}
-                        className={cn(
-                          "px-2 py-1 rounded text-[10px] font-bold transition-all",
-                          (!q.align || q.align === 'left') ? "bg-white text-accent shadow-sm" : "text-slate-500"
-                        )}
-                      >
-                        Esquerda
-                      </button>
-                      <button 
-                        onClick={() => {
-                          const newQs = [...questions];
-                          const realIdx = questions.findIndex(origQ => origQ.id === q.id);
-                          if (realIdx !== -1) {
-                            newQs[realIdx].align = 'center';
-                            setQuestions(newQs);
-                          }
-                        }}
-                        className={cn(
-                          "px-2 py-1 rounded text-[10px] font-bold transition-all",
-                          q.align === 'center' ? "bg-white text-accent shadow-sm" : "text-slate-500"
-                        )}
-                      >
-                        Centro
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs font-bold text-slate-500">Pontuação:</label>
-                    <input 
-                      type="number" 
-                      step="0.1" 
-                      min="0"
-                      value={q.points || 1}
-                      onChange={e => {
-                        const newQs = [...questions];
-                        const realIdx = questions.findIndex(origQ => origQ.id === q.id);
-                        if (realIdx !== -1) {
-                          newQs[realIdx].points = e.target.value;
-                          setQuestions(newQs);
-                        }
-                      }}
-                      className="w-16 px-2 py-1 rounded border border-border focus:border-accent text-sm outline-none bg-slate-50 text-center"
-                    />
-                  </div>
-                  <button 
-                    onClick={() => setQuestions(questions.filter(origQ => origQ.id !== q.id))}
-                    className="text-red-400 hover:text-red-600"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                  )
+                })}
               </div>
+            </div>
 
-              {q.type === 'essay' && (
-                <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-md border border-slate-200">
-                  <div className="flex items-center gap-2">
-                    <LayoutList className="w-4 h-4 text-slate-400" />
-                    <label className="text-xs font-bold text-slate-500">Número de Linhas:</label>
-                    <input 
-                      type="number" 
-                      min="1"
-                      max="50"
-                      value={q.lineCount || 5}
-                      onChange={e => {
-                        const newQs = [...questions];
-                        const realIdx = questions.findIndex(origQ => origQ.id === q.id);
-                        if (realIdx !== -1) {
-                          newQs[realIdx].lineCount = parseInt(e.target.value) || 1;
-                          setQuestions(newQs);
-                        }
-                      }}
-                      className="w-16 px-2 py-1 rounded border border-border focus:border-accent text-sm outline-none bg-white text-center font-bold"
-                    />
-                  </div>
-                  <p className="text-[10px] text-slate-400 font-medium">Define quantas linhas de resposta serão impressas abaixo desta questão.</p>
-                </div>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tipo de Prova</label>
+                <input 
+                  type="text"
+                  list="exam-types"
+                  value={examType}
+                  onChange={e => setExamType(e.target.value)}
+                  placeholder="Ex: PII, AP1, Recuperação..."
+                  className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm"
+                />
+                <datalist id="exam-types">
+                  {EXAM_CATEGORIES.map(cat => (
+                    <option key={cat} value={cat} />
+                  ))}
+                </datalist>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Data da Prova</label>
+                <input 
+                  type="date"
+                  value={examDate}
+                  onChange={e => setExamDate(e.target.value)}
+                  className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Horário</label>
+                <input 
+                  type="time"
+                  value={examTime}
+                  onChange={e => setExamTime(e.target.value)}
+                  className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none transition-all text-sm"
+                />
+              </div>
+            </div>
 
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider text-left block">Conteúdo Programático</label>
               <ProfessionalEditor 
-                value={q.text}
-                onChange={(val) => {
-                  const newQs = [...questions];
-                  const realIdx = questions.findIndex(origQ => origQ.id === q.id);
-                  if (realIdx !== -1) {
-                    newQs[realIdx].text = val;
-                    setQuestions(newQs);
-                  }
-                }}
-                placeholder={q.type === 'essay' ? "Escreva o enunciado da questão dissertativa..." : "Digite o enunciado da questão objetiva..."}
+                value={content}
+                onChange={setContent}
+                placeholder="Digite o conteúdo que será cobrado nesta prova..."
               />
-              
-              <div className="flex flex-col gap-2">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 cursor-pointer w-fit hover:text-primary transition-colors">
-                  <Camera className="w-4 h-4" />
-                  Adicionar Imagem à Questão
-                  <input 
-                    type="file" 
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          const img = new Image();
-                          img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            const MAX_WIDTH = 1000;
-                            const MAX_HEIGHT = 1000;
-                            let width = img.width;
-                            let height = img.height;
+            </div>
 
-                            if (width > height) {
-                              if (width > MAX_WIDTH) {
-                                height *= MAX_WIDTH / width;
-                                width = MAX_WIDTH;
-                              }
-                            } else {
-                              if (height > MAX_HEIGHT) {
-                                width *= MAX_HEIGHT / height;
-                                height = MAX_HEIGHT;
-                              }
-                            }
+            <div className="pt-4 border-t border-slate-100 flex flex-col md:flex-row gap-6">
+              <div className="space-y-2 flex-1">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tamanho da Fonte</label>
+                <div className="flex items-center gap-3">
+                  <input type="range" min="10" max="24" value={fontSize} onChange={e => setFontSize(parseInt(e.target.value))} className="flex-1 accent-accent" />
+                  <span className="text-sm font-bold text-primary w-10">{fontSize}px</span>
+                </div>
+              </div>
+              <div className="space-y-2 flex-1">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Fonte da Prova</label>
+                <select value={fontFamily} onChange={e => setFontFamily(e.target.value)} className="w-full px-4 py-2 rounded-md border border-border focus:border-accent outline-none text-sm bg-white">
+                  <option value="Inter">Sem Serifa (Inter)</option>
+                  <option value="Playfair Display">Serifada (Playfair)</option>
+                  <option value="JetBrains Mono">Monoespaçada (Código)</option>
+                  <option value="Outfit">Moderna (Outfit)</option>
+                </select>
+              </div>
+            </div>
+          </div>
 
-                            canvas.width = width;
-                            canvas.height = height;
-                            const ctx = canvas.getContext('2d');
-                            ctx?.drawImage(img, 0, 0, width, height);
-                            const resizedBase64 = canvas.toDataURL('image/jpeg', 0.8);
-
-                            const newQs = [...questions];
-                            const realIdx = questions.findIndex(origQ => origQ.id === q.id);
-                            if (realIdx !== -1) {
-                              newQs[realIdx].text = (newQs[realIdx].text || '') + `<br/><br/><div style="text-align: center;"><img src="${resizedBase64}" style="max-width: 100%; display: inline-block;" /></div><br/>`;
-                              setQuestions(newQs);
-                            }
-                          };
-                          img.src = reader.result as string;
-                        };
-                        reader.readAsDataURL(file);
-                      }
-                    }}
-                  />
-                </label>
+          {!isExternal && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-primary">Questões</h3>
+                <div className="flex gap-4">
+                  <button onClick={() => addQuestion('objective')} className="text-accent font-bold text-sm flex items-center gap-2 hover:underline"><Plus className="w-4 h-4" />+ Objetiva</button>
+                  <button onClick={() => addQuestion('essay')} className="text-primary font-bold text-sm flex items-center gap-2 hover:underline"><Plus className="w-4 h-4" />+ Dissertativa</button>
+                </div>
               </div>
 
-              {q.type !== 'essay' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 items-start">
-                  {(q.options || []).map((opt, optIdx) => (
-                    <div key={optIdx} className="flex items-center gap-3 group">
-                      <button 
-                        onClick={() => {
-                          const newQs = [...questions];
-                          const realIdx = questions.findIndex(origQ => origQ.id === q.id);
-                          if (realIdx !== -1) {
-                            newQs[realIdx].correctAnswer = String.fromCharCode(65 + optIdx);
-                            setQuestions(newQs);
-                          }
-                        }}
-                        className={cn(
-                          "w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-xs transition-all shrink-0",
-                          q.correctAnswer === String.fromCharCode(65 + optIdx)
-                            ? "bg-primary border-primary text-white" 
-                            : "border-border text-slate-400 hover:border-slate-300"
-                        )}
-                      >
-                        {String.fromCharCode(65 + optIdx)}
-                      </button>
-                      <div className="relative flex-1">
-                        <input 
-                          value={opt}
-                          onChange={e => {
+              {questions.map((q, idx) => (
+                <div key={q.id} className="bg-white p-6 rounded-lg border border-border shadow-sm space-y-4 text-left relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[11px] font-bold uppercase tracking-wider">Questão {idx + 1}</span>
+                      <span className={cn("text-[10px] font-black uppercase px-2 py-0.5 rounded-full", q.type === 'essay' ? "bg-blue-100 text-blue-600" : "bg-green-100 text-green-600")}>
+                        {q.type === 'essay' ? 'Dissertativa' : 'Objetiva'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      {q.type !== 'essay' && (
+                        <button 
+                          onClick={() => {
                             const newQs = [...questions];
                             const realIdx = questions.findIndex(origQ => origQ.id === q.id);
                             if (realIdx !== -1) {
-                              const newOpts = [...(newQs[realIdx].options || [])];
-                              newOpts[optIdx] = e.target.value;
-                              newQs[realIdx].options = newOpts;
+                              newQs[realIdx].options = ['Verdadeiro', 'Falso'];
+                              newQs[realIdx].correctAnswer = 'A';
                               setQuestions(newQs);
                             }
                           }}
-                          placeholder={`Opção ${String.fromCharCode(65 + optIdx)}`}
-                          className="w-full px-3 py-1.5 rounded border border-slate-100 focus:border-accent outline-none text-sm pr-8"
-                        />
-                        {q.options && q.options.length > 2 && (
-                          <button 
-                            onClick={() => {
-                              const newQs = [...questions];
-                              const realIdx = questions.findIndex(origQ => origQ.id === q.id);
-                              if (realIdx !== -1) {
-                                const newOpts = q.options.filter((_, i) => i !== optIdx);
-                                newQs[realIdx].options = newOpts;
-                                // Reset correct answer if it was deleted or shifted
-                                if (q.correctAnswer === String.fromCharCode(65 + optIdx)) {
-                                  newQs[realIdx].correctAnswer = 'A';
-                                } else if (q.correctAnswer > String.fromCharCode(65 + optIdx)) {
-                                  newQs[realIdx].correctAnswer = String.fromCharCode(q.correctAnswer.charCodeAt(0) - 1);
-                                }
-                                setQuestions(newQs);
-                              }
-                            }}
-                            className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
+                          className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-500 text-[10px] font-bold uppercase rounded-md transition-colors"
+                        >
+                          V ou F
+                        </button>
+                      )}
+                      <div className="flex bg-slate-100 p-0.5 rounded-lg shrink-0">
+                        <button onClick={() => {
+                          const newQs = [...questions];
+                          const ridx = questions.findIndex(x => x.id === q.id);
+                          newQs[ridx].align = 'left';
+                          setQuestions(newQs);
+                        }} className={cn("p-1 rounded", (!q.align || q.align === 'left') ? "bg-white shadow-sm" : "")}><List className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => {
+                          const newQs = [...questions];
+                          const ridx = questions.findIndex(x => x.id === q.id);
+                          newQs[ridx].align = 'center';
+                          setQuestions(newQs);
+                        }} className={cn("p-1 rounded", q.align === 'center' ? "bg-white shadow-sm" : "")}><CheckSquare className="w-3.5 h-3.5" /></button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Pts:</label>
+                        <input type="number" step="0.5" className="w-12 text-center text-sm font-bold bg-slate-50 rounded" value={q.points} onChange={e => {
+                          const newQs = [...questions];
+                          const ridx = questions.findIndex(x => x.id === q.id);
+                          newQs[ridx].points = e.target.value;
+                          setQuestions(newQs);
+                        }} />
+                      </div>
+                      <button onClick={() => setQuestions(questions.filter(origQ => origQ.id !== q.id))} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  </div>
+
+                  {q.type === 'essay' && (
+                    <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-md border border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <LayoutList className="w-4 h-4 text-slate-400" />
+                        <label className="text-xs font-bold text-slate-500">Linhas:</label>
+                        <input type="number" min="1" max="50" value={q.lineCount || 5} onChange={e => {
+                          const newQs = [...questions];
+                          const ridx = questions.findIndex(x => x.id === q.id);
+                          newQs[ridx].lineCount = parseInt(e.target.value) || 1;
+                          setQuestions(newQs);
+                        }} className="w-12 px-2 py-1 rounded border text-sm text-center font-bold" />
                       </div>
                     </div>
-                  ))}
-                  
-                  {q.options && q.options.length < 10 && (
-                    <button 
-                      onClick={() => {
-                        const newQs = [...questions];
-                        const realIdx = questions.findIndex(origQ => origQ.id === q.id);
-                        if (realIdx !== -1) {
-                          newQs[realIdx].options = [...(q.options || []), ''];
-                          setQuestions(newQs);
+                  )}
+
+                  <ProfessionalEditor value={q.text} onChange={(val) => {
+                    const newQs = [...questions];
+                    const ridx = questions.findIndex(x => x.id === q.id);
+                    newQs[ridx].text = val;
+                    setQuestions(newQs);
+                  }} />
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 cursor-pointer w-fit hover:text-primary transition-colors">
+                      <Camera className="w-4 h-4" />
+                      Imagem
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            const newQs = [...questions];
+                            const ridx = questions.findIndex(x => x.id === q.id);
+                            newQs[ridx].text = (newQs[ridx].text || '') + `<br/><div style="text-align: center;"><img src="${reader.result}" style="max-width: 100%;" /></div>`;
+                            setQuestions(newQs);
+                          };
+                          reader.readAsDataURL(file);
                         }
-                      }}
-                      className="flex items-center justify-center gap-2 py-1.5 border-2 border-dashed border-slate-100 rounded-md text-slate-400 hover:text-accent hover:border-accent transition-all font-bold text-[10px] uppercase tracking-widest bg-slate-50/50 min-h-[34px]"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Adicionar Alternativa
-                    </button>
+                      }} />
+                    </label>
+                  </div>
+
+                  {q.type !== 'essay' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                      {(q.options || []).map((opt, optIdx) => (
+                        <div key={optIdx} className="flex items-center gap-2">
+                          <button onClick={() => {
+                            const newQs = [...questions];
+                            const ridx = questions.findIndex(x => x.id === q.id);
+                            newQs[ridx].correctAnswer = String.fromCharCode(65 + optIdx);
+                            setQuestions(newQs);
+                          }} className={cn("w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-bold", q.correctAnswer === String.fromCharCode(65 + optIdx) ? "bg-primary text-white" : "text-slate-400 hover:border-primary")}>
+                            {String.fromCharCode(65 + optIdx)}
+                          </button>
+                          <input value={opt} onChange={e => {
+                            const newQs = [...questions];
+                            const ridx = questions.findIndex(x => x.id === q.id);
+                            const newOpts = [...(newQs[ridx].options || [])];
+                            newOpts[optIdx] = e.target.value;
+                            newQs[ridx].options = newOpts;
+                            setQuestions(newQs);
+                          }} className="flex-1 px-3 py-1 rounded border border-slate-100 text-sm" />
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
-              )}
-              
-              {q.type === 'essay' && (
-                <div className="bg-slate-50 p-4 rounded-md border border-dashed border-slate-200">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Espaço para resposta dissertativa aparecerá na prova impressa</p>
-                </div>
-              )}
+              ))}
             </div>
-          ))}
+          )}
         </div>
-      )}
+
+        {/* Real-time Preview Side */}
+        <div className="hidden xl:block sticky top-24 space-y-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Visualização em Tempo Real</h3>
+            <span className="flex items-center gap-1.5 text-[10px] font-bold text-green-500 uppercase tracking-widest bg-green-50 px-2 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+              Ao Vivo
+            </span>
+          </div>
+          
+          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xl bg-white aspect-[210/297] scale-100 origin-top h-[calc(100vh-200px)] overflow-y-auto">
+            {!isExternal ? (
+              <ExamDocument 
+                exam={{ 
+                  title, subject, examType, examDate, fontSize, fontFamily, content: content || title,
+                  questions: questions
+                }}
+                studentName="NOME DO ALUNO EXEMPLO"
+                classId={classYear.split(', ')[0] || 'TURMA'}
+                professorName={userProfile?.professional_name || professors.find(p => p.uid === user.id)?.professional_name || 'PROFESSOR'}
+                totalValue={questions.reduce((acc, q) => acc + (parseFloat(q.points as string) || 0), 0)}
+                isPreview={true}
+              />
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center p-12 text-center space-y-4 bg-slate-50">
+                <div className="p-4 bg-white rounded-2xl shadow-sm text-slate-300">
+                  <ExternalLink className="w-12 h-12" />
+                </div>
+                <div className="space-y-1">
+                  <p className="font-black text-slate-800 uppercase tracking-tight">Prova Externa</p>
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium">Esta prova não possui questões cadastradas na plataforma. Ela aparecerá apenas no cronograma de estudos.</p>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <p className="text-[9px] text-slate-400 text-center font-bold uppercase tracking-widest">
+            A visualização acima é uma representação da primeira página da prova.
+          </p>
+        </div>
+      </div>
     </motion.div>
   );
 }
@@ -3524,6 +3402,178 @@ function QRCodeImage({ data }: { data: string }) {
   return <img src={url} alt="QR Code" className="w-16 h-16 mix-blend-multiply" />;
 }
 
+function ExamDocument({ exam, studentName, classId, professorName, totalValue, isPreview = false }: { 
+  exam: Partial<Exam>, 
+  studentName?: string, 
+  classId?: string, 
+  professorName?: string, 
+  totalValue?: number,
+  isPreview?: boolean
+}) {
+  return (
+    <div 
+      className={cn(
+        "exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto text-black print:border-none print:shadow-none print:max-w-none print:w-full print:min-h-0 print:m-0 print:p-0",
+        isPreview ? "shadow-none border-none p-6" : ""
+      )}
+      style={{ fontSize: `${exam.fontSize || 13}px`, fontFamily: exam.fontFamily || 'Inter' }}
+    >
+      <div className="print:p-1">
+        {/* Main Header Box */}
+        <div className="border-[3px] border-black border-dashed p-1 mb-8">
+          
+          {/* Top Row: Logos and School Name */}
+          <div className="flex items-center justify-between border-b-[3px] border-black border-dashed pb-2 mb-1 px-4">
+            <div className="flex items-center gap-4">
+              <img src={LOGO_VINHO} alt="Logo CPS" className="w-12 h-12 object-contain" referrerPolicy="no-referrer" />
+              <div className="flex flex-col border-l border-black pl-3 py-1">
+                <span className="text-[6px] uppercase font-bold text-slate-800 leading-none mb-1">Plataforma<br/>de Educação</span>
+                <img src={LOGO_COC} alt="COC" className="h-4 object-contain" referrerPolicy="no-referrer" />
+              </div>
+            </div>
+            <h1 className="text-2xl font-bold uppercase text-center flex-1 tracking-wide mr-12">Colégio Progresso Santista</h1>
+          </div>
+
+          {/* Student Info Fields */}
+          <div className="text-[12px] font-bold flex flex-col uppercase">
+            {/* Row 1 */}
+            <div className="flex border-b-[3px] border-black border-dashed">
+              <div className="flex-[3] border-r-[3px] border-black border-dashed px-2 py-0.5 flex items-center overflow-hidden">
+                <span className="shrink-0">Nome:</span>
+                {studentName ? (
+                  <span className="ml-2 font-black text-[13px] truncate flex-1">{studentName}</span>
+                ) : (
+                  <span className="flex-1 border-b border-black mx-2 pt-3"></span>
+                )}
+              </div>
+              <div className="flex-1 border-r-[3px] border-black border-dashed px-2 py-0.5 whitespace-nowrap">
+                Classe: {classId || '____'}
+              </div>
+              <div className="flex-1 px-2 py-0.5 whitespace-nowrap">
+                Valor: <span className="font-black ml-1 text-sm">{totalValue || '____'}</span>
+              </div>
+            </div>
+            {/* Row 2 */}
+            <div className="flex border-b-[3px] border-black border-dashed">
+              <div className="flex-[2] border-r-[3px] border-black border-dashed px-2 py-0.5">
+                Disciplina: <span className="font-normal normal-case">{exam.subject}</span>
+              </div>
+              <div className="flex-[2] border-r-[3px] border-black border-dashed px-2 py-0.5 flex items-center overflow-hidden">
+                <span className="shrink-0">Prof:</span>
+                <span className="ml-2 font-normal normal-case truncate">{professorName}</span>
+              </div>
+              <div className="flex-1 border-r-[3px] border-black border-dashed px-2 py-0.5">
+                Data: <span className="font-normal text-xs">{exam.examDate ? new Date(exam.examDate + 'T00:00:00').toLocaleDateString('pt-BR') : '___/___/____'}</span>
+              </div>
+              <div className="flex-1 px-2 py-0.5 whitespace-nowrap">
+                Nota: <span className="border-b border-black w-12 inline-block"></span>
+              </div>
+            </div>
+            {/* Row 3 */}
+            <div className="flex min-h-[100px]">
+              <div className="flex-[4] border-r-[3px] border-black border-dashed px-2 py-2 normal-case">
+                <span className="uppercase">Instruções:</span>
+                <ul className="text-[11px] font-normal list-none ml-6 mt-1 space-y-1 text-black">
+                  <li>❖ Faça letra legível;</li>
+                  <li>❖ Mantenha a limpeza e a organização da prova;</li>
+                  <li>❖ Evite rasuras e não deixe questões em branco.</li>
+                </ul>
+              </div>
+              <div className="flex-1 flex flex-col justify-between items-center text-center px-0 py-0">
+                <div className="w-full border-b-[3px] border-black border-dashed pb-1 pt-0.5 h-[65%] flex items-start justify-center font-bold uppercase text-[10px]">
+                  Ass. do professor
+                </div>
+                <div className="h-[35%] flex items-center justify-center text-[10px] uppercase font-bold px-1">
+                  {exam.examType}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Content / Title */}
+        {(() => {
+          const rawTitle = (exam.content || exam.title || '');
+          const cleanTitle = rawTitle
+            .replace(/[-–]?\s*\(?\b(PII|PIII)\b\)?\s*/gi, '')
+            .replace(/\(\s*\)/g, '')
+            .trim();
+            
+          if (!cleanTitle) return null;
+          
+          return (
+            <div className="text-center mb-8 px-8">
+              <SafeHTML 
+                html={cleanTitle} 
+                className="text-sm font-bold q-text-html-container [&_p]:inline" 
+              />
+            </div>
+          );
+        })()}
+
+        {/* Questions */}
+        <div className="space-y-10">
+          {(exam.questions || []).map((q, idx) => (
+            <div key={q.id} className={cn("space-y-4 break-inside-avoid", q.align === 'center' ? "text-center" : "text-left")}>
+              <div className={cn("w-full px-4 flex items-start gap-1", q.align === 'center' ? "flex-col items-center justify-center text-center" : "justify-start")}>
+                <span className={cn("font-bold text-sm min-w-[20px]", q.align === 'center' ? "mb-1" : "")}>{idx + 1}.</span>
+                <SafeHTML 
+                  html={q.text} 
+                  className={cn("text-sm font-bold leading-relaxed q-text-html-container", q.align === 'center' ? "" : "flex-1")} 
+                />
+              </div>
+              
+              {q.image && (
+                <div className={cn(
+                  "flex my-4",
+                  q.imageAlign === 'left' ? "justify-start" : q.imageAlign === 'right' ? "justify-end" : "justify-center"
+                )}>
+                  <img 
+                    src={q.image} 
+                    alt={`Imagem da Questão ${q.id}`} 
+                    className="object-contain" 
+                    style={{ width: `${q.imageSize || 100}%`, maxWidth: '100%' }}
+                  />
+                </div>
+              )}
+
+              {q.type === 'essay' ? (
+                <div className={cn("px-8 space-y-0 pt-1", q.align === 'center' ? "mx-auto w-full" : "")}>
+                   {Array.from({ length: q.lineCount || 5 }).map((_, i) => (
+                     <div key={i} className="border-b border-black/30 h-[22px]"></div>
+                   ))}
+                </div>
+              ) : (
+                <div className={cn("flex flex-col w-fit space-y-1", q.align === 'center' ? "mx-auto items-center" : "ml-12 items-start")}>
+                  {(q.options || []).map((optText, i) => {
+                    const letter = String.fromCharCode(97 + i); // a, b, c...
+                    return optText && (
+                      <div key={letter} className="flex gap-2">
+                         <span className="text-sm font-bold">{letter})</span>
+                         <SafeHTML 
+                           html={optText} 
+                           className="text-sm q-text-html-container" 
+                         />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-8 flex items-center justify-center text-[11px] font-bold uppercase break-inside-avoid print:mt-2">
+          <div className="flex flex-col text-center">
+            <span>Boa Prova! • {exam.subject}</span>
+            <span className="text-[8px] opacity-40">Colégio Progresso Santista</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState("");
@@ -3756,164 +3806,16 @@ function ExamPrintView({ exam, onBack }: { exam: Exam, onBack: () => void }) {
           <div 
             key={`exam-${sIdx}`} 
             className={cn(
-              "exam-content bg-white p-8 border border-border max-w-[210mm] mx-auto text-black print:border-none print:shadow-none print:max-w-none print:w-full print:min-h-0 print:m-0 print:p-0",
               sIdx === studentsToRender.length - 1 ? "" : "print:break-after-page"
             )}
-            style={{ fontSize: `${exam.fontSize || 13}px`, fontFamily: exam.fontFamily || 'Inter' }}
           >
-            <div className="print:p-1">
-            {/* Main Header Box */}
-            <div className="border-[3px] border-black border-dashed p-1 mb-8">
-              
-              {/* Top Row: Logos and School Name */}
-              <div className="flex items-center justify-between border-b-[3px] border-black border-dashed pb-2 mb-1 px-4">
-                <div className="flex items-center gap-4">
-                  <img src={LOGO_VINHO} alt="Logo CPS" className="w-12 h-12 object-contain" referrerPolicy="no-referrer" />
-                  <div className="flex flex-col border-l border-black pl-3 py-1">
-                    <span className="text-[6px] uppercase font-bold text-slate-800 leading-none mb-1">Plataforma<br/>de Educação</span>
-                    <img src={LOGO_COC} alt="COC" className="h-4 object-contain" referrerPolicy="no-referrer" />
-                  </div>
-                </div>
-                <h1 className="text-2xl font-bold uppercase text-center flex-1 tracking-wide mr-12">Colégio Progresso Santista</h1>
-              </div>
-
-              {/* Student Info Fields */}
-              <div className="text-[12px] font-bold flex flex-col uppercase">
-                {/* Row 1 */}
-                <div className="flex border-b-[3px] border-black border-dashed">
-                  <div className="flex-[3] border-r-[3px] border-black border-dashed px-2 py-0.5 flex items-center overflow-hidden">
-                    <span className="shrink-0">Nome:</span>
-                    {student.name ? (
-                      <span className="ml-2 font-black text-[13px] truncate flex-1">{student.name}</span>
-                    ) : (
-                      <span className="flex-1 border-b border-black mx-2 pt-3"></span>
-                    )}
-                  </div>
-                  <div className="flex-1 border-r-[3px] border-black border-dashed px-2 py-0.5 whitespace-nowrap">
-                    Classe: {student.classId || '____'}
-                  </div>
-                  <div className="flex-1 px-2 py-0.5 whitespace-nowrap">
-                    Valor: <span className="font-black ml-1 text-sm">{totalValue || '____'}</span>
-                  </div>
-                </div>
-                {/* Row 2 */}
-                <div className="flex border-b-[3px] border-black border-dashed">
-                  <div className="flex-[2] border-r-[3px] border-black border-dashed px-2 py-0.5">
-                    Disciplina: <span className="font-normal normal-case">{exam.subject}</span>
-                  </div>
-                  <div className="flex-[2] border-r-[3px] border-black border-dashed px-2 py-0.5 flex items-center overflow-hidden">
-                    <span className="shrink-0">Prof:</span>
-                    <span className="ml-2 font-normal normal-case truncate">{professorName}</span>
-                  </div>
-                  <div className="flex-1 border-r-[3px] border-black border-dashed px-2 py-0.5">
-                    Data: <span className="font-normal text-xs">{exam.examDate ? new Date(exam.examDate + 'T00:00:00').toLocaleDateString('pt-BR') : '___/___/____'}</span>
-                  </div>
-                  <div className="flex-1 px-2 py-0.5 whitespace-nowrap">
-                    Nota: <span className="border-b border-black w-12 inline-block"></span>
-                  </div>
-                </div>
-                {/* Row 3 */}
-                <div className="flex min-h-[100px]">
-                  <div className="flex-[4] border-r-[3px] border-black border-dashed px-2 py-2 normal-case">
-                    <span className="uppercase">Instruções:</span>
-                    <ul className="text-[11px] font-normal list-none ml-6 mt-1 space-y-1 text-black">
-                      <li>❖ Faça letra legível;</li>
-                      <li>❖ Mantenha a limpeza e a organização da prova;</li>
-                      <li>❖ Evite rasuras e não deixe questões em branco.</li>
-                    </ul>
-                  </div>
-                  <div className="flex-1 flex flex-col justify-between items-center text-center px-0 py-0">
-                    <div className="w-full border-b-[3px] border-black border-dashed pb-1 pt-0.5 h-[65%] flex items-start justify-center font-bold uppercase text-[10px]">
-                      Ass. do professor
-                    </div>
-                    <div className="h-[35%] flex items-center justify-center text-[10px] uppercase font-bold px-1">
-                      {exam.examType}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Content / Title */}
-            {(() => {
-              const rawTitle = (exam.content || exam.title || '');
-              const cleanTitle = rawTitle
-                .replace(/[-–]?\s*\(?\b(PII|PIII)\b\)?\s*/gi, '')
-                .replace(/\(\s*\)/g, '')
-                .trim();
-                
-              if (!cleanTitle) return null;
-              
-              return (
-                <div className="text-center mb-8 px-8">
-                  <SafeHTML 
-                    html={cleanTitle} 
-                    className="text-sm font-bold q-text-html-container [&_p]:inline" 
-                  />
-                </div>
-              );
-            })()}
-
-            {/* Questions */}
-            <div className="space-y-10">
-              {exam.questions.map((q, idx) => (
-                <div key={q.id} className={cn("space-y-4 break-inside-avoid", q.align === 'center' ? "text-center" : "text-left")}>
-                  <div className={cn("w-full px-4 flex items-start gap-1", q.align === 'center' ? "flex-col items-center justify-center text-center" : "justify-start")}>
-                    <span className={cn("font-bold text-sm min-w-[20px]", q.align === 'center' ? "mb-1" : "")}>{idx + 1}.</span>
-                    <SafeHTML 
-                      html={q.text} 
-                      className={cn("text-sm font-bold leading-relaxed q-text-html-container", q.align === 'center' ? "" : "flex-1")} 
-                    />
-                  </div>
-                  
-                  {q.image && (
-                    <div className={cn(
-                      "flex my-4",
-                      q.imageAlign === 'left' ? "justify-start" : q.imageAlign === 'right' ? "justify-end" : "justify-center"
-                    )}>
-                      <img 
-                        src={q.image} 
-                        alt={`Imagem da Questão ${q.id}`} 
-                        className="object-contain" 
-                        style={{ width: `${q.imageSize || 100}%`, maxWidth: '100%' }}
-                      />
-                    </div>
-                  )}
-
-                  {q.type === 'essay' ? (
-                    <div className={cn("px-8 space-y-0 pt-1", q.align === 'center' ? "mx-auto w-full" : "")}>
-                       {Array.from({ length: q.lineCount || 5 }).map((_, i) => (
-                         <div key={i} className="border-b border-black/30 h-6"></div>
-                       ))}
-                    </div>
-                  ) : (
-                    <div className={cn("flex flex-col w-fit space-y-1", q.align === 'center' ? "mx-auto items-center" : "ml-12 items-start")}>
-                      {(q.options || []).map((optText, i) => {
-                        const letter = String.fromCharCode(97 + i); // a, b, c...
-                        return optText && (
-                          <div key={letter} className="flex gap-2">
-                             <span className="text-sm font-bold">{letter})</span>
-                             <SafeHTML 
-                               html={optText} 
-                               className="text-sm q-text-html-container" 
-                             />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            </div>
-            
-            <div className="mt-2 flex items-center justify-center text-[11px] font-bold uppercase break-inside-avoid print:mt-2">
-              <div className="flex flex-col text-center">
-                <span>Boa Prova! • {exam.subject}</span>
-                <span className="text-[8px] opacity-40">Colégio Progresso Santista</span>
-              </div>
-            </div>
+            <ExamDocument 
+              exam={exam}
+              studentName={student.name}
+              classId={student.classId}
+              professorName={professorName}
+              totalValue={totalValue}
+            />
           </div>
         ))}
       </div>
