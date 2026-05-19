@@ -1506,6 +1506,7 @@ function StatCard({ label, value, icon, color }: { label: string, value: any, ic
 
 function CreateExamView({ user, userProfile, setView, examToEdit, onExamSaved }: { user: User, userProfile: any, setView: (v: any) => void, examToEdit?: Exam | null, onExamSaved: () => void }) {
   const schoolInfo = getSchoolInfo();
+  const isAdmin = userProfile?.role === 'admin';
   
   const [title, setTitle] = useState(examToEdit?.title || '');
   
