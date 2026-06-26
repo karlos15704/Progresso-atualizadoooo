@@ -1,0 +1,6 @@
+{
+  "name": "Progresso Digital",
+  "description": "Plataforma completa para o Colégio Progresso Santista - criação, gerenciamento e impressão de avaliações, diário de classe digital e circulares administrativas para docentes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

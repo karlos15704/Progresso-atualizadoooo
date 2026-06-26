@@ -1,0 +1,1001 @@
+9393:function StudentReportsView({
+9394-  user,
+9395-  userProfile,
+9396-  isAdmin,
+9397-  reports,
+9398-  refresh,
+9399-  onPrint,
+9400-  onPrintAll,
+9401-}: {
+9402-  user: User;
+9403-  userProfile: any;
+9404-  isAdmin: boolean;
+9405-  reports: StudentReport[];
+9406-  refresh: () => void;
+9407-  onPrint: (report: StudentReport) => void;
+9408-  onPrintAll: (reports: StudentReport[]) => void;
+9409-}) {
+9410-  const [activeTab, setActiveTab] = useState<"new" | "list">("new");
+9411-  const [localReports, setLocalReports] = useState<StudentReport[]>(reports);
+9412-
+9413-  useEffect(() => {
+9414-    setLocalReports(reports);
+9415-  }, [reports]);
+9416-
+9417-  const [selectedReportIds, setSelectedReportIds] = useState<Set<string>>(
+9418-    new Set(),
+9419-  );
+9420-  const [loadingActionReportId, setLoadingActionReportId] = useState<string | null>(null);
+9421-  const [isExportingPDF, setIsExportingPDF] = useState(false);
+9422-  const [pdfProgress, setPdfProgress] = useState("");
+9423-  const [pdfReportsToRender, setPdfReportsToRender] = useState<StudentReport[]>(
+9424-    [],
+9425-  );
+9426-
+9427-  const handleExportReportsPDF = async (reportsToExport: StudentReport[]) => {
+9428-    if (reportsToExport.length === 0) return;
+9429-    try {
+9430-      setIsExportingPDF(true);
+9431-      setPdfProgress("Preparando relatórios para exportação...");
+9432-      setPdfReportsToRender(reportsToExport);
+9433-
+9434-      // Delay to let React render and paint the offscreen container
+9435-      await new Promise((resolve) => setTimeout(resolve, 800));
+9436-
+9437-      setPdfProgress("Capturando páginas...");
+9438-      const filename =
+9439-        reportsToExport.length === 1
+9440-          ? `Relatorio_${reportsToExport[0].studentName.replace(/\s+/g, "_")}_${reportsToExport[0].subject.replace(/\s+/g, "_")}`
+9441-          : `Relatorios_Lote_${reportsToExport.length}_estudantes`;
+9442-
+9443-      await exportMultipleToPDF("report-pdf-page", filename, (msg) => {
+9444-        setPdfProgress(msg);
+9445-      });
+9446-    } catch (err) {
+9447-      console.error("Erro exportando PDF relatórios:", err);
+9448-      alert("Houve um erro ao exportar o(s) relatório(s) em PDF.");
+9449-    } finally {
+9450-      setIsExportingPDF(false);
+9451-      setPdfProgress("");
+9452-      setPdfReportsToRender([]);
+9453-    }
+9454-  };
+9455-
+9456-  const [selectedClass, setSelectedClass] = useState("");
+9457-  const [selectedStudent, setSelectedStudent] = useState("");
+9458-  const [selectedSubject, setSelectedSubject] = useState("");
+9459-  const [selectedBimester, setSelectedBimester] = useState("1º Bimestre");
+9460-  const [content, setContent] = useState("");
+9461-  const [saving, setSaving] = useState(false);
+9462-  const [editingId, setEditingId] = useState<string | null>(null);
+9463-  const [schoolInfo] = useState(getSchoolInfo());
+9464-
+9465-  // Filtering state for the list
+9466-  const [filterClass, setFilterClass] = useState("");
+9467-  const [filterStudent, setFilterStudent] = useState("");
+9468-  const [filterSubject, setFilterSubject] = useState("");
+9469-  const [filterBimester, setFilterBimester] = useState("");
+9470-  const [listSearch, setListSearch] = useState("");
+9471-  const [showListSuggestions, setShowListSuggestions] = useState(false);
+9472-
+9473-  // Initialize subject if user is a professor
+9474-  useEffect(() => {
+9475-    if (
+9476-      !isAdmin &&
+9477-      userProfile?.assigned_subjects?.length > 0 &&
+9478-      !selectedSubject
+9479-    ) {
+9480-      setSelectedSubject(userProfile.assigned_subjects[0]);
+9481-    }
+9482-  }, [isAdmin, userProfile, selectedSubject]);
+9483-
+9484-  const [studentSearch, setStudentSearch] = useState("");
+9485-  const [showSuggestions, setShowSuggestions] = useState(false);
+9486-
+9487-  const studentSuggestions = useMemo(() => {
+9488-    if (studentSearch.length < 2) return [];
+9489-    const search = studentSearch.toLowerCase();
+9490-    const list: { name: string; year: string }[] = [];
+9491-    const allowedClasses = getFilteredClasses(userProfile, schoolInfo.classes);
+9492-
+9493-    Object.entries(schoolInfo.studentsDB).forEach(
+9494-      ([year, students]: [string, any]) => {
+9495-        students.forEach((s: any) => {
+9496-          if (
+9497-            s.name.toLowerCase().includes(search) &&
+9498-            allowedClasses.includes(s.classId)
+9499-          ) {
+9500-            list.push({ name: s.name, year });
+9501-          }
+9502-        });
+9503-      },
+9504-    );
+9505-    return list.slice(0, 10);
+9506-  }, [studentSearch, schoolInfo.studentsDB, userProfile, schoolInfo.classes]);
+9507-
+9508-  const studentsInClass = useMemo(() => {
+9509-    if (!selectedClass) return [];
+9510-    // Extract year like "6º" from "6º A"
+9511-    const yearMatch = selectedClass.match(/^(\d+º)/);
+9512-    if (!yearMatch) return [];
+9513-    const yearKey = `${yearMatch[1]} ano`;
+9514-    return (schoolInfo.studentsDB[yearKey] || []).filter(
+9515-      (s: any) => s.classId === selectedClass,
+9516-    );
+9517-  }, [selectedClass, schoolInfo]);
+9518-
+9519-  const handleSave = async () => {
+9520-    if (!selectedStudent || !content || !selectedSubject || !selectedClass) {
+9521-      alert("Preencha todos os campos: turma, aluno, disciplina e conteúdo.");
+9522-      return;
+9523-    }
+9524-    setSaving(true);
+9525-    try {
+9526-      if (editingId) {
+9527-        const { error } = await supabase
+9528-          .from("student_reports")
+9529-          .update({
+9530-            report_text: content,
+9531-            class_name: selectedClass,
+9532-            subject: selectedSubject,
+9533-            bimester: selectedBimester,
+9534-            // Removed created_at update
+9535-          })
+9536-          .eq("id", editingId);
+9537-        if (error) throw error;
+9538-
+9539-        // LOG SYSTEM ACTIVITY
+9540-        try {
+9541-          await fetch("/api/activity/log", {
+9542-            method: "POST",
+9543-            headers: { "Content-Type": "application/json" },
+9544-            body: JSON.stringify({
+9545-              actorName:
+9546-                userProfile?.professional_name || user.email?.split("@")[0],
+9547-              actorEmail: user.email,
+9548-              actionType: "edit_report",
+9549-              description: `O professor ${userProfile?.professional_name || user.email?.split("@")[0]} alterou o relatório observacional do aluno '${selectedStudent}' (${selectedClass} - ${selectedSubject})`,
+9550-            }),
+9551-          });
+9552-        } catch (logErr) {
+9553-          console.warn("Log error:", logErr);
+9554-        }
+9555-      } else {
+9556-        const { error } = await supabase.from("student_reports").insert({
+9557-          student_name: selectedStudent,
+9558-          class_name: selectedClass,
+9559-          subject: selectedSubject,
+9560-          report_text: content,
+9561-          bimester: selectedBimester,
+9562-          professor_id: user.id,
+9563-        });
+9564-        if (error) throw error;
+9565-
+9566-        // LOG SYSTEM ACTIVITY
+9567-        try {
+9568-          await fetch("/api/activity/log", {
+9569-            method: "POST",
+9570-            headers: { "Content-Type": "application/json" },
+9571-            body: JSON.stringify({
+9572-              actorName:
+9573-                userProfile?.professional_name || user.email?.split("@")[0],
+9574-              actorEmail: user.email,
+9575-              actionType: "create_report",
+9576-              description: `O professor ${userProfile?.professional_name || user.email?.split("@")[0]} realizou um relatório observacional do aluno '${selectedStudent}' (${selectedClass} - ${selectedSubject})`,
+9577-            }),
+9578-          });
+9579-        } catch (logErr) {
+9580-          console.warn("Log error:", logErr);
+9581-        }
+9582-      }
+9583-      alert("Relatório salvo com sucesso!");
+9584-      setContent("");
+9585-      setSelectedStudent("");
+9586-      setStudentSearch("");
+9587-      setEditingId(null);
+9588-      refresh();
+9589-      setActiveTab("list");
+9590-    } catch (err: any) {
+9591-      alert("Erro ao salvar: " + err.message);
+9592-    } finally {
+9593-      setSaving(false);
+9594-    }
+9595-  };
+9596-
+9597-  const handleEdit = (report: StudentReport) => {
+9598-    setEditingId(report.id);
+9599-    setSelectedClass(report.studentClass);
+9600-    setSelectedStudent(report.studentName);
+9601-    setStudentSearch("");
+9602-    setSelectedSubject(report.subject);
+9603-    setSelectedBimester(report.bimester);
+9604-    setContent(report.content);
+9605-    setActiveTab("new");
+9606-    window.scrollTo({ top: 0, behavior: "smooth" });
+9607-  };
+9608-
+9609-  const handleDelete = async (id: string) => {
+9610-    const targetReport = reports.find((r) => r.id === id);
+9611-    if (!confirm("Deseja realmente excluir este relatório?")) return;
+9612-    try {
+9613-      const { error } = await supabase
+9614-        .from("student_reports")
+9615-        .delete()
+9616-        .eq("id", id);
+9617-      if (error) throw error;
+9618-      refresh();
+9619-
+9620-      if (targetReport) {
+9621-        try {
+9622-          await robustFetch("/api/activity/log", {
+9623-            method: "POST",
+9624-            headers: { "Content-Type": "application/json" },
+9625-            body: JSON.stringify({
+9626-              actorName:
+9627-                userProfile?.professional_name || user.email?.split("@")[0],
+9628-              actorEmail: user.email,
+9629-              actionType: "delete_report",
+9630-              description: `O professor ${userProfile?.professional_name || user.email?.split("@")[0]} excluiu o relatório do aluno '${targetReport.studentName}' (${targetReport.studentClass} - ${targetReport.subject})`,
+9631-            }),
+9632-          });
+9633-        } catch (logErr) {
+9634-          console.warn("Log error:", logErr);
+9635-        }
+9636-      }
+9637-    } catch (err: any) {
+9638-      alert("Erro ao excluir: " + err.message);
+9639-    }
+9640-  };
+9641-
+9642-  const handleActionFamilyPortal = async (r: StudentReport, action: 'send' | 'approve' | 'revoke') => {
+9643-    if (!r.id) {
+9644-      alert("Erro: ID do relatório não encontrado.");
+9645-      return;
+9646-    }
+9647-    
+9648-    if (action === 'revoke') {
+9649-      if (!window.confirm("Deseja realmente revogar este relatório? A família perderá o acesso imediatamente.")) {
+9650-        return;
+9651-      }
+9652-    }
+9653-
+9654-    try {
+9655-      setLoadingActionReportId(r.id);
+9656-      console.log(`Action Family Portal: ${action} for report ${r.id} (isAdmin: ${isAdmin})`);
+9657-      
+9658-      let newStatus = '';
+9659-      if (action === 'send') {
+9660-        // Updated rule: Both ADM and Professor send directly to the Family Portal
+9661-        // This avoids confusion where reports stay 'Pendente' and families can't see them.
+9662-        newStatus = 'Aprovado';
+9663-      }
+9664-      else if (action === 'approve') newStatus = 'Aprovado';
+9665-      else if (action === 'revoke') newStatus = 'Nao_Enviado';
+9666-
+9667-      console.log(`Setting status to: ${newStatus}`);
+9668-
+9669-      // Optimistic update for instant button visual state update
+9670-      setLocalReports((prev) =>
+9671-        prev.map((item) =>
+9672-          item.id === r.id
+9673-            ? {
+9674-                ...item,
+9675-                familyPortalStatus: newStatus,
+9676-                familyPortalSentAt: newStatus === 'Aprovado' ? new Date().toISOString() : null,
+9677-              }
+9678-            : item
+9679-        )
+9680-      );
+9681-
+9682-      const { error } = await supabase
+9683-        .from("student_reports")
+9684-        .update({
+9685-          family_portal_status: newStatus,
+9686-          family_portal_sent_at: newStatus === 'Aprovado' ? new Date().toISOString() : null,
+9687-        })
+9688-        .eq("id", r.id);
+9689-      
+9690-      if (error) throw error;
+9691-      
+9692-      // Artificial delay to show loading and ensure sync
+9693-      await new Promise(res => setTimeout(res, 800));
+9694-      
+9695-      refresh();
+9696-      
+9697-      if (newStatus === 'Aprovado') {
+9698-        alert("Relatório disponibilizado no Portal da Família!");
+9699-      } else if (newStatus === 'Pendente') {
+9700-        alert("Relatório enviado para aprovação da coordenação.");
+9701-      } else {
+9702-        alert("Relatório removido do Portal da Família.");
+9703-      }
+9704-
+9705-      console.log(`Action ${action} successful. New status: ${newStatus}`);
+9706-    } catch(e: any) {
+9707-      console.error("Action Family Portal Error:", e);
+9708-      if (e.message?.includes("family_portal_status") || e.message?.includes("column")) {
+9709-        alert("Erro no Banco de Dados: As colunas 'family_portal_status' e 'family_portal_sent_at' precisam ser adicionadas na tabela 'student_reports'. Execute o SQL pelo Supabase: ALTER TABLE student_reports ADD COLUMN family_portal_status text DEFAULT 'Nao_Enviado', ADD COLUMN family_portal_sent_at timestamptz;");
+9710-      } else {
+9711-        alert("Erro ao processar ação: " + (e.message || "Erro desconhecido"));
+9712-      }
+9713-      refresh();
+9714-    } finally {
+9715-      setLoadingActionReportId(null);
+9716-    }
+9717-  };
+9718-
+9719-  const [searchQuery, setSearchQuery] = useState("");
+9720-
+9721-  const filteredReports = useMemo(() => {
+9722-    return localReports.filter((r) => {
+9723-      const matchesTextSearch =
+9724-        !searchQuery ||
+9725-        r.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+9726-        r.studentClass.toLowerCase().includes(searchQuery.toLowerCase()) ||
+9727-        r.subject.toLowerCase().includes(searchQuery.toLowerCase());
+9728-
+9729-      const matchesClass = !filterClass || r.studentClass === filterClass;
+9730-      const matchesStudent =
+9731-        !filterStudent ||
+9732-        r.studentName.toLowerCase().includes(filterStudent.toLowerCase());
+9733-      const matchesSubject = !filterSubject || r.subject === filterSubject;
+9734-      const matchesBimester = !filterBimester || r.bimester === filterBimester;
+9735-
+9736-      return (
+9737-        matchesTextSearch &&
+9738-        matchesClass &&
+9739-        matchesStudent &&
+9740-        matchesSubject &&
+9741-        matchesBimester
+9742-      );
+9743-    });
+9744-  }, [
+9745-    localReports,
+9746-    searchQuery,
+9747-    filterClass,
+9748-    filterStudent,
+9749-    filterSubject,
+9750-    filterBimester,
+9751-  ]);
+9752-
+9753-  const listStudentSuggestions = useMemo(() => {
+9754-    // Get unique student names from the reports themselves
+9755-    let students = Array.from(new Set(localReports.map((r) => r.studentName))) as string[];
+9756-
+9757-    // Sort alphabetically
+9758-    students.sort((a, b) => a.localeCompare(b));
+9759-
+9760-    // If there's a search term, filter by it
+9761-    if (listSearch) {
+9762-      const search = listSearch.toLowerCase();
+9763-      return students.filter((name) => name.toLowerCase().includes(search));
+9764-    }
+9765-
+9766-    // If a class is selected, prioritize students from that class
+9767-    if (filterClass) {
+9768-      const classStudents = Array.from(
+9769-        new Set(
+9770-          localReports
+9771-            .filter((r) => r.studentClass === filterClass)
+9772-            .map((r) => r.studentName),
+9773-        ),
+9774-      ) as string[];
+9775-      classStudents.sort((a, b) => a.localeCompare(b));
+9776-      return classStudents.length > 0 ? classStudents : students;
+9777-    }
+9778-
+9779-    return students;
+9780-  }, [listSearch, localReports, filterClass]);
+9781-
+9782-  return (
+9783-    <div className="space-y-8 max-w-7xl mx-auto pb-20 text-left">
+9784-      <ViewHeader
+9785-        title="Relatório de Aluno"
+9786-        subtitle="Registro pedagógico, ocorrências de aprendizagem, acompanhamento discente e diretrizes psicopedagógicas."
+9787-        icon={<UserIcon className="w-5 h-5 text-gold" />}
+9788-        badge="Acompanhamento Discente"
+9789-      >
+9790-        <div className="flex flex-wrap items-center gap-3">
+9791-          <div className="flex bg-slate-900 border border-slate-200 dark:border-slate-800 p-1 rounded-xl shadow-inner">
+9792-            <button
+9793-              type="button"
+9794-              onClick={() => setActiveTab("new")}
+9795-              className={cn(
+9796-                "px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
+9797-                activeTab === "new"
+9798-                  ? "bg-amber-600 text-white shadow-sm"
+9799-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200",
+9800-              )}
+9801-            >
+9802-              <div className="flex items-center gap-1.5">
+9803-                <Plus className="w-3.5 h-3.5" />
+9804-                <span>{editingId ? "Editar Relatório" : "Novo Registro"}</span>
+9805-              </div>
+9806-            </button>
+9807-            <button
+9808-              type="button"
+9809-              onClick={() => setActiveTab("list")}
+9810-              className={cn(
+9811-                "px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
+9812-                activeTab === "list"
+9813-                  ? "bg-amber-600 text-white shadow-sm"
+9814-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200",
+9815-              )}
+9816-            >
+9817-              <div className="flex items-center gap-1.5">
+9818-                <FileText className="w-3.5 h-3.5" />
+9819-                <span>Histórico de Relatórios</span>
+9820-              </div>
+9821-            </button>
+9822-          </div>
+9823-
+9824-          {activeTab === "list" && isAdmin && selectedReportIds.size > 0 && (
+9825-            <div className="flex gap-2">
+9826-              <button
+9827-                type="button"
+9828-                onClick={() => {
+9829-                  const selectedReports = reports.filter((r) =>
+9830-                    selectedReportIds.has(r.id),
+9831-                  );
+9832-                  onPrintAll(selectedReports);
+9833-                }}
+9834-                className="bg-[#a88d44] hover:bg-[#8e7432] text-white border border-[#d4af37]/40 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
+9835-              >
+9836-                <Printer className="w-3.5 h-3.5" />
+9837-                <span>Imprimir Selecionados ({selectedReportIds.size})</span>
+9838-              </button>
+9839-              <button
+9840-                type="button"
+9841-                onClick={() => {
+9842-                  const selectedReports = reports.filter((r) =>
+9843-                    selectedReportIds.has(r.id),
+9844-                  );
+9845-                  handleExportReportsPDF(selectedReports);
+9846-                }}
+9847-                className="bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-500/30 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
+9848-              >
+9849-                <FileText className="w-3.5 h-3.5" />
+9850-                <span>
+9851-                  Exportar Selecionados PDF ({selectedReportIds.size})
+9852-                </span>
+9853-              </button>
+9854-            </div>
+9855-          )}
+9856-
+9857-          {activeTab === "list" &&
+9858-            isAdmin &&
+9859-            selectedReportIds.size === 0 &&
+9860-            filteredReports.length > 0 &&
+9861-            searchQuery.length > 2 && (
+9862-              <div className="flex gap-2">
+9863-                <button
+9864-                  type="button"
+9865-                  onClick={() => onPrintAll(filteredReports)}
+9866-                  className="bg-slate-900 border border-slate-200 dark:border-slate-800 text-[#a88d44] px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 hover:bg-slate-800 shadow-sm transition-all cursor-pointer"
+9867-                >
+9868-                  <Printer className="w-3.5 h-3.5" />
+9869-                  <span>Imprimir Consolidado ({filteredReports.length})</span>
+9870-                </button>
+9871-                <button
+9872-                  type="button"
+9873-                  onClick={() => handleExportReportsPDF(filteredReports)}
+9874-                  className="bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-500/30 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
+9875-                >
+9876-                  <FileText className="w-3.5 h-3.5" />
+9877-                  <span>
+9878-                    Exportar Consolidado PDF ({filteredReports.length})
+9879-                  </span>
+9880-                </button>
+9881-              </div>
+9882-            )}
+9883-          {activeTab === "list" &&
+9884-            isAdmin &&
+9885-            selectedReportIds.size === 0 &&
+9886-            searchQuery === "" && (
+9887-              <div className="flex gap-2">
+9888-                <button
+9889-                  type="button"
+9890-                  onClick={() => onPrintAll(reports)}
+9891-                  className="bg-slate-900 border border-slate-200 dark:border-slate-800 text-[#a88d44] px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 hover:bg-slate-800 shadow-sm transition-all cursor-pointer"
+9892-                >
+9893-                  <Printer className="w-3.5 h-3.5" />
+9894-                  <span>Imprimir Todos ({reports.length})</span>
+9895-                </button>
+9896-                <button
+9897-                  type="button"
+9898-                  onClick={() => handleExportReportsPDF(reports)}
+9899-                  className="bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-500/30 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
+9900-                >
+9901-                  <FileText className="w-3.5 h-3.5" />
+9902-                  <span>Exportar Todos PDF ({reports.length})</span>
+9903-                </button>
+9904-              </div>
+9905-            )}
+9906-        </div>
+9907-      </ViewHeader>
+9908-
+9909-      <AnimatePresence mode="wait">
+9910-        {activeTab === "new" ? (
+9911-          <motion.div
+9912-            key="new-tab"
+9913-            initial={{ opacity: 0, y: 10 }}
+9914-            animate={{ opacity: 1, y: 0 }}
+9915-            exit={{ opacity: 0, y: -10 }}
+9916-            className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-6 rounded-lg border border-border shadow-sm space-y-6"
+9917-          >
+9918-            <h3 className="text-sm font-bold text-primary uppercase tracking-wider">
+9919-              {editingId ? "Editar Relatório" : "Novo Relatório"}
+9920-            </h3>
+9921-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+9922-              <div className="space-y-2">
+9923-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+9924-                  Turma / Sala
+9925-                </label>
+9926-                <select
+9927-                  value={selectedClass}
+9928-                  onChange={(e) => {
+9929-                    setSelectedClass(e.target.value);
+9930-                    setSelectedStudent("");
+9931-                  }}
+9932-                  className="w-full px-4 py-2 border rounded-md bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 "
+9933-                >
+9934-                  <option value="">Selecione a turma...</option>
+9935-                  {renderClassOptions(getFilteredClasses(userProfile, schoolInfo.classes))}
+9936-                </select>
+9937-              </div>
+9938-              <div className="space-y-2 relative">
+9939-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+9940-                  Aluno
+9941-                </label>
+9942-                <div className="relative group">
+9943-                  <input
+9944-                    type="text"
+9945-                    placeholder={
+9946-                      selectedClass
+9947-                        ? "Selecione ou digite..."
+9948-                        : "Busque por nome ou escolha turma..."
+9949-                    }
+9950-                    value={studentSearch || selectedStudent}
+9951-                    onChange={(e) => {
+9952-                      setStudentSearch(e.target.value);
+9953-                      setSelectedStudent(e.target.value);
+9954-                      setShowSuggestions(true);
+9955-                    }}
+9956-                    onFocus={() => setShowSuggestions(true)}
+9957-                    onBlur={() => {
+9958-                      // Small delay to allow click on button before closing
+9959-                      setTimeout(() => setShowSuggestions(false), 200);
+9960-                    }}
+9961-                    className="w-full px-4 py-2 border border-border rounded-md text-sm outline-none focus:border-accent bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 pr-8 transition-all"
+9962-                  />
+9963-                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-700 dark:text-slate-300 pointer-events-none" />
+9964-                </div>
+9965-
+9966-                {showSuggestions && (
+9967-                  <div className="absolute z-[110] left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-border rounded-md shadow-xl max-h-[300px] overflow-y-auto animate-in fade-in zoom-in-95 duration-200 ring-1 ring-black/5">
+9968-                    {/* Global Search Suggestions */}
+9969-                    {studentSuggestions.length > 0 && (
+9970-                      <div className="p-1 border-b border-slate-50">
+9971-                        <div className="px-3 py-1.5 text-[9px] font-black text-accent uppercase tracking-widest bg-accent/5 rounded mb-1">
+9972-                          Sugestões de Busca
+9973-                        </div>
+9974-                        {studentSuggestions.map((s, i) => (
+9975-                          <button
+9976-                            key={`sug-${i}`}
+9977-                            type="button"
+9978-                            onMouseDown={() => {
+9979-                              setSelectedStudent(s.name);
+9980-                              setStudentSearch("");
+9981-                              setShowSuggestions(false);
+9982-                              if (!selectedClass) {
+9983-                                const yearPref = s.year.split(" ")[0];
+9984-                                const firstClass = schoolInfo.classes.find(
+9985-                                  (c) => c.startsWith(yearPref),
+9986-                                );
+9987-                                if (firstClass) setSelectedClass(firstClass);
+9988-                              }
+9989-                            }}
+9990-                            className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 transition-colors flex justify-between items-center group rounded-sm"
+9991-                          >
+9992-                            <span className="font-bold text-slate-700 dark:text-slate-200 group-hover:text-accent">
+9993-                              {s.name}
+9994-                            </span>
+9995-                            <span className="text-[10px] text-slate-600 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-1.5 py-0.5 rounded">
+9996-                              {s.year}
+9997-                            </span>
+9998-                          </button>
+9999-                        ))}
+10000-                      </div>
+10001-                    )}
+10002-
+10003-                    {/* Class-specific list */}
+10004-                    {selectedClass && studentsInClass.length > 0 && (
+10005-                      <div className="p-1">
+10006-                        <div className="px-3 py-1.5 text-[9px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 rounded mb-1">
+10007-                          Alunos da {selectedClass}
+10008-                        </div>
+10009-                        {studentsInClass
+10010-                          .filter(
+10011-                            (s: any) =>
+10012-                              !studentSearch ||
+10013-                              s.name
+10014-                                .toLowerCase()
+10015-                                .includes(studentSearch.toLowerCase()),
+10016-                          )
+10017-                          .map((s: any, i: number) => (
+10018-                            <button
+10019-                              key={`class-${i}`}
+10020-                              type="button"
+10021-                              onMouseDown={() => {
+10022-                                setSelectedStudent(s.name);
+10023-                                setStudentSearch("");
+10024-                                setShowSuggestions(false);
+10025-                              }}
+10026-                              className={cn(
+10027-                                "w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-200 transition-colors flex justify-between items-center group rounded-sm mb-px",
+10028-                                selectedStudent === s.name
+10029-                                  ? "bg-accent/5 border-l-2 border-accent"
+10030-                                  : "",
+10031-                              )}
+10032-                            >
+10033-                              <span
+10034-                                className={cn(
+10035-                                  "font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-800 dark:text-slate-100",
+10036-                                  selectedStudent === s.name &&
+10037-                                    "font-bold text-accent",
+10038-                                )}
+10039-                              >
+10040-                                {s.name}
+10041-                              </span>
+10042-                              {selectedStudent === s.name && (
+10043-                                <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+10044-                              )}
+10045-                            </button>
+10046-                          ))}
+10047-                      </div>
+10048-                    )}
+10049-
+10050-                    {studentSuggestions.length === 0 &&
+10051-                      (!selectedClass || studentsInClass.length === 0) &&
+10052-                      studentSearch.length > 0 && (
+10053-                        <div className="p-4 text-center text-slate-600 dark:text-slate-400 text-xs italic">
+10054-                          Nenhum aluno encontrado...
+10055-                        </div>
+10056-                      )}
+10057-                  </div>
+10058-                )}
+10059-              </div>
+10060-              <div className="space-y-2">
+10061-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+10062-                  Disciplina
+10063-                </label>
+10064-                <select
+10065-                  value={selectedSubject}
+10066-                  onChange={(e) => setSelectedSubject(e.target.value)}
+10067-                  className="w-full px-4 py-2 border rounded-md bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 "
+10068-                >
+10069-                  <option value="">Selecione...</option>
+10070-                  {isAdmin
+10071-                    ? schoolInfo.subjects.map((s) => (
+10072-                        <option key={s} value={s}>
+10073-                          {s}
+10074-                        </option>
+10075-                      ))
+10076-                    : (userProfile?.assigned_subjects || []).map(
+10077-                        (s: string) => (
+10078-                          <option key={s} value={s}>
+10079-                            {s}
+10080-                          </option>
+10081-                        ),
+10082-                      )}
+10083-                </select>
+10084-              </div>
+10085-              <div className="space-y-2">
+10086-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+10087-                  Bimestre
+10088-                </label>
+10089-                <select
+10090-                  value={selectedBimester}
+10091-                  onChange={(e) => setSelectedBimester(e.target.value)}
+10092-                  className="w-full px-4 py-2 border rounded-md bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 "
+10093-                >
+10094-                  <option value="1º Bimestre">1º Bimestre</option>
+10095-                  <option value="2º Bimestre">2º Bimestre</option>
+10096-                  <option value="3º Bimestre">3º Bimestre</option>
+10097-                  <option value="4º Bimestre">4º Bimestre</option>
+10098-                </select>
+10099-              </div>
+10100-            </div>
+10101-
+10102-            <div className="space-y-2">
+10103-              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+10104-                Conteúdo do Relatório (Observações, Desempenho, Comportamento)
+10105-              </label>
+10106-              <DefaultEditor
+10107-                value={content}
+10108-                onChange={(e) => setContent(e.target.value)}
+10109-                className="w-full border border-border rounded-md min-h-[200px]"
+10110-              />
+10111-            </div>
+10112-
+10113-            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
+10114-              {editingId && (
+10115-                <button
+10116-                  onClick={() => {
+10117-                    setEditingId(null);
+10118-                    setContent("");
+10119-                    setSelectedStudent("");
+10120-                  }}
+10121-                  className="px-6 py-2 rounded-md font-bold text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+10122-                >
+10123-                  Cancelar Edição
+10124-                </button>
+10125-              )}
+10126-              <button
+10127-                onClick={handleSave}
+10128-                disabled={saving}
+10129-                className="bg-primary text-white px-8 py-2 rounded-md font-bold text-sm shadow-sm hover:bg-primary/90 transition-all flex items-center gap-2 disabled:opacity-50"
+10130-              >
+10131-                {saving ? (
+10132-                  <Loader2 className="animate-spin w-4 h-4" />
+10133-                ) : (
+10134-                  <Download className="w-4 h-4" />
+10135-                )}
+10136-                {editingId ? "Salvar Alterações" : "Salvar Relatório"}
+10137-              </button>
+10138-            </div>
+10139-          </motion.div>
+10140-        ) : (
+10141-          <motion.div
+10142-            key="list-tab"
+10143-            initial={{ opacity: 0, y: 10 }}
+10144-            animate={{ opacity: 1, y: 0 }}
+10145-            exit={{ opacity: 0, y: -10 }}
+10146-            className="space-y-6"
+10147-          >
+10148-            {reports.filter(r => r.parentSignature).length > 0 && (
+10149-              <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-4.5 text-left flex gap-3.5 items-start">
+10150-                <div className="bg-emerald-600 text-white p-2.5 rounded-2xl shrink-0 shadow-xs">
+10151-                  <Bell className="w-4 h-4 animate-bounce" />
+10152-                </div>
+10153-                <div className="flex-1">
+10154-                  <h4 className="text-xs font-black text-emerald-900 uppercase tracking-widest">Aviso de Ciência Eletrônica (Assinados pela Família)</h4>
+10155-                  <p className="text-[11px] text-emerald-700/90 font-bold mt-0.5">Os responsáveis registraram ciente no portal oficial para os seguintes relatórios:</p>
+10156-                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+10157-                    {reports.filter(r => r.parentSignature).slice(0, 6).map(sr => (
+10158-                      <div key={sr.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-emerald-100 p-2.5 rounded-xl flex flex-col gap-0.5 shadow-xs">
+10159-                        <div className="flex justify-between items-center">
+10160-                          <span className="text-[9px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded leading-none">
+10161-                            {sr.studentClass}
+10162-                          </span>
+10163-                          <span className="text-[9px] font-mono font-extrabold text-slate-600 dark:text-slate-400">
+10164-                            {sr.bimester}
+10165-                          </span>
+10166-                        </div>
+10167-                        <p className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase mt-1.5 truncate">
+10168-                          {sr.studentName}
+10169-                        </p>
+10170-                        <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300 leading-none">
+10171-                          {sr.subject}
+10172-                        </p>
+10173-                        <p className="text-[9px] text-emerald-600/90 font-extrabold italic mt-2 border-t border-slate-50 pt-1">
+10174-                          ✓ {sr.parentSignature?.split(" em ")[0]}
+10175-                        </p>
+10176-                      </div>
+10177-                    ))}
+10178-                  </div>
+10179-                </div>
+10180-              </div>
+10181-            )}
+10182-
+10183-            <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-lg border border-border overflow-hidden shadow-sm">
+10184-              <div className="px-5 py-4 border-b border-border bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 flex flex-col gap-4">
+10185-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+10186-                  <h3 className="text-base font-bold text-primary">
+10187-                    Relatórios Enviados
+10188-                  </h3>
+10189-                  <div className="relative w-full md:w-64">
+10190-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 dark:text-slate-400" />
+10191-                    <input
+10192-                      type="text"
+10193-                      placeholder="Busca rápida geral..."
+10194-                      value={searchQuery}
+10195-                      onChange={(e) => setSearchQuery(e.target.value)}
+10196-                      className="w-full pl-10 pr-4 py-2 border border-border rounded-md text-sm outline-none focus:border-accent bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-inner"
+10197-                    />
+10198-                  </div>
+10199-                </div>
+10200-
+10201-                {/* Advanced Filters */}
+10202-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+10203-                  <div className="space-y-1">
+10204-                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">
+10205-                      Filtrar Turma
+10206-                    </label>
+10207-                    <select
+10208-                      value={filterClass}
+10209-                      onChange={(e) => setFilterClass(e.target.value)}
+10210-                      className="w-full px-3 py-1.5 border rounded-md font-medium bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 "
+10211-                    >
+10212-                      <option value="">Todas as turmas</option>
+10213-                      {getFilteredClasses(userProfile, schoolInfo.classes).map(
+10214-                        (c) => (
+10215-                          <option key={c} value={c}>
+10216-                            {c}
+10217-                          </option>
+10218-                        ),
+10219-                      )}
+10220-                    </select>
+10221-                  </div>
+10222-                  <div className="space-y-1 relative">
+10223-                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">
+10224-                      Filtrar Aluno
+10225-                    </label>
+10226-                    <div className="relative">
+10227-                      <input
+10228-                        type="text"
+10229-                        placeholder={
+10230-                          filterClass ? "Escolha o aluno..." : "Todos os alunos"
+10231-                        }
+10232-                        value={listSearch || filterStudent}
+10233-                        onChange={(e) => {
+10234-                          setListSearch(e.target.value);
+10235-                          setFilterStudent(e.target.value);
+10236-                          setShowListSuggestions(true);
+10237-                        }}
+10238-                        onFocus={() => setShowListSuggestions(true)}
+10239-                        onBlur={() =>
+10240-                          setTimeout(() => setShowListSuggestions(false), 200)
+10241-                        }
+10242-                        className="w-full px-3 py-1.5 border border-border rounded-md text-[13px] outline-none bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 pr-7 font-medium cursor-pointer"
+10243-                      />
+10244-                      <button
+10245-                        type="button"
+10246-                        onClick={() =>
+10247-                          setShowListSuggestions(!showListSuggestions)
+10248-                        }
+10249-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300"
+10250-                      >
+10251-                        <ChevronDown className="w-3.5 h-3.5" />
+10252-                      </button>
+10253-                    </div>
+10254-                    {showListSuggestions &&
+10255-                      listStudentSuggestions.length > 0 && (
+10256-                        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-border rounded-md shadow-lg py-1 max-h-56 overflow-y-auto animate-in fade-in slide-in-from-top-1">
+10257-                          <button
+10258-                            onMouseDown={() => {
+10259-                              setFilterStudent("");
+10260-                              setListSearch("");
+10261-                              setShowListSuggestions(false);
+10262-                            }}
+10263-                            className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 uppercase tracking-widest border-b border-slate-50"
+10264-                          >
+10265-                            Limpar Filtro
+10266-                          </button>
+10267-                          {listStudentSuggestions.map((name, i) => (
+10268-                            <button
+10269-                              key={i}
+10270-                              onMouseDown={() => {
+10271-                                setFilterStudent(name);
+10272-                                setListSearch("");
+10273-                                setShowListSuggestions(false);
+10274-                              }}
+10275-                              className={cn(
+10276-                                "w-full text-left px-3 py-2 text-[12px] hover:bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-200 font-bold transition-colors",
+10277-                                filterStudent === name
+10278-                                  ? "text-accent bg-accent/5"
+10279-                                  : "text-slate-700 dark:text-slate-300",
+10280-                              )}
+10281-                            >
+10282-                              {name}
+10283-                            </button>
+10284-                          ))}
+10285-                        </div>
+10286-                      )}
+10287-                  </div>
+10288-                  <div className="space-y-1">
+10289-                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">
+10290-                      Filtrar Disciplina
+10291-                    </label>
+10292-                    <select
+10293-                      value={filterSubject}
+10294-                      onChange={(e) => setFilterSubject(e.target.value)}
+10295-                      className="w-full px-3 py-1.5 border rounded-md font-medium bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 "
+10296-                    >
+10297-                      <option value="">Todas disciplinas</option>
+10298-                      {schoolInfo.subjects.map((s) => (
+10299-                        <option key={s} value={s}>
+10300-                          {s}
+10301-                        </option>
+10302-                      ))}
+10303-                    </select>
+10304-                  </div>
+10305-                  <div className="space-y-1">
+10306-                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">
+10307-                      Filtrar Bimestre
+10308-                    </label>
+10309-                    <select
+10310-                      value={filterBimester}
+10311-                      onChange={(e) => setFilterBimester(e.target.value)}
+10312-                      className="w-full px-3 py-1.5 border rounded-md font-medium bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 "
+10313-                    >
+10314-                      <option value="">Todos bimesters</option>
+10315-                      {[
+10316-                        "1º Bimestre",
+10317-                        "2º Bimestre",
+10318-                        "3º Bimestre",
+10319-                        "4º Bimestre",
+10320-                      ].map((b) => (
+10321-                        <option key={b} value={b}>
+10322-                          {b}
+10323-                        </option>
+10324-                      ))}
+10325-                    </select>
+10326-                  </div>
+10327-                </div>
+10328-              </div>
+10329-
+10330-              {/* DESKTOP VIEW */}
+10331-              <div className="hidden md:block overflow-x-auto">
+10332-                <table className="w-full border-collapse text-sm text-left">
+10333-                  <thead className="bg-[#800020] text-white text-white">
+10334-                <tr className="transition-colors">
+10335-                      {isAdmin && (
+10336-                        <th className="px-5 py-3 border-b border-r border-slate-200 dark:border-slate-800  uppercase font-black text-[10px] tracking-wider text-center w-12 text-white">
+10337-                          <input
+10338-                            type="checkbox"
+10339-                            className="rounded border-slate-200 dark:border-slate-800 text-accent focus:ring-accent cursor-pointer w-4 h-4"
+10340-                            checked={
+10341-                              filteredReports.length > 0 &&
+10342-                              selectedReportIds.size === filteredReports.length
+10343-                            }
+10344-                            onChange={(e) => {
+10345-                              if (e.target.checked) {
+10346-                                setSelectedReportIds(
+10347-                                  new Set(filteredReports.map((r) => r.id)),
+10348-                                );
+10349-                              } else {
+10350-                                setSelectedReportIds(new Set());
+10351-                              }
+10352-                            }}
+10353-                          />
+10354-                        </th>
+10355-                      )}
+10356-                      <th className="px-5 py-3 border-b  uppercase font-black text-[10px] tracking-wider text-white">
+10357-                        Aluno
+10358-                      </th>
+10359-                      <th className="px-5 py-3 border-b  uppercase font-black text-[10px] tracking-wider text-white">
+10360-                        Turma
+10361-                      </th>
+10362-                      {isAdmin && (
+10363-                        <th className="px-5 py-3 border-b  uppercase font-black text-[10px] tracking-wider font-mono text-white">
+10364-                          Professor
+10365-                        </th>
+10366-                      )}
+10367-                      <th className="px-5 py-3 border-b  uppercase font-black text-[10px] tracking-wider border-l border-slate-200 dark:border-slate-800 text-white">
+10368-                        Disciplina
+10369-                      </th>
+10370-                      <th className="px-5 py-3 border-b  uppercase font-black text-[10px] tracking-wider text-white">
+10371-                        Bimestre
+10372-                      </th>
+10373-                      <th className="px-5 py-3 border-b  uppercase font-black text-[10px] tracking-wider text-white">
+10374-                        Assinatura
+10375-                      </th>
+10376-                      <th className="px-5 py-3 border-b  uppercase font-black text-[10px] tracking-wider font-mono text-white">
+10377-                        Data
+10378-                      </th>
+10379-                      <th className="px-5 py-3 border-b  uppercase font-black text-[10px] tracking-wider text-white">
+10380-                        Ações
+10381-                      </th>
+10382-                    </tr>
+10383-                  </thead>
+10384-                  <tbody className="divide-y divide-slate-100">
+10385-                    {filteredReports.map((r) => (
+10386-                      <tr
+10387-                        key={r.id}
+10388-                        className={cn(
+10389-                          "hover:bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100/ transition-colors",
+10390-                          selectedReportIds.has(r.id) && "bg-accent/5",
+10391-                        )}
+10392-                      >
+10393-                        {isAdmin && (
