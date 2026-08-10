@@ -1786,7 +1786,8 @@ export default function App() {
     if (saved !== null) {
       return saved === 'true';
     }
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    // Default to dark mode if no preference saved
+    return true;
   });
 
   useEffect(() => {
@@ -12165,7 +12166,15 @@ function ExamDocument({
                               <div className="flex-1"></div>
                             </div>
 
-                            {/* Cell 4: Exam Type */}
+                            {/* Cell 4: Assinatura do Aluno */}
+                            <div className="border-b-[3px] border-black border-dashed flex-1 px-2 py-1 flex flex-col justify-between items-center text-center min-w-0">
+                              <span className="text-[8px] font-bold uppercase leading-none tracking-tighter">
+                                ASS. DO ALUNO(A)
+                              </span>
+                              <div className="border-b border-black w-full mt-auto mb-1"></div>
+                            </div>
+
+                            {/* Cell 5: Exam Type */}
                             <div className="h-[26px] flex items-center justify-center text-sm font-black uppercase text-center min-w-0">
                               {exam.examType || "PROVA"}
                             </div>
@@ -12398,8 +12407,8 @@ function ExamDocument({
                   </div>
 
                   {/* Page Footer */}
-                  <div className="mt-2 flex items-center justify-between text-[11px] font-bold uppercase print:mt-1 text-slate-600 dark:text-slate-400 select-none pb-1 border-t border-black pt-1 px-1 shrink-0 w-full">
-                    <div className="flex items-center gap-2">
+                  <div className="mt-2 flex items-center justify-between text-[11px] font-bold uppercase print:mt-1 text-slate-600 dark:text-slate-400 select-none pb-1 border-t border-black pt-1.5 px-1 shrink-0 w-full gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <img
                         src={LOGO_VINHO}
                         alt="Logo CPS"
@@ -12407,13 +12416,15 @@ function ExamDocument({
                         referrerPolicy="no-referrer"
                       />
                     </div>
-                    <div className="flex flex-col text-right text-slate-700 dark:text-slate-300 print:text-black">
+
+                    <div className="flex flex-col text-right text-slate-700 dark:text-slate-300 print:text-black shrink-0">
                       <span>Boa Prova! ⬢ {exam.subject}</span>
                       <span className="text-[8px] opacity-60">
                         COLEGIO PROGRESSO SANTISTA
                       </span>
                     </div>
                   </div>
+
                 </div>
               </div>
             </div>
