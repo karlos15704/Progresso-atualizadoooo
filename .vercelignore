@@ -1,0 +1,12 @@
+scratch/
+.env
+.env.local
+node_modules/
+dist/
+pnpm.exe
+*.sql
+*.txt
+*.json
+!vercel.json
+!package.json
+!pnpm-lock.yaml

@@ -1,0 +1,40 @@
+{
+  "subjects": [
+    "Artes",
+    "Biologia",
+    "Ciências da Natureza",
+    "Ciências Sociais",
+    "Coordenação",
+    "Educação Física",
+    "Espanhol",
+    "Física",
+    "Geografia",
+    "História",
+    "Língua Inglesa",
+    "Língua Portuguesa",
+    "Matemática",
+    "Química",
+    "Robótica"
+  ],
+  "classes": [
+    "6º A",
+    "6º B",
+    "6º C",
+    "7º A",
+    "7º B",
+    "8º A",
+    "8º B",
+    "9º A",
+    "9º B"
+  ],
+  "classShifts": {},
+  "classModalities": {},
+  "class_subjects": {},
+  "examCategories": [
+    "PI",
+    "PII",
+    "PIII",
+    "PIV",
+    "PV"
+  ]
+}

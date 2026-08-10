@@ -1,0 +1,190 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-primary: #0f172a;
+  --color-secondary: #1e293b;
+  --color-accent: #7f1d1d;
+  --color-accent-hover: #901a1a;
+  --color-gold: #b38e4a;
+  --color-gold-hover: #9a7637;
+  --color-success: #059669;
+  --color-bg: #f8fafc;
+  --color-text: #1e293b;
+  --color-border: #e2e8f0;
+
+  /* Explicit Slate shades for high-contrast professional UI */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-105: #f0f4f8;
+  --color-slate-150: #e6edf4;
+  --color-slate-155: #e1eaf0;
+  --color-slate-200: #e2e8f0;
+  --color-slate-205: #edf2f7;
+  --color-slate-250: #cbd7e5;
+  --color-slate-255: #c0cfdf;
+  --color-slate-300: #cbd5e1;
+  --color-slate-355: #cfd9e5;
+  --color-slate-400: #94a3b8;
+  --color-slate-405: #9cb1c9;
+  --color-slate-450: #94a3b8;
+  --color-slate-455: #a0aec0;
+  --color-slate-500: #64748b;
+  --color-slate-505: #718096;
+  --color-slate-550: #718096;
+  --color-slate-600: #475569;
+  --color-slate-605: #cbd5e1;
+  --color-slate-700: #334155;
+  --color-slate-705: #1e293b;
+  --color-slate-750: #1e293b;
+  --color-slate-755: #1a202c;
+  --color-slate-800: #1e293b;
+  --color-slate-805: #0f172a;
+  --color-slate-850: #0f172a;
+  --color-slate-900: #0f172a;
+  --color-slate-905: #070a13;
+  --color-slate-950: #020617;
+  --color-slate-955: #010204;
+  
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Outfit', sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-bg dark:bg-slate-950 text-slate-800 dark:text-slate-200 font-sans font-medium antialiased;
+  }
+  
+  /* Apply default high-impact legibility settings under strong lighting */
+  input, textarea, select {
+    @apply text-slate-800 dark:text-slate-200 dark:bg-slate-900 dark:border-slate-800 font-medium;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-slate-905 dark:text-white font-semibold;
+  }
+
+  table {
+    @apply border-collapse;
+  }
+
+  th {
+    @apply font-semibold text-inherit;
+  }
+
+  td {
+    @apply font-medium text-inherit;
+  }
+}
+
+@media print {
+  @page { 
+    margin: 0; 
+    size: A4;
+  }
+  html, body, #root {
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+    display: block !important;
+    width: 100% !important;
+  }
+  body { 
+    margin: 0; 
+    padding: 0;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Critical: Hide EVERYTHING except the print-container */
+  body > *:not(.print-container),
+  #root > *:not(.print-container),
+  div:not(.print-container) > div:not(.print-container) {
+    /* We use a more surgical approach if possible, but no-print is the standard */
+  }
+
+  .no-print, 
+  aside, 
+  nav, 
+  header:not(.print-header), 
+  footer:not(.print-footer),
+  .fixed,
+  .sticky {
+    display: none !important;
+  }
+  
+  .print-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 210mm !important;
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  /* Ensure items don't break mid-way */
+  .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .print-break-after,
+  .break-after-page {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+}
+
+.omr-marker {
+  width: 32px;
+  height: 32px;
+  background-color: black !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+/* Custom print and HTML-to-PDF optimizations for exam pages */
+@media print, screen {
+  .exam-page {
+    overflow: visible !important;
+  }
+  
+  /* Prevent text boxes from clipping ascenders or descenders of letters */
+  .exam-page div:not(.exam-body-container), 
+  .exam-page span, 
+  .exam-page p {
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  
+  .exam-body-container {
+    overflow: hidden !important;
+  }
+  
+  /* Set fixed element configurations if page-level headers are used */
+  .exam-page-header {
+    position: sticky !important;
+    top: 0 !important;
+    display: block !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.2);
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.4);
+  }
+}

@@ -1,0 +1,74 @@
+[
+  {
+    "id": "09tqn6306",
+    "actor_name": "Responsável do Aluno(a) ADRIELLY LUCIA PERES SANTOS SILVA",
+    "actor_email": "portal_familia@cps.local",
+    "action_type": "view_reports",
+    "description": "O responsável do aluno(a) 'ADRIELLY LUCIA PERES SANTOS SILVA' visualizou os Relatórios de Desempenho e Histórico do 1º Bimestre no Portal da Família.",
+    "created_at": "2026-06-15T13:51:16.929Z"
+  },
+  {
+    "id": "cs5d3gtjs",
+    "actor_name": "Antônio Carlos Silva Assunção Junior",
+    "actor_email": "antonio@cps.local",
+    "action_type": "update_profile",
+    "description": "O professor Antônio Carlos Silva Assunção Junior atualizou seus dados de perfil e conta.",
+    "created_at": "2026-06-14T15:02:44.069Z"
+  },
+  {
+    "id": "9iw0tt8u2",
+    "actor_name": "Natasha",
+    "actor_email": "natasha@cps.local",
+    "action_type": "trash_exam",
+    "description": "O professor Natasha enviou a prova 'PIII 2º Bimestre' (Geografia - 7º A, 7º B) para a lixeira",
+    "created_at": "2026-06-12T13:01:42.653Z"
+  },
+  {
+    "id": "xtr39u6cy",
+    "actor_name": "Antônio",
+    "actor_email": "antonio@cps.local",
+    "action_type": "trash_exam",
+    "description": "O professor Antônio enviou a prova 'RECUPERAÇÃO 1º BIMESTRE DE INGLÊS (CÓPIA)' (Língua Inglesa - 6º B) para a lixeira",
+    "created_at": "2026-06-11T01:30:02.863Z"
+  },
+  {
+    "id": "zc2o8j6fx",
+    "actor_name": "Antônio",
+    "actor_email": "antonio@cps.local",
+    "action_type": "trash_exam",
+    "description": "O professor Antônio enviou a prova 'RECUPERAÇÃO 1º BIMESTRE DE INGLÊS (CÓPIA)' (Língua Inglesa - 6º A) para a lixeira",
+    "created_at": "2026-06-11T01:29:55.426Z"
+  },
+  {
+    "id": "u74y1f8r4",
+    "actor_name": "Antônio",
+    "actor_email": "antonio@cps.local",
+    "action_type": "trash_exam",
+    "description": "O professor Antônio enviou a prova 'teste' (Língua Inglesa - 9º B, 9º A) para a lixeira",
+    "created_at": "2026-06-10T17:53:14.041Z"
+  },
+  {
+    "id": "admih17dd",
+    "actor_name": "Antônio",
+    "actor_email": "antonio@cps.local",
+    "action_type": "restore_exam",
+    "description": "O professor Antônio restaurou a prova 'teste' (Língua Inglesa - 9º B, 9º A) da lixeira",
+    "created_at": "2026-06-10T17:53:05.469Z"
+  },
+  {
+    "id": "5na81k90r",
+    "actor_name": "Antônio",
+    "actor_email": "antonio@cps.local",
+    "action_type": "trash_exam",
+    "description": "O professor Antônio enviou a prova 'teste' (Língua Inglesa - 9º B, 9º A) para a lixeira",
+    "created_at": "2026-06-10T17:52:54.914Z"
+  },
+  {
+    "id": "l72wf8hyb",
+    "actor_name": "TI",
+    "actor_email": "ti@cps.local",
+    "action_type": "update_profile",
+    "description": "O professor TI atualizou seus dados de perfil e conta.",
+    "created_at": "2026-06-10T02:17:29.421Z"
+  }
+]
