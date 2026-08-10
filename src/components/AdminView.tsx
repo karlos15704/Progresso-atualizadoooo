@@ -1835,50 +1835,14 @@ export default function AdminView({
                   </p>
                 </div>
 
-                {/* BOTÃO PARA CADASTRAR NOVO E BOTÃO PARA REDEFINIR TODAS AS SENHAS PARA 0 */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!confirm("Tem certeza que deseja REDEFINIR A SENHA DE TODOS OS USUÁRIOS para '0'?\n\nTodos os professores, gestores e contas de alunos passarão a acessar usando a senha '0'.")) {
-                        return;
-                      }
-                      setLoading(true);
-                      try {
-                        const res = await fetch("/api/admin/reset-all-passwords", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ newPassword: "0" })
-                        });
-                        const data = await res.json();
-                        if (!res.ok) throw new Error(data.error || "Erro ao redefinir senhas.");
-                        confetti({
-                          particleCount: 150,
-                          spread: 100,
-                          origin: { y: 0.6 },
-                          colors: ["#5ac8fa", "#007aff", "#34c759"],
-                        });
-                        alert(data.message || "Todas as senhas foram redefinidas para '0' com sucesso!");
-                      } catch (err: any) {
-                        alert("Erro ao redefinir senhas: " + err.message);
-                      } finally {
-                        setLoading(false);
-                      }
-                    }}
-                    className="w-full sm:w-auto px-4 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer shrink-0"
-                  >
-                    <KeyRound className="w-4 h-4" />
-                    <span>Redefinir Todas as Senhas (0)</span>
-                  </button>
-
-                  <button
-                    onClick={() => setIsCreateUserModalOpen(true)}
-                    className="w-full sm:w-auto px-5 py-3 bg-indigo-600 hover:bg-indigo-550 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer shrink-0"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Cadastrar Colaborador</span>
-                  </button>
-                </div>
+                {/* BOTÃO PARA CADASTRAR NOVO */}
+                <button
+                  onClick={() => setIsCreateUserModalOpen(true)}
+                  className="w-full sm:w-auto px-5 py-3 bg-indigo-600 hover:bg-indigo-550 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Cadastrar Colaborador</span>
+                </button>
               </div>
 
               {/* BARRA DE PESQUISA */}
