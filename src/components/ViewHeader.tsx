@@ -43,6 +43,19 @@ export function ViewHeader({ title, subtitle, badge, icon, children }: ViewHeade
       
       {children && (
         <div className="relative z-10 flex flex-wrap gap-2.5 items-center justify-start md:justify-end">
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm("Deseja voltar para a Página Inicial do NexusEdu?")) {
+                localStorage.removeItem("cps_offline_user");
+                window.location.reload();
+              }
+            }}
+            className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-blue-400 hover:text-blue-300 text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+            title="Voltar para a Landing Page Inicial"
+          >
+            <span>🌐 Início NexusEdu</span>
+          </button>
           {children}
         </div>
       )}
