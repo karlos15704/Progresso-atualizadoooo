@@ -12785,110 +12785,219 @@ function ExamPrintView({ exam, onBack }: { exam: Exam; onBack: () => void }) {
       const questions = Array.isArray(exam.questions) ? exam.questions : [];
       const totalVal = questions.reduce((acc, q) => acc + (parseFloat(String(q.points ?? 1)) || 0), 0);
 
-      // Build questions HTML
-      const questionsHtml = questions.map((q, idx) => {
-        const qNumber = idx + 1;
-        const pointsLabel = `(${q.points ?? 1} pt${(q.points ?? 1) > 1 ? "s" : ""})`;
-        let questionBody = "";
-
-        if (q.type === "objective" && Array.isArray(q.options) && q.options.length > 0) {
-          const letters = ["a", "b", "c", "d", "e"];
-          const optionsHtml = q.options.map((opt, oi) =>
-            `<p style="margin:4px 0 4px 24px; font-size:11pt;">(${letters[oi] || oi + 1}) ${opt}</p>`
-          ).join("");
-          questionBody = optionsHtml;
-        } else {
-          // Essay: answer lines
-          const lineCount = q.lineCount || 5;
-          const lines = Array.from({ length: lineCount }, () =>
-            `<p style="margin:6px 0; border-bottom:1px solid #000; width:100%; min-height:18px;">&nbsp;</p>`
-          ).join("");
-          questionBody = `<div style="margin-top:8px;">${lines}</div>`;
-        }
-
-        return `
-          <div style="margin-bottom:18px; page-break-inside:avoid;">
-            <p style="font-size:12pt; font-weight:bold; margin:0 0 4px 0;">
-              ${qNumber}. ${pointsLabel} ${q.text || ""}
-            </p>
-            ${questionBody}
-          </div>
-        `;
-      }).join("");
-
       const examDate = exam.examDate
         ? new Date(exam.examDate + "T00:00:00").toLocaleDateString("pt-BR")
         : "___/___/______";
 
-      const docHtml = `
-        <html xmlns:o="urn:schemas-microsoft-com:office:office"
-              xmlns:w="urn:schemas-microsoft-com:office:word"
-              xmlns="http://www.w3.org/TR/REC-html40">
-        <head>
-          <meta charset="UTF-8">
-          <meta name=ProgId content=Word.Document>
-          <meta name=Generator content=Microsoft Word>
-          <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->
-          <style>
-            @page { size: A4; margin: 2cm; }
-            body { font-family: Arial, sans-serif; font-size: 12pt; color: #000; }
-            table { border-collapse: collapse; width: 100%; }
-            td, th { border: 1px solid #000; padding: 4px 8px; font-size: 10pt; }
-            .header-school { text-align: center; font-size: 14pt; font-weight: bold; text-transform: uppercase; }
-            .header-info { font-size: 10pt; }
-            .exam-title { text-align: center; font-size: 13pt; font-weight: bold; margin: 12px 0; text-transform: uppercase; }
-            .instructions { font-size: 9pt; margin-bottom: 12px; }
-          </style>
-        </head>
-        <body>
-          <!-- CABEÇALHO INSTITUCIONAL -->
-          <p class="header-school">Colégio Progresso Santista</p>
-          <hr style="border-top: 2px solid #000; margin: 6px 0;">
+      // Strip HTML tags for plain text in Word (keep structure readable)
+      const stripHtml = (html: string) => {
+        if (!html) return "";
+        return html
+          .replace(/<br\s*\/?>/gi, "\n")
+          .replace(/<\/p>/gi, "\n").replace(/<\/div>/gi, "\n")
+          .replace(/<\/li>/gi, "\n").replace(/<li[^>]*>/gi, "• ")
+          .replace(/<[^>]+>/g, "")
+          .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
+          .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+          .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+          .replace(/\n{3,}/g, "\n\n").trim();
+      };
 
-          <!-- CAMPOS DO ALUNO -->
-          <table style="margin-bottom: 10px;">
-            <tr>
-              <td style="width:70%;"><b>Nome:</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
-              <td style="width:30%;"><b>Turma:</b> ${classYear}</td>
-            </tr>
-            <tr>
-              <td style="width:40%;"><b>Disciplina:</b> ${subject}</td>
-              <td style="width:35%;"><b>Prof(a):</b> ${professorName}</td>
-              <td style="width:25%;"><b>Data:</b> ${examDate}</td>
-            </tr>
-            <tr>
-              <td colspan="2" style="height:50px; vertical-align:top;">
-                <b style="font-size:9pt;">Instruções:</b>
-                <ul style="font-size:9pt; margin:2px 0 0 16px; padding:0;">
-                  <li>Faça letra legível;</li>
-                  <li>Mantenha a limpeza e a organização;</li>
-                  <li>Evite rasuras e não deixe questões em branco.</li>
-                </ul>
-              </td>
-              <td style="text-align:center; vertical-align:top;">
-                <div style="font-size:9pt; font-weight:bold;">VALOR: ${totalVal || "____"}</div>
-                <div style="margin-top:6px; font-size:9pt; font-weight:bold;">NOTA: ____________</div>
-                <div style="margin-top:6px; font-size:9pt; font-weight:bold;">${examType}</div>
-              </td>
-            </tr>
-          </table>
+      // Build each question block with faithful formatting
+      const questionsHtml = questions.map((q, idx) => {
+        const qNum = idx + 1;
+        const pts = q.points ?? 1;
+        const cleanText = stripHtml(q.text || "");
 
-          <hr style="border-top: 2px solid #000; margin: 8px 0 12px 0;">
+        // Escape for safe HTML embedding
+        const escText = cleanText
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+          .split("\n").map(line => `<p style="margin:0 0 2px 0;">${line || "&nbsp;"}</p>`).join("");
 
-          <!-- TÍTULO DA PROVA -->
-          <p class="exam-title">${exam.title || (examType + " de " + subject)}</p>
+        let bodyHtml = "";
+        if (q.type === "objective" && Array.isArray(q.options) && q.options.length > 0) {
+          const letters = ["a", "b", "c", "d", "e", "f"];
+          bodyHtml = `<table style="width:100%; border-collapse:collapse; margin-top:4px;">` +
+            q.options.map((opt, oi) => {
+              const cleanOpt = stripHtml(opt || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+              return `<tr><td style="padding:1px 4px 1px 18px; font-size:10.5pt; font-weight:normal; border:none; vertical-align:top; width:20px;">(${letters[oi] || oi + 1})</td><td style="padding:1px 0; font-size:10.5pt; font-weight:normal; border:none;">${cleanOpt}</td></tr>`;
+            }).join("") +
+            `</table>`;
+        } else {
+          // Essay: draw answer lines
+          const lineCount = Math.max(q.lineCount || 5, 2);
+          bodyHtml = Array.from({ length: lineCount }, () =>
+            `<div style="border-bottom:1px solid #000; height:18px; margin:5px 0 0 0; width:100%;"></div>`
+          ).join("");
+        }
 
-          <!-- QUESTÕES -->
-          ${questionsHtml}
+        return `
+          <div style="margin-bottom:14px; page-break-inside:avoid;">
+            <p style="font-size:11pt; font-weight:bold; margin:0 0 2px 0; text-transform:none;">
+              ${qNum}. (${pts} pt${pts > 1 ? "s" : ""})
+            </p>
+            <div style="font-size:11pt; font-weight:normal; margin:0 0 4px 8px;">${escText}</div>
+            ${bodyHtml}
+          </div>`;
+      }).join("\n");
 
-          <!-- RODAPÉ -->
-          <hr style="border-top: 1px solid #000; margin-top: 20px;">
-          <p style="font-size:8pt; text-align:center; color:#444;">Boa Prova! &mdash; Colégio Progresso Santista &mdash; ${subject}</p>
-        </body>
-        </html>
-      `;
+      const docHtml = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="UTF-8">
+  <meta name="ProgId" content="Word.Document">
+  <meta name="Generator" content="Microsoft Word 15">
+  <!--[if gte mso 9]><xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+      <w:DoNotOptimizeForBrowser/>
+      <w:Compatibility>
+        <w:BreakWrappedTables/>
+        <w:SnapToGridInCell/>
+        <w:WrapTextWithPunct/>
+        <w:UseAsianBreakRules/>
+      </w:Compatibility>
+    </w:WordDocument>
+  </xml><![endif]-->
+  <style>
+    <!--
+    @page {
+      size: 210mm 297mm;
+      margin: 10mm 10mm 10mm 10mm;
+      mso-page-orientation: portrait;
+      mso-footer-margin: 5mm;
+      mso-header-margin: 5mm;
+    }
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12pt;
+      color: #000000;
+      margin: 0;
+      padding: 0;
+      mso-column-count: 1;
+    }
+    div.exam-outer {
+      border: 3pt dashed #000000;
+      padding: 6mm 8mm;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    div.school-header-box {
+      border: 2pt dashed #000000;
+      padding: 4px;
+      margin-bottom: 6px;
+    }
+    table.info-tbl {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      table-layout: fixed;
+    }
+    table.info-tbl td {
+      border: 1.5pt dashed #000000;
+      padding: 3px 6px;
+      vertical-align: middle;
+      mso-border-alt: dashed;
+    }
+    p { margin: 0; padding: 0; }
+    -->
+  </style>
+</head>
+<body>
+<div class="exam-outer">
 
-      const blob = new Blob([docHtml], { type: "application/msword;charset=utf-8" });
+  <!-- ======= CABEÇALHO INSTITUCIONAL ======= -->
+  <div class="school-header-box">
+
+    <!-- Linha do topo: logos + nome da escola -->
+    <table style="width:100%; border-collapse:collapse; border-bottom:2pt dashed #000; margin-bottom:4px; padding-bottom:4px;">
+      <tr>
+        <td style="width:15%; border:none; padding:2px 8px 2px 2px; vertical-align:middle;">
+          <p style="font-size:8pt; font-weight:bold; text-transform:uppercase; text-align:center; line-height:1.1;">
+            Colégio<br>Progresso<br>Santista
+          </p>
+        </td>
+        <td style="border:none; padding:2px; vertical-align:middle; text-align:center;">
+          <p style="font-size:14pt; font-weight:bold; text-transform:uppercase; letter-spacing:1pt;">
+            Colégio Progresso Santista
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Tabela de campos do aluno -->
+    <table class="info-tbl">
+      <!-- Linha 1: Nome | Classe -->
+      <tr>
+        <td style="width:75%; height:26px;">
+          NOME:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        </td>
+        <td style="width:25%; height:26px;">
+          CLASSE:&nbsp;${classYear.replace(/&/g,"&amp;").replace(/</g,"&lt;")}
+        </td>
+      </tr>
+      <!-- Linha 2: Disciplina | Prof | Data -->
+      <tr>
+        <td colspan="1" style="width:40%; height:26px; border-right:1.5pt dashed #000;">
+          DISCIPLINA:&nbsp;<span style="font-weight:normal; text-transform:none;">${subject.replace(/&/g,"&amp;").replace(/</g,"&lt;")}</span>
+        </td>
+        <td style="width:35%; height:26px; border-right:1.5pt dashed #000; padding-left:6px;">
+          PROF:&nbsp;<span style="font-weight:normal; text-transform:none;">${professorName.replace(/&/g,"&amp;").replace(/</g,"&lt;")}</span>
+        </td>
+        <td style="width:25%; height:26px;">
+          DATA:&nbsp;<span style="font-weight:normal;">${examDate}</span>
+        </td>
+      </tr>
+      <!-- Linha 3: Instruções | Valor/Nota/Tipo -->
+      <tr>
+        <td colspan="2" style="height:60px; vertical-align:top; border-right:1.5pt dashed #000;">
+          <p style="font-size:8.5pt; font-weight:bold; margin:2px 0 1px 0;">INSTRUÇÕES:</p>
+          <p style="font-size:8.5pt; font-weight:normal; margin:0 0 0 8px;">❖ Faça letra legível;</p>
+          <p style="font-size:8.5pt; font-weight:normal; margin:0 0 0 8px;">❖ Mantenha a limpeza e a organização da ${examType === "Atividade" ? "atividade" : "prova"};</p>
+          <p style="font-size:8.5pt; font-weight:normal; margin:0 0 0 8px;">❖ Evite rasuras e não deixe questões em branco.</p>
+        </td>
+        <td style="vertical-align:top; text-align:center; padding:4px;">
+          <p style="font-size:9pt; font-weight:bold; margin:0;">VALOR:&nbsp;${totalVal || "____"}</p>
+          <br>
+          <p style="font-size:8pt; font-weight:bold; margin:0;">NOTA:</p>
+          <div style="border-bottom:1pt solid #000; margin:4px 4px 8px 4px;">&nbsp;</div>
+          <p style="font-size:10pt; font-weight:bold; margin:0; text-transform:uppercase;">${examType.replace(/&/g,"&amp;")}</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ======= TÍTULO DA PROVA ======= -->
+  <p style="text-align:center; font-size:11.5pt; font-weight:bold; text-transform:uppercase; text-decoration:underline; margin:8px 0 10px 0;">
+    ${(exam.title || (examType + " de " + subject)).replace(/&/g,"&amp;").replace(/</g,"&lt;")}
+  </p>
+
+  <!-- ======= QUESTÕES ======= -->
+  ${questionsHtml}
+
+  <!-- ======= RODAPÉ ======= -->
+  <div style="border-top:1pt solid #000; margin-top:12px; padding-top:4px; display:flex; justify-content:space-between; align-items:center;">
+    <p style="font-size:9pt; font-weight:bold; text-transform:uppercase; margin:0; width:33%;">
+      Colégio Progresso Santista
+    </p>
+    <p style="font-size:9pt; font-weight:bold; text-transform:uppercase; margin:0; width:34%; text-align:center;">
+      Assinatura do Aluno(a):&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    </p>
+    <p style="font-size:9pt; font-weight:bold; text-transform:uppercase; margin:0; width:33%; text-align:right;">
+      Boa ${examType === "Atividade" ? "Atividade" : "Prova"}! ⬢ ${subject.replace(/&/g,"&amp;")}
+    </p>
+  </div>
+
+</div>
+</body>
+</html>`;
+
+      const blob = new Blob(["\uFEFF" + docHtml], { type: "application/msword;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -12901,7 +13010,6 @@ function ExamPrintView({ exam, onBack }: { exam: Exam; onBack: () => void }) {
       console.error("Erro ao exportar DOC:", err);
       alert("Houve um erro ao gerar o arquivo Word.");
     }
-  };
 
   // Determine students to render (minimum 1 blank if none selected)
   let studentsToRender: Student[] =
