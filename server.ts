@@ -1651,6 +1651,77 @@ Você deve retornar obrigatoriamente um objeto JSON com as chaves:
     }
   });
 
+  // Rota administrativa para redefinir todas as senhas de todos os usuários para '0'
+  app.post("/api/admin/reset-all-passwords", async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      const newPassword = (req.body?.newPassword || "0") + "_cpsAuth";
+      const pin = req.body?.newPassword || "0";
+
+      // 1. List all auth users
+      const { data: usersData, error: listError } = await admin.auth.admin.listUsers();
+      if (listError) throw listError;
+
+      const users = usersData?.users || [];
+      const results: any[] = [];
+
+      for (const u of users) {
+        try {
+          const { error: resetErr } = await admin.auth.admin.updateUserById(u.id, {
+            password: newPassword,
+          });
+          results.push({ email: u.email, success: !resetErr, error: resetErr?.message });
+        } catch (err: any) {
+          results.push({ email: u.email, success: false, error: err.message });
+        }
+      }
+
+      // 2. Also reset PINs of students/guardians in school_settings if present
+      try {
+        const { data: schoolSetting } = await admin
+          .from("school_settings")
+          .select("data")
+          .eq("key", "school_info")
+          .maybeSingle();
+
+        if (schoolSetting?.data?.studentsDB) {
+          const updatedDB = { ...schoolSetting.data.studentsDB };
+          for (const key of Object.keys(updatedDB)) {
+            if (Array.isArray(updatedDB[key])) {
+              updatedDB[key] = updatedDB[key].map((st: any) => {
+                if (st.agendaAccess) {
+                  const updatedAccess: any = {};
+                  for (const role of Object.keys(st.agendaAccess)) {
+                    updatedAccess[role] = {
+                      ...st.agendaAccess[role],
+                      pin: pin,
+                    };
+                  }
+                  return { ...st, agendaAccess: updatedAccess };
+                }
+                return st;
+              });
+            }
+          }
+          await admin.from("school_settings").update({
+            data: { ...schoolSetting.data, studentsDB: updatedDB }
+          }).eq("key", "school_info");
+        }
+      } catch (stErr) {
+        console.warn("Aviso ao resetar PINs de alunos:", stErr);
+      }
+
+      res.json({
+        success: true,
+        message: `Todas as senhas foram redefinidas para '0' (${results.filter(r => r.success).length}/${users.length} usuários atualizados).`,
+        details: results,
+      });
+    } catch (err: any) {
+      console.error("Erro ao redefinir todas as senhas:", err);
+      res.status(500).json({ error: err.message || "Erro ao redefinir todas as senhas." });
+    }
+  });
+
   // Admin route to delete a professor account
   app.post("/api/admin/delete-professor", async (req, res) => {
     try {
