@@ -12775,6 +12775,134 @@ function ExamPrintView({ exam, onBack }: { exam: Exam; onBack: () => void }) {
     }
   };
 
+  const handleExportDOC = () => {
+    try {
+      const classYear = selectedClassId || exam.classYear || "Geral";
+      const examType = exam.examType || "Prova";
+      const subject = exam.subject || "Exame";
+      const filename = `Prova_${subject.replace(/\s+/g, "_")}_${classYear.replace(/\s+/g, "_")}_${examType.replace(/\s+/g, "_")}.doc`;
+
+      const questions = Array.isArray(exam.questions) ? exam.questions : [];
+      const totalVal = questions.reduce((acc, q) => acc + (parseFloat(String(q.points ?? 1)) || 0), 0);
+
+      // Build questions HTML
+      const questionsHtml = questions.map((q, idx) => {
+        const qNumber = idx + 1;
+        const pointsLabel = `(${q.points ?? 1} pt${(q.points ?? 1) > 1 ? "s" : ""})`;
+        let questionBody = "";
+
+        if (q.type === "objective" && Array.isArray(q.options) && q.options.length > 0) {
+          const letters = ["a", "b", "c", "d", "e"];
+          const optionsHtml = q.options.map((opt, oi) =>
+            `<p style="margin:4px 0 4px 24px; font-size:11pt;">(${letters[oi] || oi + 1}) ${opt}</p>`
+          ).join("");
+          questionBody = optionsHtml;
+        } else {
+          // Essay: answer lines
+          const lineCount = q.lineCount || 5;
+          const lines = Array.from({ length: lineCount }, () =>
+            `<p style="margin:6px 0; border-bottom:1px solid #000; width:100%; min-height:18px;">&nbsp;</p>`
+          ).join("");
+          questionBody = `<div style="margin-top:8px;">${lines}</div>`;
+        }
+
+        return `
+          <div style="margin-bottom:18px; page-break-inside:avoid;">
+            <p style="font-size:12pt; font-weight:bold; margin:0 0 4px 0;">
+              ${qNumber}. ${pointsLabel} ${q.text || ""}
+            </p>
+            ${questionBody}
+          </div>
+        `;
+      }).join("");
+
+      const examDate = exam.examDate
+        ? new Date(exam.examDate + "T00:00:00").toLocaleDateString("pt-BR")
+        : "___/___/______";
+
+      const docHtml = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office"
+              xmlns:w="urn:schemas-microsoft-com:office:word"
+              xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+          <meta charset="UTF-8">
+          <meta name=ProgId content=Word.Document>
+          <meta name=Generator content=Microsoft Word>
+          <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->
+          <style>
+            @page { size: A4; margin: 2cm; }
+            body { font-family: Arial, sans-serif; font-size: 12pt; color: #000; }
+            table { border-collapse: collapse; width: 100%; }
+            td, th { border: 1px solid #000; padding: 4px 8px; font-size: 10pt; }
+            .header-school { text-align: center; font-size: 14pt; font-weight: bold; text-transform: uppercase; }
+            .header-info { font-size: 10pt; }
+            .exam-title { text-align: center; font-size: 13pt; font-weight: bold; margin: 12px 0; text-transform: uppercase; }
+            .instructions { font-size: 9pt; margin-bottom: 12px; }
+          </style>
+        </head>
+        <body>
+          <!-- CABEÇALHO INSTITUCIONAL -->
+          <p class="header-school">Colégio Progresso Santista</p>
+          <hr style="border-top: 2px solid #000; margin: 6px 0;">
+
+          <!-- CAMPOS DO ALUNO -->
+          <table style="margin-bottom: 10px;">
+            <tr>
+              <td style="width:70%;"><b>Nome:</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+              <td style="width:30%;"><b>Turma:</b> ${classYear}</td>
+            </tr>
+            <tr>
+              <td style="width:40%;"><b>Disciplina:</b> ${subject}</td>
+              <td style="width:35%;"><b>Prof(a):</b> ${professorName}</td>
+              <td style="width:25%;"><b>Data:</b> ${examDate}</td>
+            </tr>
+            <tr>
+              <td colspan="2" style="height:50px; vertical-align:top;">
+                <b style="font-size:9pt;">Instruções:</b>
+                <ul style="font-size:9pt; margin:2px 0 0 16px; padding:0;">
+                  <li>Faça letra legível;</li>
+                  <li>Mantenha a limpeza e a organização;</li>
+                  <li>Evite rasuras e não deixe questões em branco.</li>
+                </ul>
+              </td>
+              <td style="text-align:center; vertical-align:top;">
+                <div style="font-size:9pt; font-weight:bold;">VALOR: ${totalVal || "____"}</div>
+                <div style="margin-top:6px; font-size:9pt; font-weight:bold;">NOTA: ____________</div>
+                <div style="margin-top:6px; font-size:9pt; font-weight:bold;">${examType}</div>
+              </td>
+            </tr>
+          </table>
+
+          <hr style="border-top: 2px solid #000; margin: 8px 0 12px 0;">
+
+          <!-- TÍTULO DA PROVA -->
+          <p class="exam-title">${exam.title || (examType + " de " + subject)}</p>
+
+          <!-- QUESTÕES -->
+          ${questionsHtml}
+
+          <!-- RODAPÉ -->
+          <hr style="border-top: 1px solid #000; margin-top: 20px;">
+          <p style="font-size:8pt; text-align:center; color:#444;">Boa Prova! &mdash; Colégio Progresso Santista &mdash; ${subject}</p>
+        </body>
+        </html>
+      `;
+
+      const blob = new Blob([docHtml], { type: "application/msword;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Erro ao exportar DOC:", err);
+      alert("Houve um erro ao gerar o arquivo Word.");
+    }
+  };
+
   // Determine students to render (minimum 1 blank if none selected)
   let studentsToRender: Student[] =
     selectedStudentNames.length > 0
@@ -12927,6 +13055,16 @@ function ExamPrintView({ exam, onBack }: { exam: Exam; onBack: () => void }) {
           Voltar ao Painel
         </button>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={handleExportDOC}
+            disabled={isExporting}
+            className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2.5 rounded-md font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-700 shadow-sm disabled:opacity-50 cursor-pointer transition-colors"
+            title="Baixar como arquivo Word (.doc) para editar antes de imprimir"
+          >
+            <Download className="w-4 h-4" />
+            Baixar como Word (.doc)
+          </button>
           <button
             type="button"
             onClick={handleExportExamPDF}
