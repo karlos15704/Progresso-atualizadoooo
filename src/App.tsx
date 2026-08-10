@@ -61,6 +61,7 @@ import {
   Settings,
   Scan,
   Sparkles,
+  Zap,
   UserCircle,
   ShieldCheck,
   Lock,
