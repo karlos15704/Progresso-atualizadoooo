@@ -130,17 +130,17 @@ export const NexusEduLandingPage: React.FC<NexusEduLandingPageProps> = ({
             <button
               type="button"
               onClick={onOpenLogin}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-900 border border-transparent hover:border-slate-800 transition-all cursor-pointer"
+              className="px-4 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-900 border border-slate-800 transition-all cursor-pointer"
             >
-              Entrar
+              Acessar Plataforma
             </button>
 
             <button
               type="button"
-              onClick={onOpenRegister}
+              onClick={onOpenDemo}
               className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-blue-600/25 transition-all hover:scale-[1.02] active:scale-98 cursor-pointer"
             >
-              Começar agora
+              Agendar demonstração
             </button>
           </div>
 
@@ -235,10 +235,10 @@ export const NexusEduLandingPage: React.FC<NexusEduLandingPageProps> = ({
           >
             <button
               type="button"
-              onClick={onOpenRegister}
+              onClick={onOpenLogin}
               className="px-6 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold uppercase tracking-wider shadow-xl shadow-blue-600/30 transition-all hover:scale-[1.02] active:scale-98 cursor-pointer flex items-center gap-2"
             >
-              <span>Começar agora</span>
+              <span>Acessar Plataforma</span>
               <ArrowRight className="w-4 h-4" />
             </button>
 
@@ -860,10 +860,10 @@ export const NexusEduLandingPage: React.FC<NexusEduLandingPageProps> = ({
           <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
             <button
               type="button"
-              onClick={onOpenRegister}
+              onClick={onOpenLogin}
               className="px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold uppercase tracking-wider shadow-2xl shadow-blue-600/40 transition-all hover:scale-[1.02] active:scale-98 cursor-pointer"
             >
-              Começar agora
+              Acessar Plataforma
             </button>
             <button
               type="button"

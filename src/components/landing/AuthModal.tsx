@@ -82,18 +82,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
 
             <h3 className="text-xl font-bold text-white font-display">
-              {mode === "login"
-                ? "Acessar Plataforma"
-                : mode === "register"
-                ? "Criar Conta Institucional"
-                : "Agendar Demonstração Privada"}
+              {mode === "demo" ? "Agendar Demonstração Privada" : "Acessar Plataforma"}
             </h3>
             <p className="text-xs text-slate-400">
-              {mode === "login"
-                ? "Digite suas credenciais de usuário ou RA."
-                : mode === "register"
-                ? "Cadastre sua escola e comece o teste gratuito."
-                : "Preencha seus dados para contato da equipe técnica."}
+              {mode === "demo"
+                ? "Preencha seus dados para contato da equipe técnica com os gestores."
+                : "Digite suas credenciais corporativas ou RA para acessar."}
             </p>
           </div>
 
@@ -105,27 +99,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* Quick Demo Fill Button for Fast Testing */}
-          {mode === "login" && (
-            <button
-              type="button"
-              onClick={() => {
-                setUsername("ti");
-                setPassword("15704");
-              }}
-              className="w-full py-2.5 px-3 rounded-xl bg-slate-950 hover:bg-slate-800 border border-blue-500/30 text-blue-400 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
-            >
-              <Zap className="w-4 h-4 text-blue-400" />
-              <span>Entrar como Suporte TI (1-Clique Teste)</span>
-            </button>
-          )}
-
           {/* Form */}
           {mode === "demo" && submittedDemo ? (
             <div className="p-4 rounded-2xl bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 text-xs space-y-2 text-center">
               <Sparkles className="w-6 h-6 mx-auto text-emerald-400" />
               <strong className="block text-sm">Demonstração Solicitada com Sucesso!</strong>
-              <p>Nossa equipe entrará em contato em breve pelo email informado.</p>
+              <p>Nossa equipe entrará em contato em breve com a gestão de sua instituição.</p>
               <button
                 type="button"
                 onClick={() => setSubmittedDemo(false)}
@@ -146,7 +125,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               }}
               className="space-y-4"
             >
-              {mode !== "login" && (
+              {mode === "demo" && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-300">Nome da Escola ou Instituição</label>
                   <div className="relative">
@@ -165,20 +144,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-300">
-                  {mode === "login" ? "Usuário, Email ou RA" : "Email Corporativo / Educacional"}
+                  {mode === "demo" ? "Email Corporativo da Gestão" : "Usuário, Email ou RA"}
                 </label>
                 <div className="relative">
-                  {mode === "login" ? (
-                    <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-500" />
-                  ) : (
+                  {mode === "demo" ? (
                     <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-500" />
+                  ) : (
+                    <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-500" />
                   )}
                   <input
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required
-                    placeholder={mode === "login" ? "Digite seu usuário ou RA" : "seuemail@escola.com.br"}
+                    placeholder={mode === "demo" ? "direcao@escola.com.br" : "Digite seu usuário ou RA"}
                     autoCapitalize="none"
                     autoComplete="username"
                     className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder:text-slate-600 text-xs font-medium outline-none focus:border-blue-500"
@@ -219,16 +198,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {loading ? (
                   <>
                     <Loader2 className="w-4.5 h-4.5 animate-spin text-white" />
-                    <span>Processando...</span>
+                    <span>Autenticando...</span>
                   </>
                 ) : (
                   <>
                     <span>
-                      {mode === "login"
-                        ? "Entrar no NexusEdu"
-                        : mode === "register"
-                        ? "Criar Conta & Iniciar"
-                        : "Enviar Solicitação"}
+                      {mode === "demo" ? "Enviar Solicitação de Demonstração" : "Entrar no NexusEdu"}
                     </span>
                     <ChevronRight className="w-4.5 h-4.5" />
                   </>
@@ -237,31 +212,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </form>
           )}
 
-          {/* Toggle Mode Footer */}
-          <div className="pt-2 text-center border-t border-slate-800 text-xs text-slate-400">
-            {mode === "login" ? (
-              <span>
-                Ainda não tem conta?{" "}
-                <button
-                  type="button"
-                  onClick={() => setMode("register")}
-                  className="text-blue-400 font-bold hover:underline cursor-pointer"
-                >
-                  Criar conta gratuita
-                </button>
-              </span>
-            ) : (
-              <span>
-                Já possui uma conta?{" "}
-                <button
-                  type="button"
-                  onClick={() => setMode("login")}
-                  className="text-blue-400 font-bold hover:underline cursor-pointer"
-                >
-                  Fazer login
-                </button>
-              </span>
-            )}
+          {/* Footer Note */}
+          <div className="pt-2 text-center border-t border-slate-800 text-[11px] text-slate-400">
+            <span>
+              Contas de acesso são gerenciadas exclusivamente pela <b className="text-slate-200">Direção e Secretaria Escolar</b>.
+            </span>
           </div>
         </motion.div>
       </div>
