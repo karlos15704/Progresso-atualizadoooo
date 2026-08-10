@@ -1262,7 +1262,7 @@ export function DashboardView({
             <div className="relative z-10 space-y-3 text-left flex-1">
               <div className="flex items-center gap-2">
                 <span className="text-[9px] font-black text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-full uppercase tracking-widest">
-                  NextEdu Platform
+                  NexusEdu Platform
                 </span>
                 <span className="flex items-center gap-1.5 text-[9px] font-black text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2.5 py-1 rounded-full uppercase tracking-widest">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
@@ -1279,7 +1279,7 @@ export function DashboardView({
                   Olá, {userProfile?.professional_name || user.email?.split('@')[0]}!
                 </motion.h2>
                 <p className="text-xs text-slate-400 mt-1 font-medium">
-                  Bem-vindo ao ecossistema inteligente de gestão escolar do NextEdu.
+                  Bem-vindo ao ecossistema inteligente de gestão escolar do NexusEdu.
                 </p>
               </div>
 

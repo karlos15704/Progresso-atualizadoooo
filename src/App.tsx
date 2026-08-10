@@ -6441,7 +6441,7 @@ function LoginView({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xl font-bold tracking-tight text-white font-display">
-              Next<span className="text-blue-400">Edu</span>
+              Nexus<span className="text-blue-400">Edu</span>
             </span>
             <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase bg-slate-900 border border-slate-800 px-2.5 py-0.5 rounded-full">
               EdTech SaaS
@@ -6534,7 +6534,7 @@ function LoginView({
                 Acessar Plataforma
               </h2>
               <p className="text-xs text-slate-400">
-                Digite suas credenciais de usuário ou RA para acessar o NextEdu.
+                Digite suas credenciais de usuário ou RA para acessar o NexusEdu.
               </p>
             </div>
 
@@ -6605,7 +6605,7 @@ function LoginView({
                 {loading ? (
                   <>
                     <Loader2 className="w-4.5 h-4.5 animate-spin text-white" />
-                    <span>Autenticando no NextEdu...</span>
+                    <span>Autenticando no NexusEdu...</span>
                   </>
                 ) : (
                   <>
@@ -6628,7 +6628,7 @@ function LoginView({
       {/* Footer */}
       <footer className="relative z-10 w-full px-6 py-4 max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
         <div>
-          © {new Date().getFullYear()} NextEdu EdTech SaaS. Todos os direitos reservados.
+          © {new Date().getFullYear()} NexusEdu EdTech SaaS. Todos os direitos reservados.
         </div>
 
         <button
