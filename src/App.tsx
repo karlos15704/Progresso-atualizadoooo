@@ -12159,7 +12159,7 @@ function ExamDocument({
                             </div>
 
                             {/* Cell 3: Ass. do Professor */}
-                            <div className="border-b-[3px] border-black border-dashed h-[50px] px-2 py-1 flex flex-col justify-between items-center text-center whitespace-nowrap min-w-0">
+                            <div className="border-b-[3px] border-black border-dashed h-[33px] px-2 py-1 flex flex-col justify-between items-center text-center whitespace-nowrap min-w-0">
                               <span className="text-[8px] font-bold uppercase leading-none">
                                 ASS. DO PROFESSOR
                               </span>
@@ -12167,11 +12167,11 @@ function ExamDocument({
                             </div>
 
                             {/* Cell 4: Assinatura do Aluno */}
-                            <div className="border-b-[3px] border-black border-dashed flex-1 px-2 py-1 flex flex-col justify-between items-center text-center min-w-0">
+                            <div className="border-b-[3px] border-black border-dashed h-[33px] px-2 py-1 flex flex-col justify-between items-center text-center min-w-0">
                               <span className="text-[8px] font-bold uppercase leading-none tracking-tighter">
                                 ASS. DO ALUNO(A)
                               </span>
-                              <div className="border-b border-black w-full mt-auto mb-1"></div>
+                              <div className="border-b border-black w-full mt-auto"></div>
                             </div>
 
                             {/* Cell 5: Exam Type */}
@@ -12416,6 +12416,16 @@ function ExamDocument({
                         referrerPolicy="no-referrer"
                       />
                     </div>
+
+                    {/* ASSINATURA DO ALUNO(A) - EXCLUSIVO DA PRIMEIRA PÁGINA */}
+                    {isFirstPage && (
+                      <div className="flex-1 mx-3 border border-black rounded-sm px-3 py-0.5 bg-white text-black flex flex-col justify-between min-h-[34px] shadow-none">
+                        <span className="text-[8px] font-black uppercase tracking-wider font-sans text-black leading-none pt-0.5">
+                          ASSINATURA DO ALUNO(A):
+                        </span>
+                        <div className="border-b border-black w-full mb-0.5"></div>
+                      </div>
+                    )}
 
                     <div className="flex flex-col text-right text-slate-700 dark:text-slate-300 print:text-black shrink-0">
                       <span>Boa Prova! ⬢ {exam.subject}</span>
