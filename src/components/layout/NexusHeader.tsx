@@ -51,18 +51,6 @@ export const NexusHeader: React.FC<NexusHeaderProps> = ({
 
       {/* Right Controls */}
       <div className="flex items-center gap-3 ml-auto">
-        
-        {/* Public Landing Link Button */}
-        {onGoLanding && (
-          <button
-            type="button"
-            onClick={onGoLanding}
-            className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-blue-400 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-          >
-            <Globe className="w-4 h-4" />
-            <span className="hidden md:inline">Página Inicial</span>
-          </button>
-        )}
 
         {/* Notifications Icon Button */}
         <button

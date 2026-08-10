@@ -185,22 +185,6 @@ export const NexusSidebar: React.FC<NexusSidebarProps> = ({
           );
         })}
       </div>
-
-      {/* Sidebar Footer / Return to Public Site */}
-      <div className="p-3 border-t border-slate-800/80">
-        <button
-          type="button"
-          onClick={onGoHomeLanding}
-          className={cn(
-            "w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 text-blue-400 hover:text-blue-300 text-xs font-bold flex items-center transition-all cursor-pointer",
-            collapsed ? "justify-center" : "gap-2.5"
-          )}
-          title="Ver Página Inicial do NexusEdu"
-        >
-          <Globe className="w-4 h-4 text-blue-400 shrink-0" />
-          {!collapsed && <span>Página Inicial</span>}
-        </button>
-      </div>
     </aside>
   );
 };
