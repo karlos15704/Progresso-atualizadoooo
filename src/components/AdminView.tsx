@@ -917,7 +917,39 @@ export default function AdminView({
     if (!resettingPwUser || !newPwVal) return;
     setLoading(true);
     try {
-      await onResetPassword(resettingPwUser.uid, newPwVal);
+      let resetSuccess = false;
+      let errorMsg = "";
+
+      // 1. First try calling onResetPassword (backend endpoint)
+      try {
+        await onResetPassword(resettingPwUser.uid, newPwVal);
+        resetSuccess = true;
+      } catch (err: any) {
+        errorMsg = err.message || "";
+        console.warn("Backend reset password failed, trying fallback:", errorMsg);
+      }
+
+      // 2. If backend fails with API key error or network error, update via direct Supabase client if applicable
+      if (!resetSuccess) {
+        // If target is the currently logged in user
+        if (resettingPwUser.uid === user.id) {
+          const { error: selfUpdateErr } = await supabase.auth.updateUser({
+            password: newPwVal + "_cpsAuth",
+          });
+          if (!selfUpdateErr) {
+            resetSuccess = true;
+          } else {
+            throw new Error(selfUpdateErr.message);
+          }
+        } else {
+          // If server returned unregistered API key or other error, throw friendly explanation
+          if (errorMsg.includes("Unregistered API key") || errorMsg.includes("401") || errorMsg.includes("403")) {
+            throw new Error("Chave do Supabase (SUPABASE_SERVICE_ROLE_KEY) precisa estar configurada no servidor Vercel para redefinir senhas remotamente.");
+          }
+          throw new Error(errorMsg || "Erro ao redefinir senha.");
+        }
+      }
+
       confetti({
         particleCount: 100,
         spread: 90,
