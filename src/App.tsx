@@ -5284,9 +5284,17 @@ Deseja substituí-la? (A avaliação ativa anterior será enviada para a lixeira
                             handleSaveAbsenceJustifications
                           }
                           onResetPassword={async (targetUid, newPw) => {
-                            const {
-                              data: { session },
-                            } = await supabase.auth.getSession();
+                            let token = "";
+                            try {
+                              const { data: refreshData } = await supabase.auth.refreshSession();
+                              token = refreshData.session?.access_token || "";
+                            } catch (_) {}
+
+                            if (!token) {
+                              const { data: sessionData } = await supabase.auth.getSession();
+                              token = sessionData.session?.access_token || "";
+                            }
+
                             const response = await fetch(
                               "/api/admin/reset-password",
                               {
@@ -5295,7 +5303,7 @@ Deseja substituí-la? (A avaliação ativa anterior será enviada para a lixeira
                                 body: JSON.stringify({
                                   targetUid,
                                   newPassword: newPw,
-                                  adminToken: session?.access_token,
+                                  adminToken: token,
                                 }),
                               },
                             );
