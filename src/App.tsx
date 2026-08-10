@@ -6427,28 +6427,68 @@ function LoginView({
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#060a12] text-slate-100 flex flex-col justify-between relative overflow-hidden font-sans selection:bg-cyan-500 selection:text-white">
-      {/* Background Glowing Ambient Orbs */}
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[160px] pointer-events-none" />
-      <div className="absolute top-1/3 right-10 w-[350px] h-[350px] bg-purple-600/10 rounded-full blur-[130px] pointer-events-none" />
+    <div className="min-h-screen w-full bg-[#040711] text-slate-100 flex flex-col justify-between relative overflow-hidden font-sans selection:bg-cyan-500 selection:text-white">
+      
+      {/* Dynamic Ambient Background Light Orbs */}
+      <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-cyan-500/15 rounded-full blur-[160px] pointer-events-none animate-pulse" style={{ animationDuration: '8s' }} />
+      <div className="absolute bottom-0 right-1/4 w-[700px] h-[700px] bg-indigo-600/15 rounded-full blur-[180px] pointer-events-none animate-pulse" style={{ animationDuration: '10s' }} />
+      <div className="absolute top-1/3 right-10 w-[400px] h-[400px] bg-purple-600/15 rounded-full blur-[140px] pointer-events-none animate-pulse" style={{ animationDuration: '6s' }} />
 
-      {/* Cyber Grid Pattern Overlay */}
-      <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-25 pointer-events-none" />
+      {/* Cyber Grid Pattern & Scanning Light Beam */}
+      <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-20 pointer-events-none" />
+      <motion.div 
+        animate={{ y: ['-100%', '200%'] }}
+        transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
+        className="absolute inset-x-0 h-40 bg-gradient-to-b from-transparent via-cyan-500/5 to-transparent pointer-events-none"
+      />
 
-      {/* Top Header / Navigation Bar */}
+      {/* Floating Interactive Micro-Elements (Educational Emojis & Floating Nodes) */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 select-none">
+        {[
+          { icon: "🎓", top: "15%", left: "10%", delay: 0 },
+          { icon: "✨", top: "25%", left: "85%", delay: 1 },
+          { icon: "💡", top: "70%", left: "8%", delay: 2 },
+          { icon: "⚡", top: "80%", left: "88%", delay: 0.5 },
+          { icon: "📊", top: "12%", left: "75%", delay: 1.5 },
+          { icon: "🤖", top: "65%", left: "80%", delay: 2.5 },
+          { icon: "⭐", top: "45%", left: "5%", delay: 3 },
+        ].map((item, idx) => (
+          <motion.div
+            key={`floating-node-${idx}`}
+            initial={{ opacity: 0.2, y: 0 }}
+            animate={{
+              opacity: [0.3, 0.7, 0.3],
+              y: [0, -25, 0],
+              rotate: [0, 15, -15, 0]
+            }}
+            transition={{
+              duration: 5 + idx,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: item.delay
+            }}
+            className="absolute text-xl sm:text-2xl filter drop-shadow-[0_0_12px_rgba(6,182,212,0.4)]"
+            style={{ top: item.top, left: item.left }}
+          >
+            {item.icon}
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Top Header Navigation */}
       <header className="relative z-10 w-full px-6 py-5 max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-2xl bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-600 text-white shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center justify-center">
+          <div className="p-2.5 rounded-2xl bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-600 text-white shadow-[0_0_25px_rgba(6,182,212,0.4)] flex items-center justify-center relative group cursor-pointer hover:scale-105 transition-transform">
             <GraduationCap className="w-6 h-6" />
+            <Sparkles className="w-3.5 h-3.5 text-cyan-300 absolute -top-1 -right-1 animate-pulse" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-extrabold tracking-tight text-white font-display">
                 Next<span className="text-cyan-400">Edu</span>
               </h1>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                SaaS EdTech
+              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-sm">
+                EdTech SaaS
               </span>
             </div>
             <p className="text-[10px] text-slate-400 font-medium tracking-wide">
@@ -6458,150 +6498,204 @@ function LoginView({
         </div>
 
         {/* Server Status Badge */}
-        <div className="hidden sm:flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 text-[10px] font-bold text-slate-300">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-          <span className="w-2 h-2 rounded-full bg-emerald-400 -ml-4.5" />
+        <div className="hidden sm:flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 text-[10px] font-bold text-slate-300 shadow-md">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+          </span>
           <span className="tracking-wider">VPS DEDICADA OPERACIONAL</span>
           <span className="text-slate-600">•</span>
           <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
         </div>
       </header>
 
-      {/* Main Hero Container - Centered Modern SaaS Card */}
-      <main className="relative z-10 w-full max-w-lg mx-auto px-4 py-8 sm:py-12 my-auto flex flex-col items-center justify-center">
+      {/* Main Hero Container - Dual Column Portal Layout */}
+      <main className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 md:py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center my-auto">
         
-        {/* Floating Glassmorphic Login Card */}
-        <div className="w-full relative rounded-3xl bg-slate-900/85 border border-cyan-500/30 backdrop-blur-2xl p-6 sm:p-9 shadow-[0_20px_100px_rgba(6,182,212,0.2)] text-left space-y-6 transition-all duration-300">
+        {/* Left Column: SaaS Value Proposition & Preset Selector */}
+        <div className="lg:col-span-7 space-y-8 text-left">
           
-          {/* Top Brand & Status Section */}
-          <div className="space-y-4 text-center">
-            
-            {/* Glowing Brand Icon */}
-            <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-600 text-white shadow-[0_0_30px_rgba(6,182,212,0.5)] flex items-center justify-center relative group">
-              <GraduationCap className="w-9 h-9 text-white group-hover:scale-110 transition-transform duration-300" />
-              <Sparkles className="w-4 h-4 text-cyan-300 absolute top-1 right-1 animate-pulse" />
-            </div>
+          {/* Welcome Badge Pill */}
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-indigo-500/10 border border-cyan-500/20 text-cyan-300 text-xs font-semibold shadow-sm backdrop-blur-md">
+            <Sparkles className="w-4 h-4 text-cyan-400 animate-spin" style={{ animationDuration: '8s' }} />
+            <span>👋 Bem-vindo ao futuro da gestão educacional</span>
+          </div>
 
-            <div>
-              <div className="flex items-center justify-center gap-2">
-                <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white font-display">
-                  Next<span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent">Edu</span>
-                </h2>
-                <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                  SaaS EdTech
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 font-medium mt-1">
-                Plataforma Inteligente de Gestão Escolar
-              </p>
-            </div>
-
-            {/* VPS Status Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950/80 border border-slate-800 text-[10px] font-bold text-slate-300">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+          <div className="space-y-4">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white leading-tight font-display tracking-tight">
+              A Revolução na Gestão Escolar <br />
+              <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent">
+                Simples, Inteligente & Ultramoderna
               </span>
-              <span className="tracking-wider">VPS DEDICADA OPERACIONAL</span>
-              <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+            </h2>
+            <p className="text-slate-400 text-xs sm:text-sm md:text-base leading-relaxed max-w-xl">
+              Centralize exames com inteligência artificial, boletins integrados, diário de classe digital e atendimento escolar com alta performance e VPS privativa.
+            </p>
+          </div>
+
+          {/* Preset Profile Chips (Simpático & Interativo) */}
+          <div className="space-y-2.5 pt-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block font-mono">
+              ⚡ Acesso Rápido por Perfil:
+            </span>
+            <div className="flex flex-wrap gap-2.5">
+              <button
+                type="button"
+                onClick={() => { setUsername("ti"); setPassword("15704"); }}
+                className="px-3.5 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-cyan-500/30 text-cyan-300 text-xs font-bold flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-sm"
+              >
+                <span>💻 Suporte TI (1-Clique)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setUsername("professor"); setPassword(""); }}
+                className="px-3.5 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/30 text-slate-300 text-xs font-semibold flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-sm"
+              >
+                <span>🧑‍🏫 Professor</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setUsername("aluno"); setPassword(""); }}
+                className="px-3.5 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-purple-500/30 text-slate-300 text-xs font-semibold flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-sm"
+              >
+                <span>🎒 Aluno / Família</span>
+              </button>
             </div>
           </div>
 
-          {/* Error Notification Alert */}
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-rose-950/80 text-rose-200 border border-rose-500/40 p-3.5 rounded-2xl text-xs font-semibold flex items-center gap-2.5 shadow-lg"
-            >
-              <AlertCircle className="w-4.5 h-4.5 text-rose-400 shrink-0" />
-              <span>{error}</span>
-            </motion.div>
-          )}
-
-          {/* Single Unified Form */}
-          <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-            {/* Username / RA Input */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
-                <span>Usuário, Email ou RA</span>
-                <span className="text-[9px] text-cyan-400 font-medium lowercase">Single Sign-On</span>
-              </label>
-              <div className="relative">
-                <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                  placeholder="Ex: professor, ti ou RA do aluno"
-                  autoCapitalize="none"
-                  autoComplete="username"
-                  spellCheck="false"
-                  className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-slate-950/90 border border-slate-800 text-white placeholder:text-slate-600 text-base sm:text-xs font-medium outline-none transition-all focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
-                />
-              </div>
+          {/* 3 Metric Highlight Badges */}
+          <div className="grid grid-cols-3 gap-3 pt-2">
+            <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md">
+              <span className="text-lg sm:text-xl font-black text-cyan-400 font-display block">99.8%</span>
+              <span className="text-[10px] text-slate-400 font-medium leading-none">Precisão OMR IA</span>
             </div>
+            <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md">
+              <span className="text-lg sm:text-xl font-black text-blue-400 font-display block">&lt; 1.2s</span>
+              <span className="text-[10px] text-slate-400 font-medium leading-none">Correção em Tempo Real</span>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md">
+              <span className="text-lg sm:text-xl font-black text-indigo-400 font-display block">100% VPS</span>
+              <span className="text-[10px] text-slate-400 font-medium leading-none">Banco Privativo</span>
+            </div>
+          </div>
+        </div>
 
-            {/* Password / PIN Input */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
-                <span>Senha ou PIN</span>
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                  className="w-full pl-11 pr-11 py-3.5 rounded-2xl bg-slate-950/90 border border-slate-800 text-white placeholder:text-slate-600 text-base sm:text-xs font-medium outline-none transition-all focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 p-1 transition-colors"
+        {/* Right Column: High-Tech Glassmorphic Portal Card */}
+        <div className="lg:col-span-5 w-full">
+          <div className="relative group">
+            
+            {/* Animated Border Glow Overlay */}
+            <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 opacity-30 group-hover:opacity-60 blur-xl transition-all duration-500" />
+
+            <div className="relative rounded-3xl bg-slate-900/85 border border-cyan-500/30 backdrop-blur-2xl p-6 sm:p-8 shadow-[0_20px_100px_rgba(0,0,0,0.8)] text-left space-y-6 transition-all duration-300">
+              
+              {/* Form Header */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-white font-display flex items-center gap-2">
+                    <UserIcon className="w-5 h-5 text-cyan-400" />
+                    <span>Acessar Plataforma</span>
+                  </h3>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-full border border-cyan-500/20">
+                    Single Sign-On
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 font-medium">
+                  Digite suas credenciais de acesso corporativo ou acadêmico.
+                </p>
+              </div>
+
+              {/* Error Notification Alert */}
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-rose-950/80 text-rose-200 border border-rose-500/40 p-3.5 rounded-2xl text-xs font-semibold flex items-center gap-2.5 shadow-lg"
                 >
-                  {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white text-xs sm:text-sm font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(6,182,212,0.4)] transition-all transform active:scale-98 disabled:opacity-50 cursor-pointer mt-3"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4.5 h-4.5 animate-spin text-white" />
-                  <span>Autenticando no NextEdu...</span>
-                </>
-              ) : (
-                <>
-                  <span>Entrar no NextEdu</span>
-                  <ChevronRight className="w-4.5 h-4.5" />
-                </>
+                  <AlertCircle className="w-4.5 h-4.5 text-rose-400 shrink-0" />
+                  <span>{error}</span>
+                </motion.div>
               )}
-            </button>
-          </form>
 
-          {/* Quick Feature Badges */}
-          <div className="grid grid-cols-3 gap-2 pt-2 text-center border-t border-slate-800/80">
-            <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800">
-              <span className="text-[9px] font-bold text-cyan-400 block">⚡ IA & OMR</span>
-              <span className="text-[7.5px] text-slate-500">Correção Instantânea</span>
-            </div>
-            <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800">
-              <span className="text-[9px] font-bold text-blue-400 block">🛡️ VPS Privativo</span>
-              <span className="text-[7.5px] text-slate-500">Backup Contínuo</span>
-            </div>
-            <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800">
-              <span className="text-[9px] font-bold text-indigo-400 block">📊 Gestão 360°</span>
-              <span className="text-[7.5px] text-slate-500">Portal Unificado</span>
+              {/* Unified Login Form */}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Username / RA Input */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+                    <span>Usuário, Email ou RA</span>
+                    <span className="text-[9px] text-cyan-400 font-medium lowercase">Identificação Unificada</span>
+                  </label>
+                  <div className="relative">
+                    <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required
+                      placeholder="Ex: professor, ti ou RA do aluno"
+                      autoCapitalize="none"
+                      autoComplete="username"
+                      spellCheck="false"
+                      className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-slate-950/90 border border-slate-800 text-white placeholder:text-slate-600 text-base sm:text-xs font-medium outline-none transition-all focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                    />
+                  </div>
+                </div>
+
+                {/* Password / PIN Input */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+                    <span>Senha ou PIN</span>
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      placeholder="••••••••"
+                      autoComplete="current-password"
+                      className="w-full pl-11 pr-11 py-3.5 rounded-2xl bg-slate-950/90 border border-slate-800 text-white placeholder:text-slate-600 text-base sm:text-xs font-medium outline-none transition-all focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 p-1 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Shimmer Submit Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white text-xs sm:text-sm font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(6,182,212,0.4)] transition-all transform active:scale-98 disabled:opacity-50 cursor-pointer mt-3 relative overflow-hidden group"
+                >
+                  {/* Shimmer Light Beam Effect */}
+                  <div className="absolute top-0 -left-[100%] w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:left-[100%] transition-all duration-1000 ease-in-out pointer-events-none" />
+
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4.5 h-4.5 animate-spin text-white" />
+                      <span>Autenticando no NextEdu...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Entrar no NextEdu</span>
+                      <ChevronRight className="w-4.5 h-4.5 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* Subrow Support Notice */}
+              <div className="pt-2 text-center border-t border-slate-800/80">
+                <p className="text-[11px] text-slate-400">
+                  Esqueceu suas credenciais? Entre em contato com a <b className="text-cyan-400 font-semibold">Secretaria Escolar</b>.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -6623,9 +6717,9 @@ function LoginView({
             });
             triggerAntonioEasterEgg();
           }}
-          className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/80 border border-slate-800 text-cyan-400 hover:text-cyan-300 transition-all cursor-pointer shadow-sm hover:border-cyan-500/40"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 text-cyan-400 hover:text-cyan-300 transition-all cursor-pointer shadow-sm hover:border-cyan-500/40"
         >
-          <Sparkles className="w-3 h-3 text-cyan-400 animate-pulse" />
+          <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
           <span>Desenvolvido com excelência por Antônio Carlos</span>
         </button>
       </footer>
