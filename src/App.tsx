@@ -12159,22 +12159,14 @@ function ExamDocument({
                             </div>
 
                             {/* Cell 3: Ass. do Professor */}
-                            <div className="border-b-[3px] border-black border-dashed h-[33px] px-2 py-1 flex flex-col justify-between items-center text-center whitespace-nowrap min-w-0">
+                            <div className="border-b-[3px] border-black border-dashed h-[50px] px-2 py-1 flex flex-col justify-between items-center text-center whitespace-nowrap min-w-0">
                               <span className="text-[8px] font-bold uppercase leading-none">
                                 ASS. DO PROFESSOR
                               </span>
                               <div className="flex-1"></div>
                             </div>
 
-                            {/* Cell 4: Assinatura do Aluno */}
-                            <div className="border-b-[3px] border-black border-dashed h-[33px] px-2 py-1 flex flex-col justify-between items-center text-center min-w-0">
-                              <span className="text-[8px] font-bold uppercase leading-none tracking-tighter">
-                                ASS. DO ALUNO(A)
-                              </span>
-                              <div className="border-b border-black w-full mt-auto"></div>
-                            </div>
-
-                            {/* Cell 5: Exam Type */}
+                            {/* Cell 4: Exam Type */}
                             <div className="h-[26px] flex items-center justify-center text-sm font-black uppercase text-center min-w-0">
                               {exam.examType || "PROVA"}
                             </div>
