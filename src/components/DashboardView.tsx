@@ -35,6 +35,9 @@ import { getSchoolInfo } from '../App';
 import { getBimesterForExam } from '../utils/bimesterUtils';
 import { Exam, Result } from '../types';
 import confetti from 'canvas-confetti';
+import { Button } from './ui/Button';
+import { Card, StatCard } from './ui/Card';
+import { Badge } from './ui/Badge';
 import {
   ResponsiveContainer,
   LineChart,

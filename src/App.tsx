@@ -147,6 +147,8 @@ import { FamilyPortalView } from "./components/FamilyPortalView";
 import TIAutoExamView from "./components/TIAutoExamView";
 import { NexusEduLandingPage } from "./components/landing/NexusEduLandingPage";
 import { AuthModal } from "./components/landing/AuthModal";
+import { NexusSidebar } from "./components/layout/NexusSidebar";
+import { NexusHeader } from "./components/layout/NexusHeader";
 
 
 // Global alert override to friendly translate English technical errors (Supabase) to Portuguese
