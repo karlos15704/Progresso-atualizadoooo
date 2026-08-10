@@ -12834,7 +12834,7 @@ function ExamPrintView({ exam, onBack }: { exam: Exam; onBack: () => void }) {
         return `
           <div style="margin-bottom:14px; page-break-inside:avoid;">
             <p style="font-size:11pt; font-weight:bold; margin:0 0 2px 0; text-transform:none;">
-              ${qNum}. (${pts} pt${pts > 1 ? "s" : ""})
+              ${qNum}. (${pts} pt${Number(pts) > 1 ? "s" : ""})
             </p>
             <div style="font-size:11pt; font-weight:normal; margin:0 0 4px 8px;">${escText}</div>
             ${bodyHtml}
@@ -13010,6 +13010,7 @@ function ExamPrintView({ exam, onBack }: { exam: Exam; onBack: () => void }) {
       console.error("Erro ao exportar DOC:", err);
       alert("Houve um erro ao gerar o arquivo Word.");
     }
+  };
 
   // Determine students to render (minimum 1 blank if none selected)
   let studentsToRender: Student[] =
