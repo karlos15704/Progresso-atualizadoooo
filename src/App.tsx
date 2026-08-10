@@ -145,6 +145,8 @@ import { DiaryReportsView } from "./components/DiaryReportsView";
 import { AgendaEletronicaView } from "./components/AgendaEletronicaView";
 import { FamilyPortalView } from "./components/FamilyPortalView";
 import TIAutoExamView from "./components/TIAutoExamView";
+import { NexusEduLandingPage } from "./components/landing/NexusEduLandingPage";
+import { AuthModal } from "./components/landing/AuthModal";
 
 
 // Global alert override to friendly translate English technical errors (Supabase) to Portuguese
@@ -6427,223 +6429,42 @@ function LoginView({
     setLoading(false);
   };
 
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<"login" | "register" | "demo">("login");
+
   return (
-    <div className="min-h-screen w-full bg-[#0b0f19] text-slate-100 flex flex-col justify-between relative overflow-hidden font-sans selection:bg-blue-600 selection:text-white">
-      {/* Soft Ambient Background Lighting (Subtle, Apple/Stripe-Style) */}
-      <div className="absolute top-[-10%] left-[20%] w-[800px] h-[500px] bg-blue-600/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[15%] w-[700px] h-[500px] bg-indigo-600/10 rounded-full blur-[160px] pointer-events-none" />
+    <>
+      <NexusEduLandingPage
+        onOpenLogin={() => {
+          setAuthModalMode("login");
+          setAuthModalOpen(true);
+        }}
+        onOpenRegister={() => {
+          setAuthModalMode("register");
+          setAuthModalOpen(true);
+        }}
+        onOpenDemo={() => {
+          setAuthModalMode("demo");
+          setAuthModalOpen(true);
+        }}
+      />
 
-      {/* Top Navigation Bar */}
-      <header className="relative z-10 w-full px-6 py-6 max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-            <GraduationCap className="w-5.5 h-5.5 text-white" />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xl font-bold tracking-tight text-white font-display">
-              Nexus<span className="text-blue-400">Edu</span>
-            </span>
-            <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase bg-slate-900 border border-slate-800 px-2.5 py-0.5 rounded-full">
-              EdTech SaaS
-            </span>
-          </div>
-        </div>
-
-        {/* Status Indicator */}
-        <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-800 text-[11px] text-slate-300 font-medium shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span>VPS Dedicada Operacional</span>
-        </div>
-      </header>
-
-      {/* Main Dual-Column Content */}
-      <main className="relative z-10 w-full max-w-7xl mx-auto px-6 py-8 md:py-12 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center my-auto">
-        
-        {/* Left Column: Product Value Proposition */}
-        <div className="lg:col-span-7 space-y-8 text-left">
-          
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Plataforma Integrada de Gestão Escolar</span>
-          </div>
-
-          <div className="space-y-4">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight leading-[1.1] font-display">
-              A Gestão Escolar que <br />
-              <span className="bg-gradient-to-r from-blue-400 via-indigo-400 to-cyan-400 bg-clip-text text-transparent">
-                Sua Instituição Merece.
-              </span>
-            </h1>
-            <p className="text-slate-400 text-base md:text-lg leading-relaxed max-w-xl">
-              Correção automatizada de exames por Inteligência Artificial, diários de classe em tempo real, boletins e atendimento integrado em um único ecossistema seguro.
-            </p>
-          </div>
-
-          {/* Clean Feature List */}
-          <div className="space-y-3.5 pt-2">
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
-                <CheckCircle2 className="w-4 h-4" />
-              </div>
-              <div>
-                <strong className="text-sm font-semibold text-white block">Correção OMR com Inteligência Artificial</strong>
-                <span className="text-xs text-slate-400">Leitura automatizada de gabaritos e relatórios estatísticos em segundos.</span>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 mt-0.5">
-                <CheckCircle2 className="w-4 h-4" />
-              </div>
-              <div>
-                <strong className="text-sm font-semibold text-white block">Gestão Acadêmica Unificada 360°</strong>
-                <span className="text-xs text-slate-400">Diário eletrônico de classe, frequências e canal de comunicação escolar.</span>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 mt-0.5">
-                <CheckCircle2 className="w-4 h-4" />
-              </div>
-              <div>
-                <strong className="text-sm font-semibold text-white block">Infraestrutura Privativa em VPS</strong>
-                <span className="text-xs text-slate-400">Banco de dados privativo de alta velocidade com rotinas automáticas de backup.</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Demo Login Button */}
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={() => { setUsername("ti"); setPassword("15704"); }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-blue-400 hover:text-blue-300 text-xs font-semibold transition-all hover:scale-[1.02] active:scale-98 shadow-sm cursor-pointer"
-            >
-              <Zap className="w-4 h-4" />
-              <span>Entrar Instantaneamente como TI (Conta Demo)</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Right Column: Ultra-Clean Floating Login Card */}
-        <div className="lg:col-span-5 w-full">
-          <div className="rounded-3xl bg-slate-900/90 border border-slate-800 backdrop-blur-xl p-8 shadow-2xl shadow-indigo-950/50 text-left space-y-6">
-            
-            <div className="space-y-1">
-              <h2 className="text-2xl font-bold text-white font-display">
-                Acessar Plataforma
-              </h2>
-              <p className="text-xs text-slate-400">
-                Digite suas credenciais de usuário ou RA para acessar o NexusEdu.
-              </p>
-            </div>
-
-            {/* Error Notification Alert */}
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-rose-950/90 text-rose-200 border border-rose-500/30 p-3.5 rounded-xl text-xs font-medium flex items-center gap-2.5 shadow-lg"
-              >
-                <AlertCircle className="w-4.5 h-4.5 text-rose-400 shrink-0" />
-                <span>{error}</span>
-              </motion.div>
-            )}
-
-            {/* Login Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-                  <span>Usuário, Email ou RA</span>
-                </label>
-                <div className="relative">
-                  <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-500" />
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                    placeholder="Digite seu usuário ou RA"
-                    autoCapitalize="none"
-                    autoComplete="username"
-                    spellCheck="false"
-                    className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder:text-slate-600 text-base sm:text-xs font-medium outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-                  <span>Senha ou PIN</span>
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-500" />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    placeholder="••••••••"
-                    autoComplete="current-password"
-                    className="w-full pl-11 pr-11 py-3.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder:text-slate-600 text-base sm:text-xs font-medium outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 p-1 transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-blue-600/25 transition-all transform active:scale-98 disabled:opacity-50 cursor-pointer mt-2"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4.5 h-4.5 animate-spin text-white" />
-                    <span>Autenticando no NexusEdu...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Entrar na Plataforma</span>
-                    <ArrowRight className="w-4.5 h-4.5" />
-                  </>
-                )}
-              </button>
-            </form>
-
-            <div className="pt-2 text-center border-t border-slate-800/80">
-              <p className="text-xs text-slate-400">
-                Precisa de suporte? Entre em contato com a <b className="text-blue-400 font-semibold">Secretaria Escolar</b>.
-              </p>
-            </div>
-          </div>
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="relative z-10 w-full px-6 py-4 max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
-        <div>
-          © {new Date().getFullYear()} NexusEdu EdTech SaaS. Todos os direitos reservados.
-        </div>
-
-        <button
-          type="button"
-          onClick={() => {
-            confetti({ particleCount: 150, spread: 80, origin: { y: 0.85 } });
-            triggerAntonioEasterEgg();
-          }}
-          className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/90 border border-slate-800 text-blue-400 hover:text-blue-300 transition-all cursor-pointer shadow-sm hover:border-blue-500/40"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-          <span>Desenvolvido com excelência por Antônio Carlos</span>
-        </button>
-      </footer>
-    </div>
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        initialMode={authModalMode}
+        error={error}
+        setError={setError}
+        handleSubmit={handleSubmit}
+        username={username}
+        setUsername={setUsername}
+        password={password}
+        setPassword={setPassword}
+        showPassword={showPassword}
+        setShowPassword={setShowPassword}
+        loading={loading}
+      />
+    </>
   );
 }
 
