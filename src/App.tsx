@@ -2676,7 +2676,12 @@ export default function App() {
       .map((r: string) => r.trim());
     const isMaster = [
       "cps@cps.local",
+      "cps@progresso.com.br",
+      "ti@progresso.com.br",
       "karlos15704@gmail.com",
+      "karlos15704@progresso.com.br",
+      "admin@nexusedu.com.br",
+      "master@nexusedu.com",
       "ti@cps.local",
     ].includes(userProfile.email?.toLowerCase());
 
@@ -2803,7 +2808,12 @@ export default function App() {
       .map((r: string) => r.trim());
     const isMaster = [
       "cps@cps.local",
+      "cps@progresso.com.br",
+      "ti@progresso.com.br",
       "karlos15704@gmail.com",
+      "karlos15704@progresso.com.br",
+      "admin@nexusedu.com.br",
+      "master@nexusedu.com",
       "ti@cps.local",
     ].includes(userProfile.email?.toLowerCase());
 
@@ -2921,7 +2931,12 @@ export default function App() {
       .map((r: string) => r.trim());
     const isMaster = [
       "cps@cps.local",
+      "cps@progresso.com.br",
+      "ti@progresso.com.br",
       "karlos15704@gmail.com",
+      "karlos15704@progresso.com.br",
+      "admin@nexusedu.com.br",
+      "master@nexusedu.com",
       "ti@cps.local",
     ].includes(userProfile.email?.toLowerCase());
 
@@ -2991,7 +3006,12 @@ export default function App() {
       .map((r: string) => r.trim());
     const isMaster = [
       "cps@cps.local",
+      "cps@progresso.com.br",
+      "ti@progresso.com.br",
       "karlos15704@gmail.com",
+      "karlos15704@progresso.com.br",
+      "admin@nexusedu.com.br",
+      "master@nexusedu.com",
       "ti@cps.local",
     ].includes(userProfile.email?.toLowerCase());
 
@@ -3351,7 +3371,12 @@ export default function App() {
       try {
         const isAdminEmail = [
           "cps@cps.local",
+          "cps@progresso.com.br",
+          "ti@progresso.com.br",
           "karlos15704@gmail.com",
+          "karlos15704@progresso.com.br",
+          "admin@nexusedu.com.br",
+          "master@nexusedu.com",
           "ti@cps.local",
         ].includes(currentUser.email?.toLowerCase() || "");
         const isUserMaster = isAdminEmail;
@@ -3418,16 +3443,8 @@ export default function App() {
               insertErr,
             );
           } else if (newProfile.role !== dbRole) {
-            // Try to set the true role in the background if no check constraint blocks it
-            supabase
-              .from("users")
-              .update({ role: newProfile.role })
-              .eq("uid", currentUser.id)
-              .then(({ error }) => {
-                if (!error) {
-                  console.log("Successfully set true role after insertion:", newProfile.role);
-                }
-              });
+            // Re-apply special role locally
+            newProfile.role = assignedRole;
           }
 
           setUserProfile(newProfile); // Keep true role in memory!
@@ -3554,7 +3571,8 @@ export default function App() {
           } catch (_) {}
         }
         // Do not force sign out, let them proceed even if profile logic throws.
-        setIsAdmin(currentUser.email?.toLowerCase() === "cps@cps.local");
+        const isMasterMail = currentUser.email?.toLowerCase().includes("cps@") || currentUser.email?.toLowerCase().includes("ti@") || currentUser.email?.toLowerCase().includes("karlos15704");
+        setIsAdmin(isMasterMail || false);
         setUser(currentUser);
       }
     } else {
@@ -3570,7 +3588,12 @@ export default function App() {
   const isAdminNow = isAdmin ||
     (user && (
       user.email === "cps@cps.local" ||
+      user.email === "cps@progresso.com.br" ||
+      user.email === "ti@progresso.com.br" ||
       user.email === "karlos15704@gmail.com" ||
+      user.email === "karlos15704@progresso.com.br" ||
+      user.email === "admin@nexusedu.com.br" ||
+      user.email === "master@nexusedu.com" ||
       user.email === "ti@cps.local"
     )) ||
     profileRole.includes("admin") ||
@@ -6210,18 +6233,38 @@ function LoginView({
     let authError: any = null;
 
     try {
-      const supabaseEmail = safeUsername.includes("@") ? safeUsername : `${safeUsername}@cps.local`;
+      const candidateEmails = safeUsername.includes("@")
+        ? [safeUsername]
+        : [
+            `${safeUsername}@progresso.com.br`,
+            `${safeUsername}@nexusedu.com.br`,
+            `${safeUsername}@nexusedu.com`,
+            `${safeUsername}@cps.local`
+          ];
       const supabasePassword = password.endsWith("_cpsAuth") ? password : `${password}_cpsAuth`;
 
-      let { data: authData, error: signInErr } = await supabase.auth.signInWithPassword({
-        email: supabaseEmail,
-        password: supabasePassword,
-      });
+      let authData: any = null;
+      let signInErr: any = null;
+
+      for (const emailToTry of candidateEmails) {
+        const res = await supabase.auth.signInWithPassword({
+          email: emailToTry,
+          password: supabasePassword,
+        });
+        if (!res.error && res.data?.user) {
+          authData = res.data;
+          signInErr = null;
+          break;
+        } else {
+          signInErr = res.error;
+        }
+      }
 
       // Auto-create TI user fallback if credentials match
       if (signInErr && safeUsername === "ti" && password === "15704") {
+        const fallbackEmail = "ti@progresso.com.br";
         const { error: signUpError } = await supabase.auth.signUp({
-          email: supabaseEmail,
+          email: fallbackEmail,
           password: supabasePassword,
           options: {
             data: {
@@ -6232,7 +6275,7 @@ function LoginView({
         });
         if (!signUpError) {
           const res = await supabase.auth.signInWithPassword({
-            email: supabaseEmail,
+            email: fallbackEmail,
             password: supabasePassword,
           });
           authData = res.data;
@@ -6247,7 +6290,7 @@ function LoginView({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            email: supabaseEmail,
+            email: authData.user.email,
             uid: authData.user.id,
             status: "success",
           }),
