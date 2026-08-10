@@ -1248,177 +1248,64 @@ export function DashboardView({
         {/* COLUNA ESQUERDA: WORKSPACE ACADÊMICO (8/12) */}
         <div className="lg:col-span-8 space-y-6">
           
-          {/* PAINEL DE BOAS-VINDAS: COMPACTO */}
+          {/* PAINEL DE BOAS-VINDAS: NEXTEDU SAAS TECH */}
           <motion.div 
-            initial={{ y: 50, opacity: 0 }}
+            initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ type: "spring", delay: 0.1 }}
-            className={`relative w-full rounded-2xl p-3 sm:p-4 flex flex-col md:flex-row items-center gap-3 overflow-hidden shadow-md transition-all duration-500 ${isWorldCupTheme ? "bg-gradient-to-r from-green-700/65 via-green-600/55 to-yellow-600/45 backdrop-blur-md border border-yellow-400/50 hover:border-yellow-400" : "bg-gradient-to-r from-slate-900/80 via-slate-800/80 to-slate-900/80 backdrop-blur-md border border-slate-700/50"}`}
+            className="relative w-full rounded-3xl p-5 sm:p-6 flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden shadow-xl bg-slate-900/80 backdrop-blur-xl border border-cyan-500/20"
           >
-            
-            {/* Elegant Background Patterns */}
-            <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: `radial-gradient(rgba(212,175,55,1) 1px, transparent 1px)`, backgroundSize: '12px 12px' }} />
-            <div className={`absolute top-0 right-0 w-1/3 h-full pointer-events-none transition-colors duration-500 ${isWorldCupTheme ? "bg-[radial-gradient(circle_at_100%_50%,rgba(250,204,21,0.15),transparent_70%)]" : "bg-[radial-gradient(circle_at_100%_50%,rgba(168,141,68,0.08),transparent_70%)]"}`}></div>
-            
-            <div className="relative z-10 space-y-2 text-left flex-1">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[6px] font-black text-white/80 bg-white/5 border border-white/10 px-1 py-0.5 rounded-[4px] uppercase font-mono tracking-widest cursor-default select-none">
-                  CPS
+            {/* Ambient Background Light Orbs */}
+            <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative z-10 space-y-3 text-left flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-full uppercase tracking-widest">
+                  NextEdu Platform
                 </span>
-                <span className="flex items-center gap-1 text-[6px] font-black text-emerald-400 bg-emerald-400/5 px-1 py-0.5 rounded-[4px] uppercase font-mono tracking-widest select-none">
-                  <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></span>
-                  ONLINE
+                <span className="flex items-center gap-1.5 text-[9px] font-black text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2.5 py-1 rounded-full uppercase tracking-widest">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  VPS OPERACIONAL
                 </span>
-              </div>
-              <div className="flex items-center gap-3">
-                {isWorldCupTheme && (
-                  <motion.img 
-                    src="/cbf_logo.png"
-                    alt="Escudo CBF"
-                    onClick={() => triggerGoalCelebration()}
-                    className="w-16 h-20 md:w-20 md:h-24 object-contain drop-shadow-[0_6px_20px_rgba(0,0,0,0.55)] drop-shadow-[0_0_15px_rgba(250,204,21,0.55)] shrink-0 cursor-pointer hover:scale-105 hover:rotate-3 active:scale-95 transition-all duration-300"
-                  />
-                )}
-                <div>
-                  <motion.h2 
-                    initial={{ x: -20 }}
-                    animate={{ x: 0 }}
-                    className="text-sm sm:text-base font-black tracking-tight text-white uppercase leading-none"
-                  >
-                    Olá, {userProfile?.professional_name || user.email?.split('@')[0]}!
-                  </motion.h2>
-                  <p className="text-[9px] text-slate-300 dark:text-slate-400 mt-0.5 leading-snug">
-                    Portal unificado do Colégio Progresso Santista
-                  </p>
-                </div>
               </div>
 
-              <div className="pt-0.5 flex flex-wrap items-center gap-2">
+              <div>
+                <motion.h2 
+                  initial={{ x: -20 }}
+                  animate={{ x: 0 }}
+                  className="text-xl sm:text-2xl font-black tracking-tight text-white font-display uppercase"
+                >
+                  Olá, {userProfile?.professional_name || user.email?.split('@')[0]}!
+                </motion.h2>
+                <p className="text-xs text-slate-400 mt-1 font-medium">
+                  Bem-vindo ao ecossistema inteligente de gestão escolar do NextEdu.
+                </p>
+              </div>
+
+              <div className="pt-2 flex flex-wrap items-center gap-3">
                 <motion.button 
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => { onEditExam(null); setView('create'); }}
-                  className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 font-black text-[8px] uppercase tracking-wider rounded-lg transition-all shadow-sm text-white ${isWorldCupTheme ? "bg-blue-600 hover:bg-blue-700 border-blue-500" : "bg-[#a88d44] hover:bg-[#8e7432] border border-[#d4af37]/40"}`}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg text-white bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 border border-cyan-400/30 cursor-pointer"
                 >
-                  <Plus className="w-2.5 h-2.5" />
-                  <span>Nova Avaliação</span>
-                </motion.button>
-                <motion.button 
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={toggleWorldCupTheme}
-                  className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 font-black text-[8px] uppercase tracking-wider rounded-lg transition-all shadow-sm border ${isWorldCupTheme ? "bg-white/10 hover:bg-white/20 border-white/20 text-yellow-300" : "bg-green-600/10 hover:bg-green-600/20 border-green-500/30 text-green-400"}`}
-                >
-                  <span>{isWorldCupTheme ? "Tema Padrão" : "Tema Brasil 💛💚"}</span>
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Criar Nova Avaliação</span>
                 </motion.button>
               </div>
             </div>
 
-            {/* INTERACTIVE COMPRESSED SCHOOL BUS WIDGET (EXPRESSO PROGRESSO) - HIDDEN ON SMALL SCREENS TO SAVE SPACE */}
-            <div className="hidden lg:flex relative z-10 flex-col items-center justify-center bg-slate-900/65 border border-slate-800/80 rounded-xl p-2 select-none w-36 shrink-0 group transition-all duration-300 hover:border-amber-500/30 scale-90 origin-right">
-              {/* Speech bubble for honking */}
-              <motion.div 
-                initial={{ scale: 0, opacity: 0 }}
-                animate={dashboardBusHonk ? { scale: 1, opacity: 1, y: -5 } : { scale: 0, opacity: 0 }}
-                className="absolute -top-8 bg-yellow-400 text-slate-950 font-black text-[9px] uppercase tracking-wider px-2.5 py-1 rounded-full shadow-lg border-2 border-slate-950 z-25 flex items-center gap-1 shrink-0 whitespace-nowrap"
-              >
-                📢 BI-BIIIIP!
-                <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-2 h-2 bg-yellow-400 border-r border-b border-slate-950 transform rotate-45" />
-              </motion.div>
-
-              {/* The Bus Frame */}
-              <motion.div
-                onClick={() => {
-                  setDashboardBusHonk(true);
-                  setBusPhraseIdx((prev) => (prev + 1) % funBusPhrases.length);
-                  playStadiumSound('horn');
-                  try {
-                    confetti({
-                      particleCount: 20,
-                      spread: 40,
-                      origin: { y: 0.6 }
-                    });
-                  } catch (_) {}
-                  setTimeout(() => setDashboardBusHonk(false), 1200);
-                }}
-                animate={dashboardBusHonk 
-                  ? { 
-                      x: [-2, 2, -2, 2, -1, 1, 0], 
-                      y: [-1, -4, -1, -3, 0],
-                      rotate: [-1, 1, -1, 1, 0] 
-                    } 
-                  : { 
-                      y: [0, -2, 0]
-                    }
-                }
-                transition={
-                  dashboardBusHonk 
-                  ? { duration: 0.5 } 
-                  : { duration: 1.6, repeat: Infinity, ease: "easeInOut" }
-                }
-                className={`w-48 h-20 rounded-2xl border-4 shadow-xl relative flex flex-col justify-between p-1.5 cursor-pointer active:scale-95 transition-colors duration-500 ${isWorldCupTheme ? "bg-green-500 hover:bg-green-400 border-yellow-400" : "bg-amber-400 hover:bg-amber-300 border-slate-900"}`}
-                title="Clique para buzinar!"
-              >
-                {/* Shiny glass reflections */}
-                <div className="absolute -inset-0.5 rounded-xl border border-white/20 pointer-events-none" />
-
-                {/* Bus Top Window Panel */}
-                <div className="flex gap-1.5 justify-center mt-0.5">
-                  {[0, 1, 2].map((idx) => (
-                    <div key={idx} className="w-11 h-7 bg-sky-200 border-2 border-slate-900 rounded-md overflow-hidden relative flex items-center justify-center">
-                      <div className="absolute inset-0 bg-white/30 -skew-x-12" />
-                      <motion.span 
-                        animate={{ y: [0, -1, 0] }}
-                        transition={{ duration: 0.5, delay: idx * 0.15, repeat: Infinity }}
-                        className="text-sm select-none shrink-0"
-                      >
-                        {["🧑‍🏫", "🧑‍🎓", "🎒"][idx]}
-                      </motion.span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* School Signboard */}
-                <div className={`font-mono font-black text-[6.5px] py-0.5 tracking-[0.14em] text-center rounded uppercase leading-none mx-1.5 truncate transition-colors duration-500 ${isWorldCupTheme ? "bg-blue-600 text-yellow-300 border border-yellow-400/50" : "bg-slate-950 text-[#d4af37] border border-amber-500/20"}`}>
-                  {isWorldCupTheme ? "Rumo ao Hexa 🏆" : "Progresso Santista"}
-                </div>
-
-                {/* Bottom details */}
-                <div className="flex justify-between items-center px-1">
-                  <div className="w-2 h-2 bg-yellow-300 rounded-full border border-slate-950 animate-pulse shadow-[0_0_3px_rgba(250,204,21,1)]" />
-                  <div className="flex-1 h-1 bg-slate-900 rounded mx-2" />
-                  <div className="w-2 h-2 bg-yellow-300 rounded-full border border-slate-950 animate-pulse shadow-[0_0_3px_rgba(250,204,21,1)]" />
-                </div>
-
-                {/* Bouncing Wheels */}
-                <div className="absolute -bottom-2.5 left-5 flex justify-between w-32">
-                  <motion.div 
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                    className="w-6 h-6 bg-slate-950 rounded-full border-[2px] border-slate-700 flex items-center justify-center relative shadow-md"
-                  >
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
-                  </motion.div>
-                  <motion.div 
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                    className="w-6 h-6 bg-slate-950 rounded-full border-[2px] border-slate-700 flex items-center justify-center relative shadow-md"
-                  >
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
-                  </motion.div>
-                </div>
-              </motion.div>
-
-              {/* Bubble message or driver panel */}
-              <div className="mt-3 text-center w-full px-1">
-                <p className={`text-[7.5px] font-black uppercase font-mono tracking-[0.2em] animate-pulse leading-none mb-1 transition-colors ${isWorldCupTheme ? "text-yellow-400" : "text-amber-500"}`}>
-                   {isWorldCupTheme ? "Ônibus da Seleção ⚽" : "Expresso Escolar 🚌"}
-                </p>
-                <div className="h-[20px] flex items-center justify-center">
-                  <p className={`text-[9px] font-extrabold leading-tight tracking-wide transition-colors ${isWorldCupTheme ? "text-green-300" : "text-amber-100"}`}>
-                    "{isWorldCupTheme && busPhraseIdx % 2 === 0 ? "Galvão? Fala Tino! Sentiu! ⚽" : funBusPhrases[busPhraseIdx]}"
-                  </p>
-                </div>
+            {/* QUICK STATS TECH WIDGET */}
+            <div className="relative z-10 hidden sm:flex items-center gap-4 bg-slate-950/60 p-4 rounded-2xl border border-slate-800 shrink-0">
+              <div className="text-center px-3">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Provas Salvas</span>
+                <span className="text-xl font-black text-cyan-400 font-display">{exams.length}</span>
+              </div>
+              <div className="w-px h-8 bg-slate-800" />
+              <div className="text-center px-3">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Gabaritos</span>
+                <span className="text-xl font-black text-indigo-400 font-display">{results.length}</span>
               </div>
             </div>
           </motion.div>

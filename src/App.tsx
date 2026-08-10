@@ -2159,7 +2159,8 @@ export default function App() {
   }, []);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isWorldCupTheme, setIsWorldCupTheme] = useState(() => {
-    return localStorage.getItem('cps_world_cup_theme') !== 'false';
+    localStorage.setItem('cps_world_cup_theme', 'false');
+    return false;
   });
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -4450,54 +4451,12 @@ Deseja substituí-la? (A avaliação ativa anterior será enviada para a lixeira
                 : "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100",
             )}
           >
-            {/* World Cup Immersive Background Overlay */}
-            {isWorldCupTheme && view === "dashboard" && (
-              <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden bg-[#051e0b]">
-                {/* Base Background Image */}
-                <div 
-                  className="absolute inset-0 bg-[url('/brazil_stadium_background.png')] bg-[length:100%_100%] bg-no-repeat bg-center opacity-80 transition-opacity duration-1000"
-                />
-                {/* Vignette Overlay for premium readable contrast */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#051e0b]/90 via-transparent to-[#051e0b]/45 mix-blend-multiply" />
-                
-                {/* Moving spotlights overlay */}
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(250,204,21,0.15),transparent_50%)] animate-pulse" style={{ animationDuration: '4s' }} />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,rgba(34,197,94,0.15),transparent_60%)] animate-pulse" style={{ animationDuration: '6s' }} />
-                
-                {/* Drifting Gold, Green, and Blue Confetti Particles */}
-                <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-60">
-                  {Array.from({ length: 40 }).map((_, idx) => {
-                    const left = Math.random() * 100;
-                    const delay = Math.random() * 5;
-                    const duration = 6 + Math.random() * 8;
-                    const size = 3 + Math.random() * 6;
-                    return (
-                      <div
-                        key={`confetti-${idx}`}
-                        className="absolute rounded-sm"
-                        style={{
-                          width: `${size}px`,
-                          height: `${size}px`,
-                          backgroundColor: idx % 3 === 0 ? '#facc15' : idx % 3 === 1 ? '#22c55e' : '#3b82f6',
-                          left: `${left}%`,
-                          top: `-10px`,
-                          opacity: 0.7,
-                          animation: `confetti-drift ${duration}s linear infinite`,
-                          animationDelay: `${delay}s`,
-                          transform: `rotate(${Math.random() * 360}deg)`
-                        }}
-                      />
-                    );
-                  })}
-                </div>
-
-                <style dangerouslySetInnerHTML={{__html: `
-                  @keyframes confetti-drift {
-                    0% { transform: translateY(0) rotate(0deg); opacity: 0.8; }
-                    50% { transform: translateY(50vh) rotate(180deg) translateX(15px); opacity: 0.8; }
-                    100% { transform: translateY(105vh) rotate(360deg) translateX(-15px); opacity: 0; }
-                  }
-                `}} />
+            {/* Sleek Ambient Tech Glow for Dashboard */}
+            {view === "dashboard" && (
+              <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden bg-[#070c18] dark:bg-[#070c18]">
+                <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-[160px]" />
+                <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-indigo-600/5 rounded-full blur-[160px]" />
+                <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-15" />
               </div>
             )}
 
@@ -6508,183 +6467,141 @@ function LoginView({
         </div>
       </header>
 
-      {/* Main Hero Container */}
-      <main className="relative z-10 w-full max-w-7xl mx-auto px-6 py-6 md:py-10 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center my-auto">
-        {/* Left Column: SaaS Features & Value Proposition */}
-        <div className="lg:col-span-7 space-y-8 text-left">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 text-cyan-300 text-xs font-semibold">
-            <Sparkles className="w-4 h-4 text-cyan-400" />
-            <span>Ecossistema SaaS Educacional de Nova Geração</span>
-          </div>
-
-          <div className="space-y-4">
-            <h2 className="text-3xl md:text-5xl font-black text-white leading-tight font-display tracking-tight">
-              A Revolução na Gestão Escolar <br />
-              <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                Simples, Moderna & Potente
-              </span>
-            </h2>
-            <p className="text-slate-400 text-sm md:text-base leading-relaxed max-w-xl">
-              Centralize exames com inteligência artificial, boletins integrados, diário de classe digital e atendimento escolar com alta performance.
-            </p>
-          </div>
-
-          {/* Feature Grid Pills */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-cyan-500/30 transition-all duration-300 group">
-              <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                <Cpu className="w-5 h-5" />
-              </div>
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-1">
-                Motor OMR & IA
-              </h3>
-              <p className="text-[11px] text-slate-400 leading-snug">
-                Diagramação e leitura automatizada de cartões-resposta de exames em segundos.
-              </p>
+      {/* Main Hero Container - Centered Modern SaaS Card */}
+      <main className="relative z-10 w-full max-w-lg mx-auto px-4 py-8 sm:py-12 my-auto flex flex-col items-center justify-center">
+        
+        {/* Floating Glassmorphic Login Card */}
+        <div className="w-full relative rounded-3xl bg-slate-900/85 border border-cyan-500/30 backdrop-blur-2xl p-6 sm:p-9 shadow-[0_20px_100px_rgba(6,182,212,0.2)] text-left space-y-6 transition-all duration-300">
+          
+          {/* Top Brand & Status Section */}
+          <div className="space-y-4 text-center">
+            
+            {/* Glowing Brand Icon */}
+            <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-600 text-white shadow-[0_0_30px_rgba(6,182,212,0.5)] flex items-center justify-center relative group">
+              <GraduationCap className="w-9 h-9 text-white group-hover:scale-110 transition-transform duration-300" />
+              <Sparkles className="w-4 h-4 text-cyan-300 absolute top-1 right-1 animate-pulse" />
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-blue-500/30 transition-all duration-300 group">
-              <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                <BarChart3 className="w-5 h-5" />
-              </div>
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-1">
-                Gestão 360° & Gráficos
-              </h3>
-              <p className="text-[11px] text-slate-400 leading-snug">
-                Frequências, diários de classe, notas e relatórios de rendimento em tempo real.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-indigo-500/30 transition-all duration-300 group">
-              <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-1">
-                VPS Dedicada & Backup
-              </h3>
-              <p className="text-[11px] text-slate-400 leading-snug">
-                Banco de dados privativo de alta velocidade com salvamento contínuo.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-purple-500/30 transition-all duration-300 group">
-              <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                <Users className="w-5 h-5" />
-              </div>
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-1">
-                Portal Unificado
-              </h3>
-              <p className="text-[11px] text-slate-400 leading-snug">
-                Acesso inteligente para diretores, professores, alunos e responsáveis em uma única tela.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Sleek Glassmorphic Unified Login Form */}
-        <div className="lg:col-span-5 w-full">
-          <div className="relative rounded-3xl bg-slate-900/70 border border-cyan-500/20 backdrop-blur-2xl p-7 md:p-9 shadow-[0_20px_80px_rgba(0,0,0,0.7)] text-left space-y-6 transition-all duration-300">
-            {/* Form Top Title */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-white font-display">
-                  Acessar Plataforma
-                </h3>
-                <span className="text-[9px] font-black uppercase tracking-widest text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-full border border-cyan-500/20">
-                  Single Sign-On
+            <div>
+              <div className="flex items-center justify-center gap-2">
+                <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white font-display">
+                  Next<span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent">Edu</span>
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                  SaaS EdTech
                 </span>
               </div>
-              <p className="text-xs text-slate-400 font-medium">
-                Digite suas credenciais de acesso corporativo ou acadêmico.
+              <p className="text-xs text-slate-400 font-medium mt-1">
+                Plataforma Inteligente de Gestão Escolar
               </p>
             </div>
 
-            {/* Error Notification Alert */}
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-rose-950/80 text-rose-200 border border-rose-500/30 p-3 rounded-xl text-xs font-semibold flex items-center gap-2.5 shadow-lg"
-              >
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                <span>{error}</span>
-              </motion.div>
-            )}
+            {/* VPS Status Badge */}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950/80 border border-slate-800 text-[10px] font-bold text-slate-300">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <span className="tracking-wider">VPS DEDICADA OPERACIONAL</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+            </div>
+          </div>
 
-            {/* Single Unified Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Username / RA Input */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
-                  <span>Usuário, Email ou RA</span>
-                </label>
-                <div className="relative">
-                  <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                    placeholder="Ex: professor, ti, ou RA do Aluno"
-                    autoCapitalize="none"
-                    autoComplete="username"
-                    spellCheck="false"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950/80 border border-slate-800 text-white placeholder:text-slate-600 text-xs font-medium outline-none transition-all focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
-                  />
-                </div>
+          {/* Error Notification Alert */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-rose-950/80 text-rose-200 border border-rose-500/40 p-3.5 rounded-2xl text-xs font-semibold flex items-center gap-2.5 shadow-lg"
+            >
+              <AlertCircle className="w-4.5 h-4.5 text-rose-400 shrink-0" />
+              <span>{error}</span>
+            </motion.div>
+          )}
+
+          {/* Single Unified Form */}
+          <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+            {/* Username / RA Input */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+                <span>Usuário, Email ou RA</span>
+                <span className="text-[9px] text-cyan-400 font-medium lowercase">Single Sign-On</span>
+              </label>
+              <div className="relative">
+                <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                  placeholder="Ex: professor, ti ou RA do aluno"
+                  autoCapitalize="none"
+                  autoComplete="username"
+                  spellCheck="false"
+                  className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-slate-950/90 border border-slate-800 text-white placeholder:text-slate-600 text-base sm:text-xs font-medium outline-none transition-all focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                />
               </div>
+            </div>
 
-              {/* Password / PIN Input */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
-                  <span>Senha ou PIN</span>
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    placeholder="••••••••"
-                    autoComplete="current-password"
-                    className="w-full pl-10 pr-10 py-3 rounded-xl bg-slate-950/80 border border-slate-800 text-white placeholder:text-slate-600 text-xs font-medium outline-none transition-all focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
+            {/* Password / PIN Input */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+                <span>Senha ou PIN</span>
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  className="w-full pl-11 pr-11 py-3.5 rounded-2xl bg-slate-950/90 border border-slate-800 text-white placeholder:text-slate-600 text-base sm:text-xs font-medium outline-none transition-all focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 p-1 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+                </button>
               </div>
+            </div>
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(6,182,212,0.4)] transition-all transform active:scale-98 disabled:opacity-50 cursor-pointer mt-2"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin text-white" />
-                    <span>Autenticando no NextEdu...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Entrar no NextEdu</span>
-                    <ChevronRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            </form>
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white text-xs sm:text-sm font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(6,182,212,0.4)] transition-all transform active:scale-98 disabled:opacity-50 cursor-pointer mt-3"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4.5 h-4.5 animate-spin text-white" />
+                  <span>Autenticando no NextEdu...</span>
+                </>
+              ) : (
+                <>
+                  <span>Entrar no NextEdu</span>
+                  <ChevronRight className="w-4.5 h-4.5" />
+                </>
+              )}
+            </button>
+          </form>
 
-            {/* Subrow Support Notice */}
-            <div className="pt-2 text-center border-t border-slate-800/80">
-              <p className="text-[10.5px] text-slate-400">
-                Esqueceu suas credenciais? Entre em contato com a <b className="text-cyan-400">Secretaria Escolar</b>.
-              </p>
+          {/* Quick Feature Badges */}
+          <div className="grid grid-cols-3 gap-2 pt-2 text-center border-t border-slate-800/80">
+            <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800">
+              <span className="text-[9px] font-bold text-cyan-400 block">⚡ IA & OMR</span>
+              <span className="text-[7.5px] text-slate-500">Correção Instantânea</span>
+            </div>
+            <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800">
+              <span className="text-[9px] font-bold text-blue-400 block">🛡️ VPS Privativo</span>
+              <span className="text-[7.5px] text-slate-500">Backup Contínuo</span>
+            </div>
+            <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800">
+              <span className="text-[9px] font-bold text-indigo-400 block">📊 Gestão 360°</span>
+              <span className="text-[7.5px] text-slate-500">Portal Unificado</span>
             </div>
           </div>
         </div>

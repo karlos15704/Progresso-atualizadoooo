@@ -90,18 +90,18 @@ export const AnnouncementPopup: React.FC<AnnouncementPopupProps> = ({ onNavigate
       {isOpen && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
           
-          {/* MASSIVE BACKGROUND ANIMATIONS - BRASIL THEME */}
+          {/* NEXTEDU TECH BACKGROUND GLOW */}
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: [0.4, 0.7, 0.4] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-green-600/40 via-transparent to-transparent pointer-events-none"
+            className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-600/30 via-transparent to-transparent pointer-events-none"
           />
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: [0.3, 0.6, 0.3] }}
             transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-            className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-yellow-500/30 via-transparent to-transparent pointer-events-none"
+            className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/30 via-transparent to-transparent pointer-events-none"
           />
           <motion.div 
             initial={{ opacity: 0 }}
@@ -117,8 +117,8 @@ export const AnnouncementPopup: React.FC<AnnouncementPopupProps> = ({ onNavigate
             transition={{ type: "spring", bounce: 0.6, duration: 0.8 }}
             className="max-w-md w-full relative z-10"
           >
-            {/* Inner card containing the actual popup contents, with yellow border and overflow-hidden to perfectly clip corners */}
-            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-[0_0_120px_rgba(22,163,74,0.6)] border-[5px] border-yellow-400 overflow-hidden relative">
+            {/* Inner card containing the actual popup contents */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-[0_0_120px_rgba(6,182,212,0.4)] border border-cyan-500/30 overflow-hidden relative">
               {/* Close Button */}
               <button
                 onClick={handleClose}
@@ -127,30 +127,25 @@ export const AnnouncementPopup: React.FC<AnnouncementPopupProps> = ({ onNavigate
                 <X className="w-5 h-5" />
               </button>
 
-              {/* Header / Banner - Brazil Gradient */}
-              <div className="bg-gradient-to-br from-green-600 via-green-500 to-yellow-500 p-5 md:p-8 flex flex-col items-center justify-center text-white relative">
+              {/* Header / Banner - NextEdu SaaS */}
+              <div className="bg-gradient-to-br from-cyan-600 via-blue-600 to-indigo-600 p-5 md:p-8 flex flex-col items-center justify-center text-white relative">
                 {/* Dynamic Header Glow */}
                 <motion.div
                   animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0.5, 0.2] }}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute inset-0 bg-yellow-300/30 blur-2xl"
+                  className="absolute inset-0 bg-cyan-300/30 blur-2xl"
                 />
                 
                 <motion.div
-                  animate={{ y: [0, -10, 0], rotate: [0, 10, -10, 0] }}
+                  animate={{ y: [0, -6, 0] }}
                   transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
-                  className="bg-white/20 p-4 md:p-5 rounded-full mb-3 md:mb-4 backdrop-blur-md border-[3px] border-yellow-300 shadow-[0_0_30px_rgba(250,204,21,0.6)] relative"
+                  className="bg-white/20 p-4 md:p-5 rounded-full mb-3 md:mb-4 backdrop-blur-md border border-cyan-300/40 shadow-[0_0_30px_rgba(6,182,212,0.6)] relative"
                 >
-                  <motion.div
-                    animate={{ scale: [1, 1.3, 1] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                    className="absolute inset-0 bg-yellow-400/40 rounded-full blur-md"
-                  />
-                  <Trophy className="w-10 h-10 md:w-16 md:h-16 text-yellow-300 relative z-10" />
+                  <Sparkles className="w-8 h-8 md:w-12 md:h-12 text-cyan-300 relative z-10" />
                 </motion.div>
 
-                <h2 className="text-[20px] md:text-[28px] font-black uppercase tracking-widest text-center text-white drop-shadow-[0_4px_6px_rgba(0,0,0,0.4)] leading-tight">
-                  Rumo ao Hexa! 🏆 BRASIL
+                <h2 className="text-[18px] md:text-[24px] font-black uppercase tracking-widest text-center text-white drop-shadow-[0_4px_6px_rgba(0,0,0,0.4)] leading-tight">
+                  Comunicado Oficial
                 </h2>
               </div>
 
