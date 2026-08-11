@@ -1096,6 +1096,7 @@ const ProfessionalEditor = ({
   className,
   style,
   id,
+  headerTitle = "Enunciado da Questão",
 }: {
   value: string;
   onChange: (val: string) => void;
@@ -1103,6 +1104,7 @@ const ProfessionalEditor = ({
   className?: string;
   style?: React.CSSProperties;
   id?: string;
+  headerTitle?: string;
 }) => {
   const storageKey = useMemo(() => {
     const cleanKey = placeholder ? placeholder.replace(/[^a-zA-Z0-9]/g, "_") : "default";
@@ -1209,7 +1211,7 @@ const ProfessionalEditor = ({
         <div className="flex flex-col border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden bg-white dark:bg-slate-900 group">
           <div className="flex items-center justify-between px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-150 dark:border-slate-800 select-none">
             <span className="text-[9px] uppercase font-black tracking-widest text-slate-400 dark:text-slate-500">
-              Enunciado da Questão
+              {headerTitle}
             </span>
             <button
               type="button"
@@ -8225,7 +8227,21 @@ function CreateExamView({
     examToEdit?.fontFamily || "Arial",
   );
   const [questions, setQuestions] = useState<Question[]>(
-    Array.isArray(examToEdit?.questions) ? examToEdit.questions : [],
+    Array.isArray(examToEdit?.questions) && examToEdit.questions.length > 0
+      ? examToEdit.questions
+      : [
+          {
+            id: 1,
+            type: "objective",
+            text: "",
+            options: ["", "", "", "", ""],
+            correctAnswer: "A",
+            points: 1,
+            imageSize: 100,
+            imageAlign: "center",
+            align: "left",
+          },
+        ],
   );
   const [saving, setSaving] = useState(false);
   const [validationError, setValidationError] = useState("");
@@ -8282,29 +8298,34 @@ function CreateExamView({
 
   const [newCustomSubject, setNewCustomSubject] = useState("");
 
-  const handleSave = async () => {
-    if (!title) {
-      setValidationError("O título da prova é obrigatório.");
+  const handleSave = async (forceConflictReplace = false) => {
+    if (!title.trim()) {
+      setValidationError("O título da avaliação é obrigatório.");
+      alert("Por favor, preencha o Título da Avaliação.");
       return;
     }
     if (!subject) {
       setValidationError("A disciplina é obrigatória.");
+      alert("Por favor, selecione a Matéria / Disciplina.");
       return;
     }
-    if (!classYear) {
+    if (!classYear.trim()) {
       setValidationError("Selecione pelo menos uma turma.");
+      alert("Por favor, selecione pelo menos uma Turma clicando no botão correspondente (ex: 6º A).");
       return;
     }
     if (!examType) {
       setValidationError(
         "O tipo de prova (ex: PII, Recuperação) é obrigatório.",
       );
+      alert("Por favor, selecione ou informe o Tipo de Prova.");
       return;
     }
-    if (!isExternal && questions.length === 0) {
+    if (!isExternal && questions.length === 0 && !content.trim()) {
       setValidationError(
-        'Adicione pelo menos uma questão ou marque a prova como "Externa" (apenas para cronograma).',
+        'Adicione pelo menos uma questão ou preencha o conteúdo programático da avaliação.',
       );
+      alert('Adicione pelo menos uma questão ou preencha o conteúdo programático da avaliação.');
       return;
     }
 
@@ -8347,12 +8368,12 @@ function CreateExamView({
       }
 
       const examData = {
-        title,
+        title: title.trim(),
         subject,
         questions: isExternal ? [] : sortedQuestions,
         answer_key: answerKey,
         study_guide: guide,
-        professor_id: selectedProfId,
+        professor_id: selectedProfId || user.id,
         exam_type: examType,
         exam_date: examDate ? examDate : null,
         exam_time: examTime ? examTime : null,
@@ -8361,44 +8382,92 @@ function CreateExamView({
         content,
       };
 
-      let error;
-      if (examToEdit) {
-        const res = await supabase
-          .from("exams")
-          .update(examData)
-          .eq("id", examToEdit.id)
-          .select();
-        error = res.error;
-      } else {
-        // --- CHECK CONFLICT FOR NEW EXAMS ---
-        const conflictRes = await checkAndResolveExamConflict(
-          classYear,
-          bimester,
-          subject,
-          examType
-        );
-        if (!conflictRes.proceed) {
-          if (conflictRes.error) {
-            alert("Erro ao verificar conflitos de avaliação: " + conflictRes.error.message);
+      let savedSuccessfully = false;
+
+      // 1. Tentar salvar diretamente pelo servidor backend (rápido, seguro contra Mixed Content e sem restrições de RLS)
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+        const res = await fetch("/api/exams/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            examData,
+            examId: examToEdit?.id,
+            forceReplace: forceConflictReplace,
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.conflict) {
+            setSaving(false);
+            const confirmReplace = window.confirm(
+              `${data.message}\n\nDeseja substituí-la? (A avaliação ativa anterior será enviada para a lixeira)`
+            );
+            if (confirmReplace) {
+              return handleSave(true);
+            }
+            return;
           }
-          setSaving(false);
-          return;
+
+          if (data.success) {
+            savedSuccessfully = true;
+          } else if (data.error) {
+            throw new Error(data.error);
+          }
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Erro do servidor HTTP ${res.status}`);
         }
-        // --------------------------------------
-
-        const res = await supabase
-          .from("exams")
-          .insert({ ...examData, created_at: new Date().toISOString() })
-          .select();
-        error = res.error;
+      } catch (apiErr: any) {
+        console.warn("[Save Exam] API backend falhou, tentando fallback Supabase direto:", apiErr);
       }
 
-      if (error) {
-        alert("Erro no banco de dados (Supabase): " + error.message);
-        throw error;
+      // 2. Fallback via cliente Supabase se a API não estiver acessível
+      if (!savedSuccessfully) {
+        let error;
+        if (examToEdit) {
+          const res = await supabase
+            .from("exams")
+            .update(examData)
+            .eq("id", examToEdit.id)
+            .select();
+          error = res.error;
+        } else {
+          if (!forceConflictReplace) {
+            const conflictRes = await checkAndResolveExamConflict(
+              classYear,
+              bimester,
+              subject,
+              examType
+            );
+            if (!conflictRes.proceed) {
+              if (conflictRes.error) {
+                alert("Erro ao verificar conflitos de avaliação: " + conflictRes.error.message);
+              }
+              setSaving(false);
+              return;
+            }
+          }
+
+          const res = await supabase
+            .from("exams")
+            .insert({ ...examData, created_at: new Date().toISOString() })
+            .select();
+          error = res.error;
+        }
+
+        if (error) {
+          alert("Erro no banco de dados: " + error.message);
+          throw error;
+        }
       }
+
       alert(
-        "Sucesso! A prova foi salva corretamente no servidor. Você agora pode imprimi-la.",
+        "Sucesso! A avaliação foi salva corretamente no servidor. Você agora pode imprimi-la.",
       );
       onExamSaved();
       setView("dashboard");
@@ -8452,9 +8521,9 @@ function CreateExamView({
       </ViewHeader>
 
       {validationError && (
-        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-md text-sm font-bold flex items-center gap-2 shadow-sm">
-          <AlertCircle className="w-5 h-5" />
-          {validationError}
+        <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-4 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg backdrop-blur-md">
+          <AlertCircle className="w-5 h-5 shrink-0 text-red-400" />
+          <span>{validationError}</span>
         </div>
       )}
 
@@ -8553,10 +8622,10 @@ function CreateExamView({
                         else setClassYear([...arr, c].join(", "));
                       }}
                       className={cn(
-                        "px-3 py-1.5 rounded-md text-xs font-bold border transition-all",
+                        "px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider border transition-all cursor-pointer",
                         isSelected
-                          ? "bg-primary text-white border-primary shadow-sm"
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 hover:border-slate-400",
+                          ? "bg-[#a88d44] text-white border-[#d4af37] ring-2 ring-[#d4af37]/60 shadow-md shadow-amber-500/20"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700",
                       )}
                     >
                       {c}
@@ -8707,6 +8776,7 @@ function CreateExamView({
                 </label>
                 <ProfessionalEditor
                   id="exam-programmatic-content"
+                  headerTitle="Conteúdo Programático da Avaliação"
                   value={content}
                   onChange={setContent}
                   placeholder="Digite o conteúdo que será cobrado nesta prova..."
@@ -8745,6 +8815,30 @@ function CreateExamView({
                   </button>
                 </div>
               </div>
+
+              {questions.length === 0 && (
+                <div className="p-8 text-center bg-slate-100 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl space-y-3">
+                  <FileText className="w-10 h-10 text-slate-400 mx-auto" />
+                  <p className="text-sm font-bold text-slate-800 dark:text-slate-200">Nenhuma questão adicionada ainda</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Adicione questões abaixo para compor sua prova ou salve apenas com o conteúdo programático.</p>
+                  <div className="flex justify-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => addQuestion("objective")}
+                      className="bg-[#a88d44] hover:bg-[#8e7432] text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-md"
+                    >
+                      <Plus className="w-4 h-4" /> Adicionar Questão Objetiva
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => addQuestion("essay")}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-md"
+                    >
+                      <Plus className="w-4 h-4" /> Adicionar Questão Dissertativa
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {(Array.isArray(questions) ? questions : []).map((q, idx) => (
                 <div

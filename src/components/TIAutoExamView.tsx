@@ -384,28 +384,50 @@ export default function TIAutoExamView({ user, userProfile, schoolInfo, onBack, 
         adaptedStudents: []
       };
 
-      const { error } = await supabase
-        .from("exams")
-        .insert([
-          {
-            professor_id: selectedProfId,
-            title: parsedTitle,
-            subject: selectedSubject,
-            exam_type: documentType === "Atividade" ? "Atividade" : selectedExamType,
-            exam_date: null,
-            exam_time: null,
-            class_year: selectedClass,
-            bimester: selectedBimester,
-            content: `<div>${parsedTitle}</div>`,
-            questions: questions,
-            answer_key: answerKey,
-            study_guide: "",
-            font_size: 12,
-            font_family: "Inter"
-          }
-        ]);
+      const examPayload = {
+        professor_id: selectedProfId,
+        title: parsedTitle,
+        subject: selectedSubject,
+        exam_type: documentType === "Atividade" ? "Atividade" : selectedExamType,
+        exam_date: null,
+        exam_time: null,
+        class_year: selectedClass,
+        bimester: selectedBimester,
+        content: `<div>${parsedTitle}</div>`,
+        questions: questions,
+        answer_key: answerKey,
+        study_guide: "",
+        font_size: 12,
+        font_family: "Inter"
+      };
 
-      if (error) throw error;
+      let saved = false;
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+        const res = await fetch("/api/exams/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ examData: examPayload }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) saved = true;
+          else if (data.error) throw new Error(data.error);
+        }
+      } catch (apiErr) {
+        console.warn("[TIAutoExam] API save failed, fallback to direct supabase:", apiErr);
+      }
+
+      if (!saved) {
+        const { error } = await supabase
+          .from("exams")
+          .insert([examPayload]);
+        if (error) throw error;
+      }
+
       setSaveSuccess(true);
       setTimeout(() => {
         onBack();
@@ -1524,13 +1546,26 @@ export default function TIAutoExamView({ user, userProfile, schoolInfo, onBack, 
                 </div>
 
                 {/* Footer */}
-                <div className="mt-8 pt-4 border-t border-black text-center flex flex-col items-center gap-0.5">
-                  <span className="text-[7px] font-black uppercase tracking-[0.25em] text-[#a88d44]">
-                    Colégio Progresso Santista
-                  </span>
-                  <span className="text-[6px] font-bold uppercase tracking-wider text-slate-500">
-                    Mural Pedagógico • Gerador IA de Provas
-                  </span>
+                <div className="mt-8 pt-2 border-t border-black flex items-center justify-between text-black px-1 gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <img
+                      src={LOGO_VINHO}
+                      alt="Logo CPS"
+                      className="h-7 w-auto object-contain"
+                    />
+                  </div>
+
+                  <div className="flex-1 mx-2 border border-black rounded-[14px] px-3 py-1 bg-white text-black flex flex-col justify-between min-h-[38px] shadow-none">
+                    <span className="text-[9px] font-black uppercase tracking-wider font-sans text-black leading-none pt-0.5">
+                      ASSINATURA DO ALUNO(A):
+                    </span>
+                    <div className="border-b border-black w-full mb-1"></div>
+                  </div>
+
+                  <div className="flex flex-col text-right text-black shrink-0">
+                    <span className="text-[10px] font-black uppercase">Boa Prova! ⬢ {selectedSubject}</span>
+                    <span className="text-[7px] font-bold uppercase opacity-70">COLEGIO PROGRESSO SANTISTA</span>
+                  </div>
                 </div>
               </div>
             </div>

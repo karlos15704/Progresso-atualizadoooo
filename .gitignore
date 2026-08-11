@@ -12,3 +12,6 @@ scratch/
 
 
 .vercel
+
+.vercel
+.env*

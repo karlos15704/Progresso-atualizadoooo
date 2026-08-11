@@ -22,7 +22,7 @@ export const NexusPageHeader: React.FC<NexusPageHeaderProps> = ({
   subtitle,
   badge,
   icon,
-  breadcrumbs = [{ label: "NexusEdu" }, { label: title }],
+  breadcrumbs = [{ label: "NexusEdu" }, { label: title }] as BreadcrumbItem[],
   actions,
   className,
 }) => {

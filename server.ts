@@ -300,18 +300,15 @@ export { app };
 
 let supabaseAdmin: any = null;
 
+const FALLBACK_VPS_URL = 'http://163.176.229.188:8000';
+const FALLBACK_VPS_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJzZXJ2aWNlX3JvbGUiLAogICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwKICAgICJpYXQiOiAxNjQxNzY5MjAwLAogICAgImV4cCI6IDE3OTk1MzU2MDAKfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q';
+
 function getSupabaseAdmin() {
   if (!supabaseAdmin) {
-    const rawEnvUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-    if (!rawEnvUrl || rawEnvUrl === 'undefined' || rawEnvUrl === 'null' || rawEnvUrl.trim() === '') {
-      throw new Error("A variável de ambiente 'VITE_SUPABASE_URL' ou 'SUPABASE_URL' é obrigatória no backend.");
-    }
+    const rawEnvUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || FALLBACK_VPS_URL;
     const url = rawEnvUrl.trim().replace(/\/rest\/v1\/?$/, '');
     
-    const envKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
-    if (!envKey || envKey === 'undefined' || envKey === 'null' || envKey.trim() === '') {
-      throw new Error("A secret/variável de ambiente 'SUPABASE_SERVICE_ROLE_KEY' é obrigatória no backend.");
-    }
+    const envKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || FALLBACK_VPS_SERVICE_KEY;
       
     supabaseAdmin = createClient(url, envKey);
   }
@@ -2431,6 +2428,128 @@ async function ensureAvatarsBucketExists(admin: any) {
     } catch (err: any) {
       console.error("Erro ao fazer upload da imagem da prova:", err);
       res.status(500).json({ error: err.message || "Erro interno ao processar imagem." });
+    }
+  });
+
+  app.post("/api/exams/save", express.json({ limit: '50mb' }), async (req, res) => {
+    try {
+      const { examData, examId, forceReplace } = req.body;
+      if (!examData) {
+        return res.status(400).json({ error: "Dados da avaliação são obrigatórios." });
+      }
+
+      const admin = getSupabaseAdmin();
+
+      // If creating a new exam (no examId) and not forceReplace, check for active conflicts
+      if (!examId && !forceReplace && examData.class_year && examData.bimester && examData.subject && examData.exam_type) {
+        if (examData.exam_type !== "Recado") {
+          const { data: conflicts, error: confError } = await admin
+            .from("exams")
+            .select("id, title, exam_type, answer_key")
+            .eq("class_year", examData.class_year)
+            .eq("bimester", examData.bimester)
+            .eq("subject", examData.subject)
+            .eq("exam_type", examData.exam_type);
+
+          if (!confError && conflicts && conflicts.length > 0) {
+            const activeConflicts = conflicts.filter((e: any) => {
+              const meta = e.answer_key?._metadata || {};
+              return !meta.deletedAt;
+            });
+
+            if (activeConflicts.length > 0) {
+              return res.json({
+                conflict: true,
+                conflictingExam: activeConflicts[0],
+                message: `Já existe uma avaliação ativa do tipo "${examData.exam_type}" para a disciplina "${examData.subject}" na turma "${examData.class_year}" no "${examData.bimester}".`
+              });
+            }
+          }
+        }
+      }
+
+      // If forceReplace is true, trash any active conflicting exam
+      if (forceReplace && examData.class_year && examData.bimester && examData.subject && examData.exam_type) {
+        try {
+          const { data: conflicts } = await admin
+            .from("exams")
+            .select("id, title, answer_key")
+            .eq("class_year", examData.class_year)
+            .eq("bimester", examData.bimester)
+            .eq("subject", examData.subject)
+            .eq("exam_type", examData.exam_type);
+
+          if (conflicts && conflicts.length > 0) {
+            for (const conf of conflicts) {
+              const meta = conf.answer_key?._metadata || {};
+              if (!meta.deletedAt) {
+                await admin
+                  .from("exams")
+                  .update({
+                    answer_key: {
+                      ...(conf.answer_key || {}),
+                      _metadata: { ...meta, deletedAt: new Date().toISOString() }
+                    }
+                  })
+                  .eq("id", conf.id);
+              }
+            }
+          }
+        } catch (trashErr) {
+          console.warn("Aviso ao enviar conflito para a lixeira:", trashErr);
+        }
+      }
+
+      let savedExam: any = null;
+      if (examId) {
+        const { data, error } = await admin
+          .from("exams")
+          .update(examData)
+          .eq("id", examId)
+          .select()
+          .single();
+
+        if (error) throw error;
+        savedExam = data;
+      } else {
+        const { data, error } = await admin
+          .from("exams")
+          .insert({
+            ...examData,
+            created_at: examData.created_at || new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        savedExam = data;
+      }
+
+      // Update local backup file if exists
+      try {
+        const backupFile = path.join(BASE_DIR, 'exams.json');
+        if (fs.existsSync(backupFile)) {
+          let list = [];
+          try {
+            list = JSON.parse(fs.readFileSync(backupFile, 'utf-8'));
+          } catch (_) {}
+          if (Array.isArray(list)) {
+            if (examId) {
+              list = list.map((e: any) => e.id === examId ? { ...e, ...savedExam } : e);
+            } else {
+              list.unshift(savedExam);
+            }
+            fs.writeFileSync(backupFile, JSON.stringify(list, null, 2));
+          }
+        }
+      } catch (backupErr) {
+        console.warn("Aviso ao sincronizar backup local de exames:", backupErr);
+      }
+
+      return res.json({ success: true, exam: savedExam });
+    } catch (err: any) {
+      console.error("Erro ao salvar avaliação:", err);
+      return res.status(500).json({ error: err.message || "Erro interno ao salvar avaliação no banco de dados." });
     }
   });
 

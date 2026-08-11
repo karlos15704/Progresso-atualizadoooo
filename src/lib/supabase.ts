@@ -334,18 +334,35 @@ export const supabase: any = new Proxy({}, {
             insert: (payload: any) => {
               const payloads = Array.isArray(payload) ? payload : [payload];
               payloads.forEach(p => addToSyncQueue({ table, action: 'insert', payload: p }));
-              return Promise.resolve({ data: payload, error: null });
+              const insertResult = { data: payload, error: null };
+              const insertChain: any = {
+                select: () => insertChain,
+                single: () => Promise.resolve({ data: payloads[0] || null, error: null }),
+                maybeSingle: () => Promise.resolve({ data: payloads[0] || null, error: null }),
+                then: (onfulfilled: any, onrejected: any) => Promise.resolve(insertResult).then(onfulfilled, onrejected)
+              };
+              return insertChain;
             },
             update: (payload: any) => {
               let updateFilters: Record<string, string> = {};
+              const updateResult = { data: payload, error: null };
               const updateChain: any = {
                 eq: (col: string, val: any) => {
                   updateFilters[col] = val;
                   return updateChain;
                 },
-                then: (onfulfilled: any) => {
+                select: () => updateChain,
+                single: () => {
                   addToSyncQueue({ table, action: 'update', payload, filters: updateFilters });
-                  return Promise.resolve({ data: payload, error: null }).then(onfulfilled);
+                  return Promise.resolve({ data: payload, error: null });
+                },
+                maybeSingle: () => {
+                  addToSyncQueue({ table, action: 'update', payload, filters: updateFilters });
+                  return Promise.resolve({ data: payload, error: null });
+                },
+                then: (onfulfilled: any, onrejected: any) => {
+                  addToSyncQueue({ table, action: 'update', payload, filters: updateFilters });
+                  return Promise.resolve(updateResult).then(onfulfilled, onrejected);
                 }
               };
               return updateChain;
