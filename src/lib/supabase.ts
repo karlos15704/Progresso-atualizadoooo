@@ -12,7 +12,9 @@ const rawUrl = (rawEnvUrl && rawEnvUrl !== 'undefined' && rawEnvUrl !== 'null' &
 
 // Sanitize URL to remove trailing /rest/v1/ or /rest/v1 if present in user pasted secrets
 let supabaseUrl = rawUrl.trim().replace(/\/rest\/v1\/?$/, '');
-if (supabaseUrl && !supabaseUrl.startsWith('http://') && !supabaseUrl.startsWith('https://')) {
+if (typeof window !== "undefined") {
+  supabaseUrl = window.location.origin + "/supabase";
+} else if (supabaseUrl && !supabaseUrl.startsWith('http://') && !supabaseUrl.startsWith('https://')) {
   supabaseUrl = 'http://' + supabaseUrl;
 }
 
