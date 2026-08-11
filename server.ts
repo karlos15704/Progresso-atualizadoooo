@@ -159,8 +159,8 @@ const globalLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // Limit login/auth attempts
-  message: { error: "Muitas tentativas de acesso. Tente novamente em 15 minutos." },
+  max: 1000, // Enterprise scale allowance
+  message: { error: "Muitas tentativas de acesso. Tente novamente em alguns minutos." },
   standardHeaders: true,
   legacyHeaders: false,
 });
