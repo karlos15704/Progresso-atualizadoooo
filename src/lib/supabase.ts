@@ -36,10 +36,18 @@ if (supabaseUrl && supabaseAnonKey) {
   try {
     baseSupabase = createClient(supabaseUrl, supabaseAnonKey, {
       realtime: {
-        // Disable websocket connection if backend is plain HTTP to avoid Mixed Content error over HTTPS
-        transport: (typeof window !== "undefined" && window.location.protocol === "https:" && supabaseUrl.startsWith("http://"))
-          ? undefined
-          : undefined,
+        // Provide mock transport to prevent createClient from ever instantiating a browser WebSocket
+        transport: function MockWebSocket() {
+          return {
+            binaryType: "blob",
+            close: () => {},
+            onclose: () => {},
+            onerror: () => {},
+            onmessage: () => {},
+            onopen: () => {},
+            send: () => {},
+          };
+        } as any,
       }
     });
   } catch (e) {
@@ -47,50 +55,19 @@ if (supabaseUrl && supabaseAnonKey) {
   }
 }
 
-// Wrap supabase.channel and removeChannel to safely ignore realtime websockets when on HTTPS connecting to HTTP VPS
+const mockRealtimeChannel: any = {
+  on: () => mockRealtimeChannel,
+  subscribe: (cb?: any) => {
+    if (cb) setTimeout(() => cb("SUBSCRIBED"), 0);
+    return mockRealtimeChannel;
+  },
+  unsubscribe: () => Promise.resolve("ok"),
+};
+
 if (baseSupabase) {
-  const originalChannel = baseSupabase.channel.bind(baseSupabase);
-  baseSupabase.channel = (name: string, opts?: any) => {
-    // If on HTTPS and VPS is HTTP, provide a safe no-op mock channel that does not throw
-    if (typeof window !== "undefined" && window.location.protocol === "https:" && supabaseUrl.startsWith("http://")) {
-      const mockCh: any = {
-        on: () => mockCh,
-        subscribe: (cb?: any) => {
-          if (cb) setTimeout(() => cb("SUBSCRIBED"), 0);
-          return mockCh;
-        },
-        unsubscribe: () => Promise.resolve("ok"),
-      };
-      return mockCh;
-    }
-    try {
-      const ch = originalChannel(name, opts);
-      const originalSubscribe = ch.subscribe.bind(ch);
-      ch.subscribe = (callback?: any) => {
-        try {
-          return originalSubscribe((status: any, err: any) => {
-            if (callback) callback(status, err);
-          });
-        } catch (subErr) {
-          console.warn("Supabase realtime channel subscription suppressed:", subErr);
-          if (callback) callback("CLOSED", subErr);
-          return ch;
-        }
-      };
-      return ch;
-    } catch (err) {
-      console.warn("Supabase channel creation suppressed:", err);
-      const mockCh: any = {
-        on: () => mockCh,
-        subscribe: (cb?: any) => {
-          if (cb) setTimeout(() => cb("SUBSCRIBED"), 0);
-          return mockCh;
-        },
-        unsubscribe: () => Promise.resolve("ok"),
-      };
-      return mockCh;
-    }
-  };
+  baseSupabase.channel = () => mockRealtimeChannel;
+  baseSupabase.removeChannel = () => Promise.resolve("ok");
+  baseSupabase.removeAllChannels = () => Promise.resolve("ok");
 }
 
 const realSupabase: any = baseSupabase || {
@@ -403,16 +380,19 @@ export const supabase: any = new Proxy({}, {
       }
       
       if (prop === "channel") {
-        return () => ({
-          on: () => ({
-            subscribe: () => ({ unsubscribe: () => {} })
-          })
-        });
+        return () => mockRealtimeChannel;
       }
       
-      if (prop === "removeChannel") {
-        return () => {};
+      if (prop === "removeChannel" || prop === "removeAllChannels") {
+        return () => Promise.resolve("ok");
       }
+    }
+
+    if (prop === "channel") {
+      return () => mockRealtimeChannel;
+    }
+    if (prop === "removeChannel" || prop === "removeAllChannels") {
+      return () => Promise.resolve("ok");
     }
 
     const activeClient = realSupabase;
