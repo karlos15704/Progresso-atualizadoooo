@@ -6335,6 +6335,45 @@ function LoginView({
 
       if (!signInErr && authData?.user) {
         staffAuthSuccess = true;
+        const loggedUser = authData.user;
+        const role = loggedUser.user_metadata?.role || "professor";
+        const emailLower = (loggedUser.email || "").toLowerCase();
+        const roleLower = role.toLowerCase();
+        const isUserAdmin = (
+          emailLower.includes("cps@") ||
+          emailLower.includes("ti@") ||
+          emailLower.includes("karlos15704") ||
+          emailLower.includes("master@") ||
+          emailLower.includes("admin@") ||
+          roleLower.includes("admin") ||
+          roleLower.includes("ti") ||
+          roleLower.includes("suporte") ||
+          roleLower.includes("coordenador") ||
+          roleLower.includes("coordenadora") ||
+          roleLower.includes("diretor") ||
+          roleLower.includes("diretoria") ||
+          roleLower.includes("secretaria")
+        );
+
+        const profileObj = {
+          uid: loggedUser.id,
+          email: loggedUser.email,
+          username: safeUsername,
+          role: role,
+          professional_name: loggedUser.user_metadata?.displayName || safeUsername.toUpperCase(),
+          assigned_subjects: [],
+          assigned_classes: []
+        };
+
+        try {
+          localStorage.setItem("cps_cached_profile", JSON.stringify(profileObj));
+          localStorage.setItem("cps_cached_user", JSON.stringify(loggedUser));
+        } catch (_) {}
+
+        if (onOfflineLogin) {
+          onOfflineLogin(loggedUser, profileObj, isUserAdmin);
+        }
+
         // Record successful login attempt
         robustFetch("/api/auth/record-login", {
           method: "POST",
@@ -6346,7 +6385,7 @@ function LoginView({
           }),
         }).catch(() => {});
         setLoading(false);
-        return; // Supabase listener automatically routes staff user
+        return;
       } else {
         authError = signInErr;
       }

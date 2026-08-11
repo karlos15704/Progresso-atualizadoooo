@@ -428,23 +428,18 @@ if (typeof window !== "undefined") {
       }
     } catch (e) {
       if (!isCurrentlyOffline) {
-        console.warn("[Connection] Conexão com o servidor perdida. Ativando modo offline automaticamente...");
-        localStorage.setItem("cps_offline_mode", "true");
-        window.dispatchEvent(new CustomEvent("cps_offline_status_changed", { detail: { offline: true } }));
-        window.location.reload();
+        console.warn("[Connection] Ping de saúde falhou. Mantendo estado atual sem forçar recarregamento.");
       }
     }
   };
 
   window.addEventListener("online", checkConnection);
   window.addEventListener("offline", () => {
-    localStorage.setItem("cps_offline_mode", "true");
-    window.dispatchEvent(new CustomEvent("cps_offline_status_changed", { detail: { offline: true } }));
-    window.location.reload();
+    console.warn("[Connection] Offline event detected");
   });
 
-  // Verificar a cada 20 segundos
-  setInterval(checkConnection, 20000);
+  // Verificar a cada 60 segundos
+  setInterval(checkConnection, 60000);
 }
 
 if (typeof window !== "undefined") {
