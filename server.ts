@@ -296,7 +296,6 @@ app.post("/api/auth/vps-login", async (req, res) => {
   return res.status(401).json({ error: "Usuário ou senha incorretos." });
 });
 
-export { app };
 
 let supabaseAdmin: any = null;
 
@@ -3494,6 +3493,8 @@ async function runServer() {
     fs.appendFileSync(LOG_FILE, msg + "\n");
   });
 }
+
+export { app };
 
 if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
   runServer().catch(err => {
