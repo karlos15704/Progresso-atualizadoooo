@@ -512,10 +512,9 @@ if (typeof window !== "undefined") {
     return (
       lower.includes("refresh token") ||
       lower.includes("refresh_token") ||
+      lower.includes("refresh token") ||
+      lower.includes("refresh_token") ||
       lower.includes("invalid_grant") ||
-      lower.includes("session not found") ||
-      lower.includes("session_not_found") ||
-      lower.includes("authsessionmissingerror") ||
       lower.includes("jwt expired") ||
       lower.includes("token is expired")
     );

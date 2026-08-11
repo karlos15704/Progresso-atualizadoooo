@@ -20643,7 +20643,12 @@ function BancoProvasView({
         return matchBimester && matchClass && matchCategory && matchProfessor;
       })
       .sort((a, b) => {
-        // Primary sort: Subject (alphabetical/Portuguese order)
+        // Primary sort: Date (newest first)
+        const dateA = new Date(a.createdAt || 0).getTime();
+        const dateB = new Date(b.createdAt || 0).getTime();
+        if (dateB !== dateA) return dateB - dateA;
+        
+        // Secondary sort: Subject (alphabetical/Portuguese order)
         const subjectComp = (a.subject || "").localeCompare(
           b.subject || "",
           "pt",
@@ -20651,18 +20656,13 @@ function BancoProvasView({
         );
         if (subjectComp !== 0) return subjectComp;
 
-        // Secondary sort: Class (natural alphanumeric order)
+        // Tertiary sort: Class (natural alphanumeric order)
         const classComp = (a.classYear || "").localeCompare(
           b.classYear || "",
           undefined,
           { numeric: true, sensitivity: "base" },
         );
-        if (classComp !== 0) return classComp;
-
-        // Tertiary sort: Date (newest first)
-        const dateA = new Date(a.createdAt || 0).getTime();
-        const dateB = new Date(b.createdAt || 0).getTime();
-        return dateB - dateA;
+        return classComp;
       });
   }, [currentExams, bimesterFilter, classFilter, categoryFilter, professorFilter, isAdmin, schoolInfo.bimesterDates]);
 
