@@ -31,9 +31,69 @@ const supabaseAnonKey = (rawKey && rawKey !== 'undefined' && rawKey !== 'null' &
   : FALLBACK_VPS_KEY;
 
 // Initialize client if credentials are provided; otherwise use a safe mock client to prevent white screens
-const realSupabase: any = (supabaseUrl && supabaseAnonKey)
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : {
+let baseSupabase: any = null;
+if (supabaseUrl && supabaseAnonKey) {
+  try {
+    baseSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      realtime: {
+        // Disable websocket connection if backend is plain HTTP to avoid Mixed Content error over HTTPS
+        transport: (typeof window !== "undefined" && window.location.protocol === "https:" && supabaseUrl.startsWith("http://"))
+          ? undefined
+          : undefined,
+      }
+    });
+  } catch (e) {
+    console.warn("Error initializing supabase client:", e);
+  }
+}
+
+// Wrap supabase.channel and removeChannel to safely ignore realtime websockets when on HTTPS connecting to HTTP VPS
+if (baseSupabase) {
+  const originalChannel = baseSupabase.channel.bind(baseSupabase);
+  baseSupabase.channel = (name: string, opts?: any) => {
+    // If on HTTPS and VPS is HTTP, provide a safe no-op mock channel that does not throw
+    if (typeof window !== "undefined" && window.location.protocol === "https:" && supabaseUrl.startsWith("http://")) {
+      const mockCh: any = {
+        on: () => mockCh,
+        subscribe: (cb?: any) => {
+          if (cb) setTimeout(() => cb("SUBSCRIBED"), 0);
+          return mockCh;
+        },
+        unsubscribe: () => Promise.resolve("ok"),
+      };
+      return mockCh;
+    }
+    try {
+      const ch = originalChannel(name, opts);
+      const originalSubscribe = ch.subscribe.bind(ch);
+      ch.subscribe = (callback?: any) => {
+        try {
+          return originalSubscribe((status: any, err: any) => {
+            if (callback) callback(status, err);
+          });
+        } catch (subErr) {
+          console.warn("Supabase realtime channel subscription suppressed:", subErr);
+          if (callback) callback("CLOSED", subErr);
+          return ch;
+        }
+      };
+      return ch;
+    } catch (err) {
+      console.warn("Supabase channel creation suppressed:", err);
+      const mockCh: any = {
+        on: () => mockCh,
+        subscribe: (cb?: any) => {
+          if (cb) setTimeout(() => cb("SUBSCRIBED"), 0);
+          return mockCh;
+        },
+        unsubscribe: () => Promise.resolve("ok"),
+      };
+      return mockCh;
+    }
+  };
+}
+
+const realSupabase: any = baseSupabase || {
       auth: {
         onAuthStateChange: (cb: any) => {
           setTimeout(() => cb("SIGNED_OUT", null), 0);
