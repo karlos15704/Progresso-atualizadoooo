@@ -53,6 +53,11 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   static getDerivedStateFromError(error: any) {
+    const msg = (error?.message || error?.toString() || "").toLowerCase();
+    if (msg.includes("websocket") || msg.includes("insecure") || msg.includes("failed to fetch") || msg.includes("network")) {
+      console.warn("ErrorBoundary suppressed non-fatal connection error:", error);
+      return { hasError: false, error: null };
+    }
     return { hasError: true, error };
   }
 
@@ -63,6 +68,10 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   render() {
     // @ts-ignore
     if (this.state.hasError) {
+      const msg = (this.state.error?.message || this.state.error?.toString() || "").toLowerCase();
+      if (msg.includes("websocket") || msg.includes("insecure") || msg.includes("failed to fetch") || msg.includes("network")) {
+        return this.props.children;
+      }
       return (
         <div style={{ padding: 20, color: 'red', fontFamily: 'monospace' }}>
           <h2>Something went wrong.</h2>
