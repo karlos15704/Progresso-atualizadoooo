@@ -1,15 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 
+// VPS Supabase Configuration
+const FALLBACK_VPS_URL = 'http://163.176.229.188:8000';
+const FALLBACK_VPS_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE';
+
 // @ts-ignore
 const rawEnvUrl = import.meta.env.VITE_SUPABASE_URL;
 const rawUrl = (rawEnvUrl && rawEnvUrl !== 'undefined' && rawEnvUrl !== 'null' && rawEnvUrl.trim() !== '') 
   ? rawEnvUrl 
-  : '';
+  : FALLBACK_VPS_URL;
 
 // Sanitize URL to remove trailing /rest/v1/ or /rest/v1 if present in user pasted secrets
 let supabaseUrl = rawUrl.trim().replace(/\/rest\/v1\/?$/, '');
 if (supabaseUrl && !supabaseUrl.startsWith('http://') && !supabaseUrl.startsWith('https://')) {
-  supabaseUrl = 'https://' + supabaseUrl;
+  supabaseUrl = 'http://' + supabaseUrl;
 }
 
 // @ts-ignore
@@ -21,10 +25,10 @@ const isSecretKey = rawKey && (
   rawKey.startsWith('sb_secret_')
 );
 
-// Fallback to empty if no valid anon key is provided
+// Fallback to VPS anon key if no valid anon key is provided
 const supabaseAnonKey = (rawKey && rawKey !== 'undefined' && rawKey !== 'null' && rawKey.trim() !== '' && !isSecretKey) 
   ? rawKey 
-  : '';
+  : FALLBACK_VPS_KEY;
 
 // Initialize client if credentials are provided; otherwise use a safe mock client to prevent white screens
 const realSupabase: any = (supabaseUrl && supabaseAnonKey)
