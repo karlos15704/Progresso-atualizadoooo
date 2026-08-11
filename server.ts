@@ -203,6 +203,9 @@ app.post("/api/auth/vps-login", async (req, res) => {
   for (const emailToTry of candidateEmails) {
     for (const pwdToTry of passwordsToTry) {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+
         const fetchRes = await fetch(`${vpsUrl}/auth/v1/token?grant_type=password`, {
           method: "POST",
           headers: {
@@ -212,8 +215,10 @@ app.post("/api/auth/vps-login", async (req, res) => {
           body: JSON.stringify({
             email: emailToTry,
             password: pwdToTry
-          })
+          }),
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
 
         if (fetchRes.ok) {
           const authData = await fetchRes.json();
@@ -224,17 +229,19 @@ app.post("/api/auth/vps-login", async (req, res) => {
 
             try {
               const admin = getSupabaseAdmin();
-              const { data: dbUser } = await admin
+              const profilePromise = admin
                 .from('users')
                 .select('*')
                 .eq('uid', authUser.id)
                 .maybeSingle();
+              const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500));
+              const { data: dbUser }: any = await Promise.race([profilePromise, timeoutPromise]);
               
               if (dbUser) {
                 userProfile = dbUser;
               }
             } catch (pErr) {
-              console.warn('[Proxy VPS Auth] Failed to fetch profile via admin:', pErr);
+              console.warn('[Proxy VPS Auth] Fast profile fetch fallback:', pErr);
             }
 
             if (!userProfile) {
