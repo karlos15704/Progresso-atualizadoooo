@@ -6244,11 +6244,35 @@ function LoginView({
           const proxyData = await proxyRes.json();
           if (proxyData && proxyData.session) {
             try {
-              await supabase.auth.setSession({
+              localStorage.setItem("cps_session", JSON.stringify(proxyData.session));
+              if (proxyData.profile) {
+                localStorage.setItem("cps_cached_profile", JSON.stringify(proxyData.profile));
+              }
+              if (proxyData.user) {
+                localStorage.setItem("cps_cached_user", JSON.stringify(proxyData.user));
+              }
+            } catch (_) {}
+
+            try {
+              supabase.auth.setSession({
                 access_token: proxyData.session.access_token,
                 refresh_token: proxyData.session.refresh_token
-              });
+              }).catch(() => {});
             } catch (_) {}
+
+            if (onOfflineLogin && proxyData.user) {
+              onOfflineLogin(
+                proxyData.user,
+                proxyData.profile || {
+                  uid: proxyData.user.id,
+                  email: proxyData.user.email,
+                  role: proxyData.isAdmin ? "admin" : "professor",
+                  professional_name: proxyData.user.user_metadata?.displayName || safeUsername.toUpperCase()
+                },
+                Boolean(proxyData.isAdmin)
+              );
+            }
+
             staffAuthSuccess = true;
             setLoading(false);
             return;

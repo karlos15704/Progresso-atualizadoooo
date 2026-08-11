@@ -218,7 +218,63 @@ app.post("/api/auth/vps-login", async (req, res) => {
         if (fetchRes.ok) {
           const authData = await fetchRes.json();
           if (authData && authData.access_token) {
-            return res.json({ success: true, session: authData, user: authData.user });
+            const authUser = authData.user;
+            let userProfile: any = null;
+            let isAdmin = false;
+
+            try {
+              const admin = getSupabaseAdmin();
+              const { data: dbUser } = await admin
+                .from('users')
+                .select('*')
+                .eq('uid', authUser.id)
+                .maybeSingle();
+              
+              if (dbUser) {
+                userProfile = dbUser;
+              }
+            } catch (pErr) {
+              console.warn('[Proxy VPS Auth] Failed to fetch profile via admin:', pErr);
+            }
+
+            if (!userProfile) {
+              userProfile = {
+                uid: authUser.id,
+                email: authUser.email,
+                username: safeUsername,
+                role: 'professor',
+                professional_name: authUser.user_metadata?.displayName || safeUsername.toUpperCase(),
+                assigned_subjects: [],
+                assigned_classes: []
+              };
+            }
+
+            const roleStr = (userProfile.role || '').toLowerCase();
+            const emailLower = (authUser.email || '').toLowerCase();
+            isAdmin = (
+              emailLower.includes('cps@') ||
+              emailLower.includes('ti@') ||
+              emailLower.includes('karlos15704') ||
+              emailLower.includes('master@') ||
+              emailLower.includes('admin@') ||
+              roleStr.includes('admin') ||
+              roleStr.includes('ti') ||
+              roleStr.includes('suporte') ||
+              roleStr.includes('coordenador') ||
+              roleStr.includes('coordenadora') ||
+              roleStr.includes('diretor') ||
+              roleStr.includes('diretoria') ||
+              roleStr.includes('secretaria') ||
+              roleStr.includes('vice_diretor')
+            );
+
+            return res.json({
+              success: true,
+              session: authData,
+              user: authUser,
+              profile: userProfile,
+              isAdmin: isAdmin
+            });
           }
         }
       } catch (err: any) {
