@@ -174,6 +174,62 @@ app.use("/api/", globalLimiter);
 app.use("/api/auth/", authLimiter);
 app.use("/api/ai/", aiLimiter);
 
+// --- ENTERPRISE PROXY AUTH FOR VPS SUPABASE ---
+app.post("/api/auth/vps-login", async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: "Usuário e senha são obrigatórios." });
+  }
+
+  const safeUsername = String(username).toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+  const candidateEmails = safeUsername.includes("@")
+    ? [safeUsername]
+    : [
+        `${safeUsername}@progresso.com.br`,
+        `${safeUsername}@nexusedu.com.br`,
+        `${safeUsername}@nexusedu.com`,
+        `${safeUsername}@cps.local`
+      ];
+
+  const rawEnvUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'http://163.176.229.188:8000';
+  const vpsUrl = rawEnvUrl.trim().replace(/\/rest\/v1\/?$/, '');
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE';
+
+  const passwordsToTry = [
+    password.endsWith("_cpsAuth") ? password : `${password}_cpsAuth`,
+    password
+  ];
+
+  for (const emailToTry of candidateEmails) {
+    for (const pwdToTry of passwordsToTry) {
+      try {
+        const fetchRes = await fetch(`${vpsUrl}/auth/v1/token?grant_type=password`, {
+          method: "POST",
+          headers: {
+            "apikey": anonKey,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            email: emailToTry,
+            password: pwdToTry
+          })
+        });
+
+        if (fetchRes.ok) {
+          const authData = await fetchRes.json();
+          if (authData && authData.access_token) {
+            return res.json({ success: true, session: authData, user: authData.user });
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[Proxy VPS Auth] Failed candidate attempt: ${emailToTry}`, err?.message);
+      }
+    }
+  }
+
+  return res.status(401).json({ error: "Usuário ou senha incorretos." });
+});
+
 export { app };
 
 let supabaseAdmin: any = null;

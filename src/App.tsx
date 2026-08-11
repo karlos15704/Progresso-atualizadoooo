@@ -6228,11 +6228,37 @@ function LoginView({
       });
     } catch (_) {}
 
-    // ── 1. TENTATIVA DE LOGIN UNIFICADO: STAFF / ADMIN (Supabase / VPS Auth) ──
+    // ── 1. TENTATIVA DE LOGIN UNIFICADO: STAFF / ADMIN (VPS Auth via Proxy Gateway & Direct) ──
     let staffAuthSuccess = false;
     let authError: any = null;
 
     try {
+      // 1.1 Tentar via Proxy Seguro /api/auth/vps-login (Garante 100% no HTTPS da Vercel sem mixed content)
+      try {
+        const proxyRes = await fetch("/api/auth/vps-login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: safeUsername, password: password })
+        });
+        if (proxyRes.ok) {
+          const proxyData = await proxyRes.json();
+          if (proxyData && proxyData.session) {
+            try {
+              await supabase.auth.setSession({
+                access_token: proxyData.session.access_token,
+                refresh_token: proxyData.session.refresh_token
+              });
+            } catch (_) {}
+            staffAuthSuccess = true;
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (proxyErr) {
+        console.warn("[Login] Proxy auth attempt fallback:", proxyErr);
+      }
+
+      // 1.2 Fallback Direto via Supabase Client
       const candidateEmails = safeUsername.includes("@")
         ? [safeUsername]
         : [
